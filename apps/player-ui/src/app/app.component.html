@@ -1,0 +1,29 @@
+<main class="container">
+  <h1>Cluedo AI - Player</h1>
+
+  <section class="panel">
+    <p><strong>Game State:</strong> {{ gameState }}</p>
+
+    <form (ngSubmit)="joinGame()" class="join-form" *ngIf="!currentPlayer && gameState === gameStatus.WAITING">
+      <label for="playerName">Player Name</label>
+      <input id="playerName" [(ngModel)]="playerName" name="playerName" required minlength="2" />
+      <button type="submit">Join Game</button>
+    </form>
+
+    <p *ngIf="currentPlayer"><strong>Joined as:</strong> {{ currentPlayer.name }}</p>
+    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
+  </section>
+
+  <section class="panel" *ngIf="assignedCard">
+    <h2>Your Assigned Card</h2>
+    <p><strong>Type:</strong> {{ assignedCard.type }}</p>
+    <p><strong>Value:</strong> {{ assignedCard.value }}</p>
+  </section>
+
+  <section class="panel">
+    <h2>Players ({{ players.length }})</h2>
+    <ul>
+      <li *ngFor="let player of players">{{ player.name }} - {{ player.role }}</li>
+    </ul>
+  </section>
+</main>

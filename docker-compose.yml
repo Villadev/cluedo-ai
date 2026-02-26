@@ -1,0 +1,26 @@
+version: '3.9'
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - PORT=3000
+  player-ui:
+    build:
+      context: .
+      dockerfile: apps/player-ui/Dockerfile
+    ports:
+      - '4200:80'
+    depends_on:
+      - backend
+  master-ui:
+    build:
+      context: .
+      dockerfile: apps/master-ui/Dockerfile
+    ports:
+      - '4300:80'
+    depends_on:
+      - backend

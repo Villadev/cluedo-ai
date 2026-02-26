@@ -1,0 +1,12 @@
+{
+  "name": "cluedo-ai",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.15.2",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter @cluedo/backend dev",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck"
+  }
+}

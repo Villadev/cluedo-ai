@@ -1,0 +1,9 @@
+node_modules
+pnpm-lock.yaml
+**/dist
+**/.angular
+**/out-tsc
+**/coverage
+apps/backend/prisma/dev.db
+apps/backend/prisma/dev.db-journal
+.env
