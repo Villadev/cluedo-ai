@@ -26,6 +26,8 @@
   "devDependencies": {
     "@angular/cli": "21.0.0",
     "@angular/compiler-cli": "21.0.0",
-    "typescript": "5.9.0"
+    "typescript": "5.9.0",
+    "tailwindcss": "4.1.12",
+    "@tailwindcss/postcss": "4.1.12"
   }
 }
