@@ -6,7 +6,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 COPY . .
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @cluedo/backend build
 
 WORKDIR /app/apps/backend
