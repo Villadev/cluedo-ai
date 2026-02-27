@@ -1,21 +1,5 @@
-<main class="container">
-  <h1>Cluedo AI - Master Dashboard</h1>
-
-  <section class="panel">
-    <p><strong>Game State:</strong> {{ gameState }}</p>
-    <button (click)="startGame()" [disabled]="!canStart">Start Game</button>
-    <button (click)="refresh()">Refresh</button>
-    <p *ngIf="players.length < 3 && gameState === gameStatus.WAITING">At least 3 players are required to start.</p>
-    <p class="error" *ngIf="errorMessage">{{ errorMessage }}</p>
-  </section>
-
-  <section class="panel">
-    <h2>Players ({{ players.length }})</h2>
-    <ul>
-      <li *ngFor="let player of players">
-        <strong>{{ player.name }}</strong> ({{ player.role }})
-        <span *ngIf="player.cardId">- Card assigned</span>
-      </li>
-    </ul>
-  </section>
-</main>
+<div class="theme-dark theme-master">
+  <ui-app-shell title="Master Control" subtitle="Game Orchestration" [navItems]="navItems">
+    <ui-dashboard-page />
+  </ui-app-shell>
+</div>

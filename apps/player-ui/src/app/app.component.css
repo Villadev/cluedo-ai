@@ -1,36 +1,3 @@
-.container {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
-}
-
-.panel {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.07);
-}
-
-.join-form {
-  display: grid;
-  gap: 0.5rem;
-}
-
-input,
-button {
-  padding: 0.55rem;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-}
-
-button {
-  cursor: pointer;
-  background: #0369a1;
-  color: #fff;
-  border: none;
-}
-
-.error {
-  color: #b91c1c;
+:host {
+  display: block;
 }

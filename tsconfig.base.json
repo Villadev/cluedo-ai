@@ -14,7 +14,12 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
-      "@cluedo/types": ["libs/types/index.ts"]
+      "@cluedo/types": [
+        "libs/types/index.ts"
+      ],
+      "@cluedo/ui-core": [
+        "libs/ui-core/index.ts"
+      ]
     }
   }
 }
