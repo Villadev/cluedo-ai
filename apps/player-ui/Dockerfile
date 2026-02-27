@@ -6,12 +6,12 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 COPY . .
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @cluedo/player-ui build
 
 FROM nginx:alpine
 
-COPY --from=build /app/apps/player-ui/dist/player-ui/browser /usr/share/nginx/html
+COPY --from=build /app/apps/player-ui/dist /usr/share/nginx/html
 
 EXPOSE 80
 
