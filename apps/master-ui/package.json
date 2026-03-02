@@ -26,13 +26,8 @@
   "devDependencies": {
     "@angular/cli": "21.0.0",
     "@angular/compiler-cli": "21.0.0",
-    "typescript": "5.9.3",
+    "@tailwindcss/postcss": "4.1.12",
     "tailwindcss": "4.1.12",
-    "@tailwindcss/postcss": "4.1.12"
-  },
-  "resolutions": {
-    "rxjs": "7.8.2",
-    "typescript": "5.9.3",
-    "zone.js": "~0.13.0"
+    "typescript": "5.9.3"
   }
 }
