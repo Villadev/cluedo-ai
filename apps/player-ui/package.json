@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "ng serve --host 0.0.0.0 --port 4200",
-    "build": "ng build",
+    "start": "ng serve player-ui --host 0.0.0.0 --port 4200",
+    "build": "ng build player-ui --configuration production",
+    "build:dev": "ng build player-ui --configuration development",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "lint": "echo 'No lint configured for player-ui'"
   },
@@ -21,9 +22,10 @@
     "rxjs": "7.8.2",
     "socket.io-client": "4.8.1",
     "tslib": "2.8.1",
-    "zone.js": "~0.13.0"
+    "zone.js": "~0.15.0"
   },
   "devDependencies": {
+    "@angular-devkit/build-angular": "21.0.0",
     "@angular/cli": "21.0.0",
     "@angular/compiler-cli": "21.0.0",
     "@tailwindcss/postcss": "4.1.12",
