@@ -1,11 +1,4 @@
 import {
-  GameStatus as PrismaGameStatus,
-  Role as PrismaRole,
-  type Card,
-  type Game,
-  type Player
-} from '@prisma/client';
-import {
   GameStatus,
   Role,
   type Card as CardType,
@@ -13,7 +6,7 @@ import {
   type GameStatePayload,
   type Player as PlayerType
 } from '@cluedo/types';
-import { prisma } from '../../database/prisma.js';
+import { db, generateId, nowIso, type Card, type Game, type StoredGame, type StoredPlayer } from '../../database/in-memory.js';
 import {
   emitGameStarted,
   emitGameStateUpdated,
@@ -26,32 +19,24 @@ const MIN_PLAYERS_TO_START = 3;
 
 export class GameService {
   public async getState(): Promise<GameStatePayload> {
-    await this.ensureMainGame();
+    const game = this.ensureMainGame();
 
-    const game = await prisma.game.findUniqueOrThrow({
-      where: { id: MAIN_GAME_ID }
-    });
-
-    const players = await prisma.player.findMany({
-      orderBy: { createdAt: 'asc' }
-    });
+    const players = [...db.players].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
     return {
       game: this.mapGame(game),
-      players: players.map((player: Player) => this.mapPlayer(player))
+      players: players.map((player) => this.mapPlayer(player))
     };
   }
 
   public async startGame(): Promise<GameStatePayload> {
-    const game = await this.ensureMainGame();
+    const game = this.ensureMainGame();
 
-    if (game.status !== PrismaGameStatus.WAITING) {
+    if (game.status !== 'WAITING') {
       throw new Error('Game can only be started from WAITING state');
     }
 
-    const players = await prisma.player.findMany({
-      orderBy: { createdAt: 'asc' }
-    });
+    const players = [...db.players].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
     if (players.length < MIN_PLAYERS_TO_START) {
       throw new Error(`At least ${MIN_PLAYERS_TO_START} players are required to start the game`);
@@ -61,42 +46,34 @@ export class GameService {
       throw new Error(`Maximum ${MAX_PLAYERS} players allowed`);
     }
 
-    const cards = await prisma.card.findMany();
+    const cards = [...db.cards];
 
     if (cards.length < players.length) {
       throw new Error('Not enough cards to assign one card per player');
     }
 
     const shuffledCards = this.shuffle(cards);
+    const assignedPlayers = players.map((player, index) => {
+      const card = shuffledCards[index];
+      if (!card) {
+        throw new Error('Card assignment failed due to missing card');
+      }
 
-    const assignedPlayers = await prisma.$transaction(async (tx) => {
-      const updates = players.map((player: Player, index: number) => {
-        const card = shuffledCards[index];
-        if (!card) {
-          throw new Error('Card assignment failed due to missing card');
-        }
-        return tx.player.update({
-          where: { id: player.id },
-          data: { cardId: card.id },
-          include: { card: true }
-        });
-      });
+      const storedPlayer = db.players.find((currentPlayer) => currentPlayer.id === player.id);
+      if (!storedPlayer) {
+        throw new Error(`Player ${player.id} was not found while assigning cards`);
+      }
 
-      const updatedPlayers = await Promise.all(updates);
-
-      await tx.game.update({
-        where: { id: MAIN_GAME_ID },
-        data: { status: PrismaGameStatus.STARTED }
-      });
-
-      return updatedPlayers;
+      storedPlayer.cardId = card.id;
+      storedPlayer.updatedAt = nowIso();
+      return { player: storedPlayer, card };
     });
 
-    assignedPlayers.forEach((player) => {
-      if (!player.card) {
-        throw new Error(`Player ${player.id} was not assigned a card`);
-      }
-      emitPlayerAssignedCard(player.id, this.mapCard(player.card));
+    game.status = 'STARTED';
+    game.updatedAt = nowIso();
+
+    assignedPlayers.forEach(({ player, card }) => {
+      emitPlayerAssignedCard(player.id, this.mapCard(card));
     });
 
     const state = await this.getState();
@@ -106,31 +83,38 @@ export class GameService {
   }
 
   public async finishGame(): Promise<GameStatePayload> {
-    const game = await this.ensureMainGame();
+    const game = this.ensureMainGame();
 
-    if (game.status !== PrismaGameStatus.STARTED) {
+    if (game.status !== 'STARTED') {
       throw new Error('Game can only be finished from STARTED state');
     }
 
-    await prisma.game.update({
-      where: { id: MAIN_GAME_ID },
-      data: { status: PrismaGameStatus.FINISHED }
-    });
+    game.status = 'ENDED';
+    game.updatedAt = nowIso();
 
     const state = await this.getState();
     emitGameStateUpdated(state);
     return state;
   }
 
-  private async ensureMainGame(): Promise<Game> {
-    return prisma.game.upsert({
-      where: { id: MAIN_GAME_ID },
-      update: {},
-      create: {
-        id: MAIN_GAME_ID,
-        status: PrismaGameStatus.WAITING
-      }
-    });
+  public ensureMainGame(): StoredGame {
+    const existingGame = db.games.find((entry) => entry.id === MAIN_GAME_ID);
+    if (existingGame) {
+      existingGame.players = db.players;
+      return existingGame;
+    }
+
+    const timestamp = nowIso();
+    const game: StoredGame = {
+      id: MAIN_GAME_ID,
+      status: 'WAITING',
+      players: db.players,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+
+    db.games.push(game);
+    return game;
   }
 
   private shuffle<T>(items: T[]): T[] {
@@ -147,16 +131,16 @@ export class GameService {
     return copy;
   }
 
-  private mapGame(game: Game): GameType {
+  private mapGame(game: Game & Pick<StoredGame, 'createdAt' | 'updatedAt'>): GameType {
     return {
       id: game.id,
       status: this.mapGameStatus(game.status),
-      createdAt: game.createdAt.toISOString(),
-      updatedAt: game.updatedAt.toISOString()
+      createdAt: game.createdAt,
+      updatedAt: game.updatedAt
     };
   }
 
-  private mapPlayer(player: Player): PlayerType {
+  private mapPlayer(player: StoredPlayer): PlayerType {
     return {
       id: player.id,
       name: player.name,
@@ -165,24 +149,17 @@ export class GameService {
     };
   }
 
-  private mapRole(role: PrismaRole): Role {
-    switch (role) {
-      case PrismaRole.MASTER:
-        return Role.MASTER;
-      case PrismaRole.PLAYER:
-        return Role.PLAYER;
-      default:
-        throw new Error(`Unknown role value: ${role}`);
-    }
+  private mapRole(role: 'PLAYER' | 'MASTER'): Role {
+    return role === 'MASTER' ? Role.MASTER : Role.PLAYER;
   }
 
-  private mapGameStatus(status: PrismaGameStatus): GameStatus {
+  private mapGameStatus(status: 'WAITING' | 'STARTED' | 'ENDED'): GameStatus {
     switch (status) {
-      case PrismaGameStatus.WAITING:
+      case 'WAITING':
         return GameStatus.WAITING;
-      case PrismaGameStatus.STARTED:
+      case 'STARTED':
         return GameStatus.STARTED;
-      case PrismaGameStatus.FINISHED:
+      case 'ENDED':
         return GameStatus.FINISHED;
       default:
         throw new Error(`Unknown game status value: ${status}`);
@@ -192,8 +169,24 @@ export class GameService {
   private mapCard(card: Card): CardType {
     return {
       id: card.id,
-      type: card.type,
-      value: card.value
+      type: 'CLUE',
+      value: card.name
     };
+  }
+
+  public createPlayer(name: string, role: 'PLAYER' | 'MASTER'): StoredPlayer {
+    const timestamp = nowIso();
+    const player: StoredPlayer = {
+      id: generateId(),
+      name,
+      role,
+      cardId: null,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    };
+
+    db.players.push(player);
+    this.ensureMainGame().players = db.players;
+    return player;
   }
 }

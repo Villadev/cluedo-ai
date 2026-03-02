@@ -16,6 +16,5 @@ WORKDIR /app/apps/backend
 
 EXPOSE 3000
 
-VOLUME ["/app/apps/backend/prisma"]
 
 CMD ["node", "dist/main.js"]

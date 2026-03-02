@@ -1,41 +1,34 @@
-import { Role as PrismaRole, GameStatus as PrismaGameStatus, type Player } from '@prisma/client';
 import { Role, type Player as PlayerType } from '@cluedo/types';
-import { prisma } from '../../database/prisma.js';
+import { db } from '../../database/in-memory.js';
 import { emitGameStateUpdated, emitPlayerJoined } from '../../websocket/socket.js';
 import { GameService } from '../game/game.service.js';
 
-const MAIN_GAME_ID = 'MAIN_GAME';
 const MAX_PLAYERS = 15;
 
 export class PlayerService {
   private readonly gameService = new GameService();
 
   public async joinPlayer(name: string, role: Role): Promise<PlayerType> {
-    const game = await prisma.game.upsert({
-      where: { id: MAIN_GAME_ID },
-      update: {},
-      create: {
-        id: MAIN_GAME_ID,
-        status: PrismaGameStatus.WAITING
-      }
-    });
+    const game = this.gameService.ensureMainGame();
 
-    if (game.status !== PrismaGameStatus.WAITING) {
+    if (game.status !== 'WAITING') {
       throw new Error('Players can only join while game status is WAITING');
     }
 
-    const playerCount = await prisma.player.count();
+    const playerCount = db.players.length;
     if (playerCount >= MAX_PLAYERS) {
       throw new Error(`Maximum ${MAX_PLAYERS} players reached`);
     }
 
-    const player = await prisma.player.create({
-      data: {
-        name,
-        role: this.mapRoleToPrisma(role),
-        gameId: MAIN_GAME_ID
-      }
-    });
+    const normalizedName = name.trim();
+    const hasNameConflict = db.players.some(
+      (existingPlayer) => existingPlayer.name.toLowerCase() === normalizedName.toLowerCase()
+    );
+    if (hasNameConflict) {
+      throw new Error('Unique constraint failed on player name');
+    }
+
+    const player = this.gameService.createPlayer(normalizedName, this.mapRoleToInMemory(role));
 
     const mappedPlayer: PlayerType = {
       id: player.id,
@@ -53,11 +46,9 @@ export class PlayerService {
   }
 
   public async listPlayers(): Promise<PlayerType[]> {
-    const players = await prisma.player.findMany({
-      orderBy: { createdAt: 'asc' }
-    });
+    const players = [...db.players].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 
-    return players.map((player: Player) => ({
+    return players.map((player) => ({
       id: player.id,
       name: player.name,
       role: this.mapRole(player.role),
@@ -65,25 +56,11 @@ export class PlayerService {
     }));
   }
 
-  private mapRole(role: PrismaRole): Role {
-    switch (role) {
-      case PrismaRole.MASTER:
-        return Role.MASTER;
-      case PrismaRole.PLAYER:
-        return Role.PLAYER;
-      default:
-        throw new Error(`Unknown role value: ${role}`);
-    }
+  private mapRole(role: 'PLAYER' | 'MASTER'): Role {
+    return role === 'MASTER' ? Role.MASTER : Role.PLAYER;
   }
 
-  private mapRoleToPrisma(role: Role): PrismaRole {
-    switch (role) {
-      case Role.MASTER:
-        return PrismaRole.MASTER;
-      case Role.PLAYER:
-        return PrismaRole.PLAYER;
-      default:
-        throw new Error(`Unknown role value: ${role}`);
-    }
+  private mapRoleToInMemory(role: Role): 'PLAYER' | 'MASTER' {
+    return role === Role.MASTER ? 'MASTER' : 'PLAYER';
   }
 }
