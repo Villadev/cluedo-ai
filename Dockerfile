@@ -10,13 +10,13 @@ COPY apps ./apps
 COPY libs ./libs
 
 RUN pnpm install --no-frozen-lockfile
-RUN pnpm exec ng build master-ui --configuration production
-RUN pnpm exec ng build player-ui --configuration production
+RUN pnpm --dir apps/master-ui exec ng build master-ui --configuration production
+RUN pnpm --dir apps/player-ui exec ng build player-ui --configuration production
 
 FROM nginx:alpine AS production
 
-COPY --from=build /app/apps/master-ui/dist/master-ui/browser /usr/share/nginx/html/master-ui
-COPY --from=build /app/apps/player-ui/dist/player-ui/browser /usr/share/nginx/html/player-ui
+COPY --from=build /app/apps/master-ui/dist/master-ui /usr/share/nginx/html/master-ui
+COPY --from=build /app/apps/player-ui/dist/player-ui /usr/share/nginx/html/player-ui
 
 EXPOSE 80
 
