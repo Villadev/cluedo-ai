@@ -9,11 +9,10 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:application",
+          "builder": "@angular-devkit/build-angular:browser",
           "options": {
             "outputPath": "dist/master-ui",
             "index": "src/index.html",
-            "browser": "src/main.ts",
             "polyfills": [
               "zone.js"
             ],
@@ -26,7 +25,8 @@
             ],
             "styles": [
               "src/styles.scss"
-            ]
+            ],
+            "main": "src/main.ts"
           },
           "configurations": {
             "production": {
