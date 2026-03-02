@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "ng serve player-ui --host 0.0.0.0 --port 4200",
-    "build": "ng build player-ui --configuration production",
+    "build": "ng build player-ui",
     "build:dev": "ng build player-ui --configuration development",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "lint": "echo 'No lint configured for player-ui'"
@@ -25,9 +25,6 @@
     "zone.js": "~0.15.0"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "21.0.0",
-    "@angular/cli": "21.0.0",
-    "@angular/compiler-cli": "21.0.0",
     "@tailwindcss/postcss": "4.1.12",
     "tailwindcss": "4.1.12",
     "typescript": "5.9.3"
