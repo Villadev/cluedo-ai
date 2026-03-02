@@ -1,11 +1,8 @@
 import { createServer } from 'node:http';
-import { GameStatus as PrismaGameStatus } from '@prisma/client';
 import { env } from './config/env.js';
-import { prisma } from './database/prisma.js';
 import { createApp } from './app.js';
+import { GameService } from './modules/game/game.service.js';
 import { initSocket } from './websocket/socket.js';
-
-const MAIN_GAME_ID = 'MAIN_GAME';
 
 const bootstrap = async (): Promise<void> => {
   const app = createApp();
@@ -13,11 +10,7 @@ const bootstrap = async (): Promise<void> => {
 
   initSocket(httpServer);
 
-  await prisma.game.upsert({
-    where: { id: MAIN_GAME_ID },
-    update: {},
-    create: { id: MAIN_GAME_ID, status: PrismaGameStatus.WAITING }
-  });
+  new GameService().ensureMainGame();
 
   httpServer.listen(env.PORT, () => {
     process.stdout.write(`Backend listening on port ${env.PORT}\n`);
