@@ -10,14 +10,18 @@
     "typecheck": "pnpm -r typecheck"
   },
   "dependencies": {
+    "typescript": "5.9.3",
     "rxjs": "7.8.2",
     "zone.js": "~0.13.0"
   },
   "resolutions": {
-    "rxjs": "7.8.2"
+    "typescript": "5.9.3",
+    "rxjs": "7.8.2",
+    "zone.js": "~0.13.0"
   },
   "pnpm": {
     "overrides": {
+      "typescript": "5.9.3",
       "rxjs": "7.8.2",
       "zone.js": "~0.13.0"
     }
