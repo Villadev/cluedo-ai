@@ -10,7 +10,7 @@ RUN corepack prepare pnpm@latest --activate
 COPY . .
 
 RUN pnpm install --no-frozen-lockfile
-RUN pnpm --filter @cluedo/player-ui build
+RUN pnpm exec ng build player-ui --configuration production
 
 FROM nginx:alpine
 
