@@ -1,5 +1,4 @@
-import { GameStatus, Role, type Player as PlayerType } from '@cluedo/types';
-import { GameStatus as PrismaGameStatus, Role as PrismaRole } from '@prisma/client';
+import { Role, type Player as PlayerType } from '@cluedo/types';
 import { prisma } from '../../database/prisma.js';
 import { emitGameStateUpdated, emitPlayerJoined } from '../../websocket/socket.js';
 import { GameService } from '../game/game.service.js';
@@ -7,20 +6,26 @@ import { GameService } from '../game/game.service.js';
 const MAIN_GAME_ID = 'MAIN_GAME';
 const MAX_PLAYERS = 15;
 
+const DB_GAME_STATUS = {
+  WAITING: 'WAITING'
+} as const;
+
+type DbRole = Role;
+
 export class PlayerService {
   private readonly gameService = new GameService();
 
-  public async joinPlayer(name: string, role: PrismaRole): Promise<PlayerType> {
+  public async joinPlayer(name: string, role: Role): Promise<PlayerType> {
     const game = await prisma.game.upsert({
       where: { id: MAIN_GAME_ID },
       update: {},
       create: {
         id: MAIN_GAME_ID,
-        status: PrismaGameStatus.WAITING
+        status: DB_GAME_STATUS.WAITING
       }
     });
 
-    if (game.status !== PrismaGameStatus.WAITING) {
+    if (game.status !== DB_GAME_STATUS.WAITING) {
       throw new Error('Players can only join while game status is WAITING');
     }
 
@@ -65,11 +70,11 @@ export class PlayerService {
     }));
   }
 
-  private mapRole(role: PrismaRole): Role {
+  private mapRole(role: DbRole): Role {
     switch (role) {
-      case PrismaRole.MASTER:
+      case Role.MASTER:
         return Role.MASTER;
-      case PrismaRole.PLAYER:
+      case Role.PLAYER:
         return Role.PLAYER;
       default:
         throw new Error(`Unknown role value: ${role}`);

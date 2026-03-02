@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { Role } from '@prisma/client';
+import { Role } from '@cluedo/types';
 import { z } from 'zod';
 import { PlayerService } from './player.service.js';
 
@@ -23,7 +23,7 @@ export class PlayerController {
       const player = await playerService.joinPlayer(parsed.data.name, parsed.data.role);
       res.status(201).json(player);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unexpected error';
+      const message = this.getErrorMessage(error, 'Unexpected error');
       const status = message.includes('Unique constraint') ? 409 : 400;
       res.status(status).json({ message });
     }
@@ -34,8 +34,12 @@ export class PlayerController {
       const players = await playerService.listPlayers();
       res.status(200).json(players);
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unexpected error';
+      const message = this.getErrorMessage(error, 'Unexpected error');
       res.status(500).json({ message });
     }
+  }
+
+  private getErrorMessage(error: unknown, fallback: string): string {
+    return error instanceof Error ? error.message : fallback;
   }
 }
