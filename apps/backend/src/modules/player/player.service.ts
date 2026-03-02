@@ -1,3 +1,4 @@
+import { Role as PrismaRole, GameStatus as PrismaGameStatus, type Player } from '@prisma/client';
 import { Role, type Player as PlayerType } from '@cluedo/types';
 import { prisma } from '../../database/prisma.js';
 import { emitGameStateUpdated, emitPlayerJoined } from '../../websocket/socket.js';
@@ -5,12 +6,6 @@ import { GameService } from '../game/game.service.js';
 
 const MAIN_GAME_ID = 'MAIN_GAME';
 const MAX_PLAYERS = 15;
-
-const DB_GAME_STATUS = {
-  WAITING: 'WAITING'
-} as const;
-
-type DbRole = Role;
 
 export class PlayerService {
   private readonly gameService = new GameService();
@@ -21,11 +16,11 @@ export class PlayerService {
       update: {},
       create: {
         id: MAIN_GAME_ID,
-        status: DB_GAME_STATUS.WAITING
+        status: PrismaGameStatus.WAITING
       }
     });
 
-    if (game.status !== DB_GAME_STATUS.WAITING) {
+    if (game.status !== PrismaGameStatus.WAITING) {
       throw new Error('Players can only join while game status is WAITING');
     }
 
@@ -37,7 +32,7 @@ export class PlayerService {
     const player = await prisma.player.create({
       data: {
         name,
-        role,
+        role: this.mapRoleToPrisma(role),
         gameId: MAIN_GAME_ID
       }
     });
@@ -62,7 +57,7 @@ export class PlayerService {
       orderBy: { createdAt: 'asc' }
     });
 
-    return players.map((player) => ({
+    return players.map((player: Player) => ({
       id: player.id,
       name: player.name,
       role: this.mapRole(player.role),
@@ -70,12 +65,23 @@ export class PlayerService {
     }));
   }
 
-  private mapRole(role: DbRole): Role {
+  private mapRole(role: PrismaRole): Role {
+    switch (role) {
+      case PrismaRole.MASTER:
+        return Role.MASTER;
+      case PrismaRole.PLAYER:
+        return Role.PLAYER;
+      default:
+        throw new Error(`Unknown role value: ${role}`);
+    }
+  }
+
+  private mapRoleToPrisma(role: Role): PrismaRole {
     switch (role) {
       case Role.MASTER:
-        return Role.MASTER;
+        return PrismaRole.MASTER;
       case Role.PLAYER:
-        return Role.PLAYER;
+        return PrismaRole.PLAYER;
       default:
         throw new Error(`Unknown role value: ${role}`);
     }

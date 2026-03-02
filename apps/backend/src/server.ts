@@ -1,13 +1,11 @@
 import { createServer } from 'node:http';
+import { GameStatus as PrismaGameStatus } from '@prisma/client';
 import { env } from './config/env.js';
 import { prisma } from './database/prisma.js';
 import { createApp } from './app.js';
 import { initSocket } from './websocket/socket.js';
 
 const MAIN_GAME_ID = 'MAIN_GAME';
-const DB_GAME_STATUS = {
-  WAITING: 'WAITING'
-} as const;
 
 const bootstrap = async (): Promise<void> => {
   const app = createApp();
@@ -18,7 +16,7 @@ const bootstrap = async (): Promise<void> => {
   await prisma.game.upsert({
     where: { id: MAIN_GAME_ID },
     update: {},
-    create: { id: MAIN_GAME_ID, status: DB_GAME_STATUS.WAITING }
+    create: { id: MAIN_GAME_ID, status: PrismaGameStatus.WAITING }
   });
 
   httpServer.listen(env.PORT, () => {
@@ -27,7 +25,12 @@ const bootstrap = async (): Promise<void> => {
 };
 
 bootstrap().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : 'Failed to bootstrap server';
+  const message =
+    error instanceof Error
+      ? error.message
+      : typeof error === 'string'
+        ? error
+        : 'Failed to bootstrap server';
   process.stderr.write(`${message}\n`);
   process.exit(1);
 });
