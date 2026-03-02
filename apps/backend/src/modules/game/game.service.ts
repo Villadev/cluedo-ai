@@ -1,4 +1,18 @@
-import { GameStatus, Role, type Card as CardType, type Game as GameType, type GameStatePayload, type Player as PlayerType } from '@cluedo/types';
+import {
+  GameStatus as PrismaGameStatus,
+  Role as PrismaRole,
+  type Card,
+  type Game,
+  type Player
+} from '@prisma/client';
+import {
+  GameStatus,
+  Role,
+  type Card as CardType,
+  type Game as GameType,
+  type GameStatePayload,
+  type Player as PlayerType
+} from '@cluedo/types';
 import { prisma } from '../../database/prisma.js';
 import {
   emitGameStarted,
@@ -9,15 +23,6 @@ import {
 const MAIN_GAME_ID = 'MAIN_GAME';
 const MAX_PLAYERS = 15;
 const MIN_PLAYERS_TO_START = 3;
-
-const DB_GAME_STATUS = {
-  WAITING: 'WAITING',
-  STARTED: 'STARTED',
-  FINISHED: 'FINISHED'
-} as const;
-
-type DbGameStatus = (typeof DB_GAME_STATUS)[keyof typeof DB_GAME_STATUS];
-type DbRole = Role;
 
 export class GameService {
   public async getState(): Promise<GameStatePayload> {
@@ -33,14 +38,14 @@ export class GameService {
 
     return {
       game: this.mapGame(game),
-      players: players.map((player) => this.mapPlayer(player))
+      players: players.map((player: Player) => this.mapPlayer(player))
     };
   }
 
   public async startGame(): Promise<GameStatePayload> {
     const game = await this.ensureMainGame();
 
-    if (game.status !== DB_GAME_STATUS.WAITING) {
+    if (game.status !== PrismaGameStatus.WAITING) {
       throw new Error('Game can only be started from WAITING state');
     }
 
@@ -65,7 +70,7 @@ export class GameService {
     const shuffledCards = this.shuffle(cards);
 
     const assignedPlayers = await prisma.$transaction(async (tx) => {
-      const updates = players.map((player, index) => {
+      const updates = players.map((player: Player, index: number) => {
         const card = shuffledCards[index];
         if (!card) {
           throw new Error('Card assignment failed due to missing card');
@@ -81,7 +86,7 @@ export class GameService {
 
       await tx.game.update({
         where: { id: MAIN_GAME_ID },
-        data: { status: DB_GAME_STATUS.STARTED }
+        data: { status: PrismaGameStatus.STARTED }
       });
 
       return updatedPlayers;
@@ -103,13 +108,13 @@ export class GameService {
   public async finishGame(): Promise<GameStatePayload> {
     const game = await this.ensureMainGame();
 
-    if (game.status !== DB_GAME_STATUS.STARTED) {
+    if (game.status !== PrismaGameStatus.STARTED) {
       throw new Error('Game can only be finished from STARTED state');
     }
 
     await prisma.game.update({
       where: { id: MAIN_GAME_ID },
-      data: { status: DB_GAME_STATUS.FINISHED }
+      data: { status: PrismaGameStatus.FINISHED }
     });
 
     const state = await this.getState();
@@ -117,13 +122,13 @@ export class GameService {
     return state;
   }
 
-  private async ensureMainGame() {
+  private async ensureMainGame(): Promise<Game> {
     return prisma.game.upsert({
       where: { id: MAIN_GAME_ID },
       update: {},
       create: {
         id: MAIN_GAME_ID,
-        status: DB_GAME_STATUS.WAITING
+        status: PrismaGameStatus.WAITING
       }
     });
   }
@@ -142,12 +147,7 @@ export class GameService {
     return copy;
   }
 
-  private mapGame(game: {
-    id: string;
-    status: DbGameStatus;
-    createdAt: Date;
-    updatedAt: Date;
-  }): GameType {
+  private mapGame(game: Game): GameType {
     return {
       id: game.id,
       status: this.mapGameStatus(game.status),
@@ -156,12 +156,7 @@ export class GameService {
     };
   }
 
-  private mapPlayer(player: {
-    id: string;
-    name: string;
-    role: DbRole;
-    cardId: string | null;
-  }): PlayerType {
+  private mapPlayer(player: Player): PlayerType {
     return {
       id: player.id,
       name: player.name,
@@ -170,35 +165,31 @@ export class GameService {
     };
   }
 
-  private mapRole(role: DbRole): Role {
+  private mapRole(role: PrismaRole): Role {
     switch (role) {
-      case Role.MASTER:
+      case PrismaRole.MASTER:
         return Role.MASTER;
-      case Role.PLAYER:
+      case PrismaRole.PLAYER:
         return Role.PLAYER;
       default:
         throw new Error(`Unknown role value: ${role}`);
     }
   }
 
-  private mapGameStatus(status: DbGameStatus): GameStatus {
+  private mapGameStatus(status: PrismaGameStatus): GameStatus {
     switch (status) {
-      case DB_GAME_STATUS.WAITING:
+      case PrismaGameStatus.WAITING:
         return GameStatus.WAITING;
-      case DB_GAME_STATUS.STARTED:
+      case PrismaGameStatus.STARTED:
         return GameStatus.STARTED;
-      case DB_GAME_STATUS.FINISHED:
+      case PrismaGameStatus.FINISHED:
         return GameStatus.FINISHED;
       default:
         throw new Error(`Unknown game status value: ${status}`);
     }
   }
 
-  private mapCard(card: {
-    id: string;
-    type: string;
-    value: string;
-  }): CardType {
+  private mapCard(card: Card): CardType {
     return {
       id: card.id,
       type: card.type,
