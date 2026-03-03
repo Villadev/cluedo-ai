@@ -1,0 +1,36 @@
+<app-page-container>
+  <section class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+    @for (stat of stats; track stat.label) {
+      <app-card>
+        <p class="text-sm text-base-content/70">{{ stat.label }}</p>
+        <p class="mt-2 text-3xl font-bold">{{ stat.value }}</p>
+      </app-card>
+    }
+  </section>
+
+  <section class="grid grid-cols-1 gap-4 lg:grid-cols-3">
+    <app-card class="lg:col-span-2">
+      <h2 class="text-xl font-semibold">Investigation Hub</h2>
+      <p class="mt-3 text-sm text-base-content/70">
+        Review clues, sync timelines, and coordinate deductions with your team.
+      </p>
+      <div class="mt-4 flex flex-wrap gap-3">
+        <app-button>Open Case</app-button>
+        <app-button variant="secondary">Invite Player</app-button>
+        <app-button variant="accent">Share Notes</app-button>
+      </div>
+    </app-card>
+
+    <app-card>
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">Status</h2>
+        <app-badge tone="secondary">Online</app-badge>
+      </div>
+      <ul class="mt-4 space-y-3 text-sm text-base-content/80">
+        <li class="flex items-center justify-between"><span>Room Sync</span><app-badge tone="primary">Healthy</app-badge></li>
+        <li class="flex items-center justify-between"><span>Voice Chat</span><app-badge tone="accent">Stable</app-badge></li>
+        <li class="flex items-center justify-between"><span>Evidence Feed</span><app-badge>Updated</app-badge></li>
+      </ul>
+    </app-card>
+  </section>
+</app-page-container>

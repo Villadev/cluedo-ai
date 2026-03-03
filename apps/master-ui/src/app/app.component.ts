@@ -1,18 +1,19 @@
 import { Component } from '@angular/core';
-import { UiDashboardPageComponent } from './shared/components/dashboard-page.component';
-import { UiAppShellComponent } from './shared/layout/app-shell.component';
+import { AppShellComponent } from './layout/app-shell.component';
+import { DashboardPageComponent } from './pages/dashboard/dashboard-page.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [UiAppShellComponent, UiDashboardPageComponent],
-  templateUrl: './app.component.html'
+  imports: [AppShellComponent, DashboardPageComponent],
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.scss'
 })
 export class AppComponent {
   protected readonly navItems = [
-    { label: 'Master Board', icon: '🎩', active: true },
-    { label: 'Rooms', icon: '🏛️' },
-    { label: 'Rules', icon: '📜' },
-    { label: 'Audit', icon: '🔍' }
+    { label: 'Control Center', icon: '🎛️', active: true },
+    { label: 'Lobbies', icon: '🧭' },
+    { label: 'Moderation', icon: '🛡️' },
+    { label: 'Settings', icon: '⚙️' }
   ];
 }
