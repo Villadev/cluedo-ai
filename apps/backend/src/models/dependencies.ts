@@ -1,5 +1,5 @@
 import { GameEngine } from '../engine/game-engine.js';
-import { AIService } from '../services/ai.service.js';
+import { AIService } from '../services/AIService.js';
 import { GameStoreService } from '../services/game-store.service.js';
 
 const store = new GameStoreService();
