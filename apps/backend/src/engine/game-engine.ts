@@ -1,4 +1,4 @@
-import { AIService } from '../services/ai.service.js';
+import { AIService } from '../services/AIService.js';
 import { GameStoreService } from '../services/game-store.service.js';
 import type { AccusationInput, AskQuestionInput, Clue, Game, Player, PublicGameView } from '../types/game.types.js';
 import { HttpError } from '../utils/http-error.js';
@@ -6,9 +6,9 @@ import { generateId, nowIso } from '../utils/id.js';
 
 const MAX_PLAYERS = 15;
 const MIN_PLAYERS = 2;
-const WEAPONS = ['Candlestick', 'Dagger', 'Lead Pipe', 'Revolver', 'Rope', 'Wrench'];
-const LOCATIONS = ['Kitchen', 'Ballroom', 'Conservatory', 'Dining Room', 'Lounge', 'Hall', 'Study', 'Library'];
-const VICTIMS = ['Lord Blackwood', 'Lady Crimson', 'Judge Hawthorne', 'Dr. Sterling'];
+const WEAPONS = ['Canelobre', 'Daga', 'Barra de ferro', 'Revòlver', 'Corda', 'Clau anglesa'];
+const LOCATIONS = ['Cuina', 'Sala de ball', 'Hivernacle', 'Menjador', 'Saló', 'Vestíbul', 'Despatx', 'Biblioteca'];
+const VICTIMS = ['Jordi Ferrer', 'Mercè Vidal', 'Magí Pons', 'Dra. Núria Soler'];
 
 export class GameEngine {
   constructor(
@@ -105,10 +105,10 @@ export class GameEngine {
       throw new HttpError(403, 'Cannot ask out of turn');
     }
 
-    const response = await this.aiService.respondToQuestion({
-      playerName: player.name,
-      question: input.question
-    });
+    const response = await this.aiService.respondToQuestion(
+      JSON.stringify(this.getPublicState(game.id, input.playerId)),
+      input.question
+    );
 
     game.turns.push({
       id: generateId(),
@@ -199,10 +199,7 @@ export class GameEngine {
     game.state = 'STARTING';
     game.murder = this.generateMurder(game);
     this.assignRoles(game);
-    await this.aiService.generateIntroNarration({
-      gameId: game.id,
-      victim: game.murder.victim
-    });
+    await this.aiService.generateIntroNarration(JSON.stringify(this.getPublicState(game.id)));
     game.state = 'IN_PROGRESS';
     game.currentTurnIndex = 0;
     game.roundNumber = 1;
@@ -240,8 +237,8 @@ export class GameEngine {
     game.players.forEach((player) => {
       player.isKiller = player.id === murder.killerPlayerId;
       player.secretInfo = player.isKiller
-        ? `You are the killer. Cover your tracks around the ${murder.location}.`
-        : `You noticed suspicious movement near the ${murder.location}.`;
+        ? `Ets l'assassí. Disimula les teves passes a ${murder.location}.`
+        : `Has notat moviments sospitosos a prop de ${murder.location}.`;
     });
   }
 
@@ -273,11 +270,11 @@ export class GameEngine {
   }
 
   private async generateClue(game: Game): Promise<Clue> {
-    const clueText = `Trace evidence indicates the killer handled ${game.murder?.weapon ?? 'an unknown weapon'}.`;
-    const narration = await this.aiService.generateClueNarration({
-      roundNumber: game.roundNumber,
-      structuredClue: clueText
-    });
+    const clueText = `Les proves indiquen que l'assassí va manipular ${game.murder?.weapon ?? 'una arma desconeguda'}.`;
+    const narration = await this.aiService.generateClueNarration(
+      JSON.stringify(this.getPublicState(game.id)),
+      clueText
+    );
 
     const clue: Clue = {
       id: generateId(),
