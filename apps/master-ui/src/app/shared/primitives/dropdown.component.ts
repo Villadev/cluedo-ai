@@ -11,7 +11,7 @@ export type DropdownItem = { label: string; value: string };
     <div class="relative inline-block text-left">
       <button
         type="button"
-        class="inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm text-text-primary hover-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+        class="inline-flex h-10 items-center gap-2 rounded-md border border-gray-200 bg-surface px-3 text-sm text-text-primary hover-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
         aria-haspopup="menu"
         [attr.aria-expanded]="open()"
         (click)="toggle()"
@@ -21,7 +21,7 @@ export type DropdownItem = { label: string; value: string };
       <ul
         *ngIf="open()"
         role="menu"
-        class="absolute right-0 z-40 mt-2 min-w-44 rounded-md border border-border bg-surface p-1 shadow-elevated"
+        class="absolute right-0 z-40 mt-2 min-w-44 rounded-md border border-gray-200 bg-surface p-1 shadow-elevated"
       >
         <li *ngFor="let item of items()">
           <button

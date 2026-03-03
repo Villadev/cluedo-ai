@@ -22,7 +22,7 @@ export class UiBadgeComponent {
       success: 'border-success/50 bg-success/15 text-success',
       warning: 'border-warning/50 bg-warning/15 text-warning',
       danger: 'border-danger/50 bg-danger/15 text-danger',
-      neutral: 'border-border bg-surface text-text-secondary'
+      neutral: 'border-gray-200 bg-surface text-text-secondary'
     }[this.tone()];
   }
 }

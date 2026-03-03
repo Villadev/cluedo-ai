@@ -35,7 +35,7 @@ export class UiButtonComponent {
 
     const variantClass = {
       primary: 'border-primary/60 bg-primary text-white hover-glow hover:bg-primary/90',
-      secondary: 'border-border bg-surface text-text-primary hover:border-primary/60 hover:text-white',
+      secondary: 'border-gray-200 bg-surface text-text-primary hover:border-primary/60 hover:text-white',
       danger: 'border-danger/60 bg-danger text-white hover:bg-danger/90'
     }[this.variant()];
 
