@@ -6,9 +6,9 @@ const options = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Cluedo API',
+      title: 'Cluedo AI Backend API',
       version: '1.0.0',
-      description: 'Documentació API backend Cluedo'
+      description: 'REST API documentation for multiplayer AI-powered Cluedo game.'
     },
     servers: [
       {
@@ -16,7 +16,7 @@ const options = {
       }
     ]
   },
-  apis: [path.resolve(__dirname, '../modules/**/*.routes.{js,ts}')]
+  apis: [path.resolve(__dirname, '../routes/**/*.ts'), path.resolve(__dirname, '../routes/**/*.js')]
 };
 
 export const swaggerSpec = swaggerJSDoc(options);
