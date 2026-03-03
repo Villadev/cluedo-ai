@@ -6,17 +6,17 @@ WORKDIR /app
 COPY . .
 RUN npm install -g pnpm
 RUN pnpm install
-RUN pnpm exec ng build --configuration production
+RUN pnpm --dir apps/player-ui exec ng build player-ui --configuration production
 
 # ---------- NGINX STAGE ----------
 FROM nginx:alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY apps/player-ui/nginx.conf /etc/nginx/conf.d/default.conf
 
 RUN rm -rf /usr/share/nginx/html/*
 
-# IMPORTANT: comprovar que el build genera dist/player-ui/browser
-COPY --from=builder /app/dist/player-ui/browser /usr/share/nginx/html
+# IMPORTANT: comprovar que el build genera apps/player-ui/dist/player-ui
+COPY --from=builder /app/apps/player-ui/dist/player-ui /usr/share/nginx/html
 
 EXPOSE 80
 
