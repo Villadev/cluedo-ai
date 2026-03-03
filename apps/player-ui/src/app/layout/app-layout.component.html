@@ -1,0 +1,27 @@
+<div class="layout-wrapper surface-ground min-h-screen">
+  <ui-topbar [appTitle]="appTitle" (menuToggle)="toggleMenu()"></ui-topbar>
+
+  <div class="layout-main-container">
+    @if (isDesktop) {
+      <aside class="layout-sidebar-static">
+        <ui-sidebar [menuItems]="menuItems"></ui-sidebar>
+      </aside>
+    } @else {
+      <p-sidebar
+        position="left"
+        [modal]="true"
+        [dismissible]="true"
+        [showCloseIcon]="false"
+        styleClass="layout-mobile-sidebar"
+        [visible]="menuService.mobileMenuVisible()"
+        (visibleChange)="menuService.mobileMenuVisible.set($event)"
+      >
+        <ui-sidebar [menuItems]="menuItems" (menuItemClick)="closeMobileMenu()"></ui-sidebar>
+      </p-sidebar>
+    }
+
+    <main class="layout-content p-4">
+      <ng-content></ng-content>
+    </main>
+  </div>
+</div>
