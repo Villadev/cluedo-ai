@@ -11,14 +11,14 @@ export type MenuAction = { label: string; action: string; tone?: 'default' | 'da
     <div class="relative inline-flex">
       <button
         type="button"
-        class="rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-secondary transition-smooth hover:text-text-primary"
+        class="rounded-md border border-gray-200 bg-surface px-3 py-2 text-sm text-text-secondary transition-smooth hover:text-text-primary"
         aria-haspopup="menu"
         [attr.aria-expanded]="open()"
         (click)="open.update((v) => !v)"
       >
         {{ triggerLabel() }}
       </button>
-      <div *ngIf="open()" role="menu" class="absolute right-0 top-11 z-50 min-w-48 rounded-md border border-border bg-surface p-1 shadow-elevated">
+      <div *ngIf="open()" role="menu" class="absolute right-0 top-11 z-50 min-w-48 rounded-md border border-gray-200 bg-surface p-1 shadow-elevated">
         <button
           *ngFor="let menuAction of actions()"
           type="button"

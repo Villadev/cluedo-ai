@@ -17,7 +17,7 @@ import { Component, HostListener, input, output } from '@angular/core';
         role="dialog"
         aria-modal="true"
         [attr.aria-labelledby]="labelId()"
-        class="relative z-10 w-full max-w-lg rounded-lg border border-border bg-surface p-6 shadow-elevated"
+        class="relative z-10 w-full max-w-lg rounded-lg border border-gray-200 bg-surface p-6 shadow-elevated"
       >
         <ng-content />
       </section>

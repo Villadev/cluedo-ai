@@ -9,7 +9,7 @@ export type TabItem = { id: string; label: string; content: string };
   imports: [CommonModule],
   template: `
     <div>
-      <div role="tablist" class="flex flex-wrap gap-2 border-b border-border pb-2">
+      <div role="tablist" class="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
         <button
           *ngFor="let tab of tabs()"
           type="button"
@@ -43,8 +43,11 @@ export class UiTabsComponent {
   public constructor() {
     effect(() => {
       const availableTabs = this.tabs();
-      if (availableTabs.length > 0 && !availableTabs.some((tab) => tab.id === this.activeTab())) {
-        this.activeTab.set(availableTabs[0].id);
+      if (availableTabs.length > 0) {
+        const firstTab = availableTabs[0];
+        if (firstTab) {
+          this.activeTab.set(firstTab.id);
+        }
       }
     });
   }

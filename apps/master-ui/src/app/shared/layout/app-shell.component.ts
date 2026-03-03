@@ -11,7 +11,7 @@ export type NavItem = { label: string; icon: string; active?: boolean };
     <div class="min-h-screen bg-bg text-text-primary">
       <div class="flex min-h-screen">
         <aside
-          class="fixed inset-y-0 left-0 z-40 w-72 border-r border-border bg-surface p-4 transition-smooth md:static md:translate-x-0"
+          class="fixed inset-y-0 left-0 z-40 w-72 border-r border-gray-200 bg-surface p-4 transition-smooth md:static md:translate-x-0"
           [ngClass]="sidebarOpen() ? 'translate-x-0' : '-translate-x-full md:translate-x-0'"
         >
           <div class="mb-8 flex items-center gap-3">
@@ -27,7 +27,7 @@ export type NavItem = { label: string; icon: string; active?: boolean };
               *ngFor="let item of navItems()"
               type="button"
               class="flex w-full items-center gap-3 rounded-md border px-3 py-2 text-sm transition-smooth"
-              [ngClass]="item.active ? 'border-primary/40 bg-primary/15 text-text-primary' : 'border-transparent text-text-secondary hover:border-border hover:bg-bg'"
+              [ngClass]="item.active ? 'border-primary/40 bg-primary/15 text-text-primary' : 'border-transparent text-text-secondary hover:border-gray-200 hover:bg-bg'"
             >
               <span aria-hidden="true">{{ item.icon }}</span>
               {{ item.label }}
@@ -36,11 +36,11 @@ export type NavItem = { label: string; icon: string; active?: boolean };
         </aside>
 
         <div class="flex flex-1 flex-col md:pl-0">
-          <header class="sticky top-0 z-30 border-b border-border bg-bg/90 backdrop-blur">
+          <header class="sticky top-0 z-30 border-b border-gray-200 bg-bg/90 backdrop-blur">
             <div class="ui-container flex h-16 items-center justify-between">
               <button
                 type="button"
-                class="rounded-md border border-border p-2 text-text-secondary md:hidden"
+                class="rounded-md border border-gray-200 p-2 text-text-secondary md:hidden"
                 aria-label="Toggle navigation"
                 (click)="sidebarOpen.update((v) => !v)"
               >

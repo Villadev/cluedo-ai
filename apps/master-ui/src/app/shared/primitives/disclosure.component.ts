@@ -6,7 +6,7 @@ import { Component, input, signal } from '@angular/core';
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="rounded-md border border-border bg-surface/60">
+    <div class="rounded-md border border-gray-200 bg-surface/60">
       <button
         type="button"
         class="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium"
@@ -16,7 +16,7 @@ import { Component, input, signal } from '@angular/core';
         {{ title() }}
         <span aria-hidden="true">{{ open() ? '−' : '+' }}</span>
       </button>
-      <div *ngIf="open()" class="border-t border-border px-4 py-3 text-sm text-text-secondary">
+      <div *ngIf="open()" class="border-t border-gray-200 px-4 py-3 text-sm text-text-secondary">
         <ng-content />
       </div>
     </div>
