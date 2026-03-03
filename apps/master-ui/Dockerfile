@@ -1,21 +1,22 @@
-FROM node:20-alpine AS build
+# ---------- BUILD STAGE ----------
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache python3 make g++
-
-RUN corepack enable
-RUN corepack prepare pnpm@latest --activate
-
 COPY . .
-
-RUN pnpm install --no-frozen-lockfile
-WORKDIR /app/apps/master-ui
+RUN npm install -g pnpm
+RUN pnpm install
 RUN pnpm exec ng build --configuration production
 
+# ---------- NGINX STAGE ----------
 FROM nginx:alpine
 
-COPY --from=build /app/apps/master-ui/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+RUN rm -rf /usr/share/nginx/html/*
+
+# IMPORTANT: comprovar que el build genera dist/master-ui/browser
+COPY --from=builder /app/dist/master-ui/browser /usr/share/nginx/html
 
 EXPOSE 80
 
