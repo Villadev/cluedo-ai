@@ -10,7 +10,8 @@ RUN corepack prepare pnpm@latest --activate
 COPY . .
 
 RUN pnpm install --no-frozen-lockfile
-RUN pnpm exec ng build player-ui --configuration production
+WORKDIR /app/apps/player-ui
+RUN pnpm exec ng build --configuration production
 
 FROM nginx:alpine
 
