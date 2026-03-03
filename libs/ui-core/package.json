@@ -1,9 +1,0 @@
-{
-  "name": "@cluedo/ui-core",
-  "version": "0.0.1",
-  "private": true,
-  "peerDependencies": {
-    "@angular/core": "^21.0.0",
-    "@angular/common": "^21.0.0"
-  }
-}

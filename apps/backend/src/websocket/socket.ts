@@ -1,5 +1,5 @@
 import type { Server as HttpServer } from 'node:http';
-import type { Card, GameStatePayload, Player } from '@cluedo/types';
+import type { Card, GameStatePayload, Player } from '../shared/types';
 import { Server } from 'socket.io';
 import { corsOrigins } from '../config/env.js';
 

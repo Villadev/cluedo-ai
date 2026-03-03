@@ -1,4 +1,4 @@
-import { Role, type Player as PlayerType } from '@cluedo/types';
+import { Role, type Player as PlayerType } from '../../shared/types';
 import { db } from '../../database/in-memory.js';
 import { emitGameStateUpdated, emitPlayerJoined } from '../../websocket/socket.js';
 import { GameService } from '../game/game.service.js';

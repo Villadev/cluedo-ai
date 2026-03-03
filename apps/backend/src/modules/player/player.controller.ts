@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import { Role } from '@cluedo/types';
+import { Role } from '../../shared/types';
 import { z } from 'zod';
 import { PlayerService } from './player.service.js';
 

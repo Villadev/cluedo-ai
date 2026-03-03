@@ -5,7 +5,7 @@ import {
   type Game as GameType,
   type GameStatePayload,
   type Player as PlayerType
-} from '@cluedo/types';
+} from '../../shared/types';
 import { db, generateId, nowIso, type Card, type Game, type StoredGame, type StoredPlayer } from '../../database/in-memory.js';
 import {
   emitGameStarted,
