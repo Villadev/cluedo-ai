@@ -13,17 +13,16 @@
     "typecheck": "pnpm -r typecheck"
   },
   "dependencies": {
-    "rxjs": "7.8.2"
+    "rxjs": "7.8.2",
+    "primeng": "^17.18.0",
+    "primeicons": "^7.0.0",
+    "primeflex": "^3.3.1"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^21.0.0",
     "@angular/cli": "^21.0.0",
     "@angular/compiler-cli": "^21.0.0",
     "typescript": "^5.9.0",
-    "zone.js": "~0.15.0",
-    "tailwindcss": "^4.1.12",
-    "postcss": "^8.4.49",
-    "autoprefixer": "^10.4.20",
-    "daisyui": "^4.12.22"
+    "zone.js": "~0.15.0"
   }
 }

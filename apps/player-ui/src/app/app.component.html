@@ -1,9 +1,3 @@
-<div data-theme="cluedo-player" class="min-h-screen bg-base-200 text-base-content">
-  <app-shell
-    title="Player Console"
-    subtitle="Detective Dashboard"
-    [navItems]="navItems"
-  >
-    <app-dashboard-page />
-  </app-shell>
-</div>
+<ui-app-layout appTitle="Cluedo Player" [menuItems]="menuItems">
+  <router-outlet></router-outlet>
+</ui-app-layout>
