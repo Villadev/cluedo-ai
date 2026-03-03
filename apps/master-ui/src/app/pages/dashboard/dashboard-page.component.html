@@ -1,36 +1,11 @@
-<app-page-container>
-  <section class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-    @for (stat of stats; track stat.label) {
-      <app-card>
-        <p class="text-sm text-base-content/70">{{ stat.label }}</p>
-        <p class="mt-2 text-3xl font-bold">{{ stat.value }}</p>
-      </app-card>
-    }
-  </section>
-
-  <section class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-    <app-card class="lg:col-span-2">
-      <h2 class="text-xl font-semibold">Match Oversight</h2>
-      <p class="mt-3 text-sm text-base-content/70">
-        Monitor lobby health, assign moderators, and adjust room rules in real time.
-      </p>
-      <div class="mt-4 flex flex-wrap gap-3">
-        <app-button>Open Lobby</app-button>
-        <app-button variant="secondary">Broadcast Alert</app-button>
-        <app-button variant="accent">Assign Judge</app-button>
-      </div>
-    </app-card>
-
-    <app-card>
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold">Infrastructure</h2>
-        <app-badge tone="secondary">Stable</app-badge>
-      </div>
-      <ul class="mt-4 space-y-3 text-sm text-base-content/80">
-        <li class="flex items-center justify-between"><span>Game Engine</span><app-badge tone="primary">Healthy</app-badge></li>
-        <li class="flex items-center justify-between"><span>Queue Service</span><app-badge tone="accent">Nominal</app-badge></li>
-        <li class="flex items-center justify-between"><span>Audit Logs</span><app-badge>Streaming</app-badge></li>
-      </ul>
-    </app-card>
-  </section>
-</app-page-container>
+<section class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+  <p-card header="Live Tables">
+    <p class="text-3xl font-bold m-0">12</p>
+  </p-card>
+  <p-card header="Active Hosts">
+    <p class="text-3xl font-bold m-0">4</p>
+  </p-card>
+  <p-card header="Queued Players">
+    <p class="text-3xl font-bold m-0">27</p>
+  </p-card>
+</section>

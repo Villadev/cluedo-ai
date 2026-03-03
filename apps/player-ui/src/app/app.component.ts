@@ -1,19 +1,20 @@
 import { Component } from '@angular/core';
-import { AppShellComponent } from './layout/app-shell.component';
-import { DashboardPageComponent } from './pages/dashboard/dashboard-page.component';
+import { RouterOutlet } from '@angular/router';
+import { MenuItem } from 'primeng/api';
+import { AppLayoutComponent } from '@cluedo/ui-layout';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [AppShellComponent, DashboardPageComponent],
+  imports: [RouterOutlet, AppLayoutComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
 export class AppComponent {
-  protected readonly navItems = [
-    { label: 'Dashboard', icon: '🕵️', active: true },
-    { label: 'Cases', icon: '🗂️' },
-    { label: 'Evidence', icon: '🧩' },
-    { label: 'Settings', icon: '⚙️' }
+  protected readonly menuItems: MenuItem[] = [
+    { label: 'Dashboard', icon: 'pi pi-home', routerLink: '/dashboard' },
+    { label: 'Cases', icon: 'pi pi-briefcase', routerLink: '/cases' },
+    { label: 'Evidence', icon: 'pi pi-file', routerLink: '/evidence' },
+    { label: 'Settings', icon: 'pi pi-cog', routerLink: '/settings' }
   ];
 }

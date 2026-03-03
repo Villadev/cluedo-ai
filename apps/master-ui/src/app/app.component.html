@@ -1,9 +1,3 @@
-<div data-theme="cluedo-master" class="min-h-screen bg-base-200 text-base-content">
-  <app-shell
-    title="Master Console"
-    subtitle="Game Director Dashboard"
-    [navItems]="navItems"
-  >
-    <app-dashboard-page />
-  </app-shell>
-</div>
+<ui-app-layout appTitle="Cluedo Master" [menuItems]="menuItems">
+  <router-outlet></router-outlet>
+</ui-app-layout>

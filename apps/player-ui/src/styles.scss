@@ -1,17 +1,11 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
 
-@layer base {
-  html,
-  body {
-    min-height: 100%;
-  }
-
-  body {
-    margin: 0;
-    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-    background-color: hsl(var(--b2));
-    color: hsl(var(--bc));
-  }
+body {
+  background: var(--surface-ground);
+  color: var(--text-color);
+  font-family: Inter, 'Segoe UI', Roboto, sans-serif;
 }
