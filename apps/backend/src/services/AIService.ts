@@ -2,19 +2,30 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { openaiClient } from '../config/openai.js';
 
-const VILLAGE_CONTEXT_PATH = path.resolve(__dirname, '../context/village.txt');
-const INSTRUCTIONS_CONTEXT_PATH = path.resolve(__dirname, '../context/instructions.txt');
+const resolveContextPath = (fileName: string): string => {
+  const candidatePaths = [
+    path.resolve(__dirname, `../context/${fileName}`),
+    path.resolve(__dirname, `../src/context/${fileName}`),
+    path.resolve(process.cwd(), `src/context/${fileName}`)
+  ];
 
-const readContextFile = (absolutePath: string, fileLabel: string): string => {
-  if (!fs.existsSync(absolutePath)) {
-    throw new Error(`No s'ha trobat el fitxer de context: ${fileLabel}`);
+  const foundPath = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath));
+  if (!foundPath) {
+    throw new Error(`No s'ha trobat el fitxer de context: ${fileName}`);
   }
 
+  return foundPath;
+};
+
+const VILLAGE_CONTEXT_PATH = resolveContextPath('village.txt');
+const INSTRUCTIONS_CONTEXT_PATH = resolveContextPath('instructions.txt');
+
+const readContextFile = (absolutePath: string): string => {
   return fs.readFileSync(absolutePath, 'utf-8').trim();
 };
 
-const VILLAGE_CONTEXT = readContextFile(VILLAGE_CONTEXT_PATH, 'village.txt');
-const GAME_INSTRUCTIONS = readContextFile(INSTRUCTIONS_CONTEXT_PATH, 'instructions.txt');
+const VILLAGE_CONTEXT = readContextFile(VILLAGE_CONTEXT_PATH);
+const GAME_INSTRUCTIONS = readContextFile(INSTRUCTIONS_CONTEXT_PATH);
 
 const SYSTEM_PROMPT = `Ets el Mestre del Joc d'un Cluedo narratiu.
 - Només generes narrativa i ambientació.
