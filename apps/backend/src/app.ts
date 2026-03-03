@@ -1,9 +1,9 @@
 import cors from 'cors';
-import express, { type NextFunction, type Request, type Response } from 'express';
+import express from 'express';
 import { corsOrigins } from './config/env.js';
 import { swaggerSpec } from './config/swagger.js';
-import { gameRouter } from './modules/game/game.routes.js';
-import { playerRouter } from './modules/player/player.routes.js';
+import { errorHandler } from './middleware/error-handler.js';
+import { gameRouter } from './routes/game.routes.js';
 
 const swaggerUi = require('swagger-ui-express');
 
@@ -22,14 +22,8 @@ export const createApp = () => {
   });
 
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.use('/game', gameRouter);
 
-  app.use('/api/game', gameRouter);
-  app.use('/api/players', playerRouter);
-
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    const message = err instanceof Error ? err.message : 'Unexpected server error';
-    res.status(500).json({ message });
-  });
-
+  app.use(errorHandler);
   return app;
 };
