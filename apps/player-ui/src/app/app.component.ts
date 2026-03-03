@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
-import { UiAppShellComponent } from '@cluedo/ui-core';
-import { UiDashboardPageComponent } from '@cluedo/ui-core';
+import { UiDashboardPageComponent } from './shared/components/dashboard-page.component';
+import { UiAppShellComponent } from './shared/layout/app-shell.component';
 
 @Component({
   selector: 'app-root',

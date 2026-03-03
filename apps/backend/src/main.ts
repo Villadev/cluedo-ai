@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { Role } from '@cluedo/types';
+import { Role } from './shared/types';
 import { createApp } from './app.js';
 import { env } from './config/env.js';
 
