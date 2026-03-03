@@ -1,0 +1,30 @@
+:host {
+  display: block;
+}
+
+.layout-main-container {
+  display: flex;
+  min-height: calc(100vh - 4rem);
+}
+
+.layout-sidebar-static {
+  border-right: 1px solid var(--surface-border);
+  height: calc(100vh - 4rem);
+  position: sticky;
+  top: 4rem;
+  width: 18rem;
+}
+
+.layout-content {
+  flex: 1;
+  overflow: auto;
+}
+
+:host ::ng-deep .layout-mobile-sidebar {
+  padding: 0;
+  width: 18rem;
+}
+
+:host ::ng-deep .layout-mobile-sidebar .p-sidebar-content {
+  padding: 0;
+}

@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { MenuItem } from 'primeng/api';
-import { AppLayoutComponent } from '@cluedo/ui-layout';
+import { AppLayoutComponent } from './layout/app-layout.component';
 
 @Component({
   selector: 'app-root',
