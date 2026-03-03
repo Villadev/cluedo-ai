@@ -1,6 +1,15 @@
 import { AIService } from '../services/AIService.js';
 import { GameStoreService } from '../services/game-store.service.js';
-import type { AccusationInput, AskQuestionInput, Clue, Game, Player, PublicGameView } from '../types/game.types.js';
+import type {
+  AccusationInput,
+  AskQuestionInput,
+  Clue,
+  Game,
+  GameSolution,
+  Player,
+  PublicGameView,
+  PublicParticipant
+} from '../types/game.types.js';
 import { HttpError } from '../utils/http-error.js';
 import { generateId, nowIso } from '../utils/id.js';
 
@@ -23,6 +32,7 @@ export class GameEngine {
       state: 'LOBBY',
       players: [],
       murder: null,
+      introNarration: null,
       clues: [],
       turns: [],
       currentTurnIndex: 0,
@@ -40,11 +50,11 @@ export class GameEngine {
   public async addPlayer(gameId: string, playerName: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== 'LOBBY') {
-      throw new HttpError(409, 'Cannot join after game has started');
+      throw new HttpError(409, 'No es pot unir ningú un cop la partida ha començat');
     }
 
     if (game.players.length >= MAX_PLAYERS) {
-      throw new HttpError(400, `Maximum ${MAX_PLAYERS} players allowed`);
+      throw new HttpError(400, `Màxim ${MAX_PLAYERS} jugadors`);
     }
 
     const player: Player = {
@@ -67,16 +77,16 @@ export class GameEngine {
   public async setReady(gameId: string, playerId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== 'LOBBY') {
-      throw new HttpError(409, 'Ready is only allowed in lobby');
+      throw new HttpError(409, 'Només es pot marcar llest a la sala d’espera');
     }
 
     const player = game.players.find((entry) => entry.id === playerId);
     if (!player) {
-      throw new HttpError(404, 'Player not found');
+      throw new HttpError(404, 'Jugador no trobat');
     }
 
     if (player.isEliminated) {
-      throw new HttpError(409, 'Eliminated player cannot act');
+      throw new HttpError(409, 'Un jugador eliminat no pot actuar');
     }
 
     player.isReady = true;
@@ -94,7 +104,7 @@ export class GameEngine {
   public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ response: string; game: Game }> {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== 'IN_PROGRESS') {
-      throw new HttpError(409, 'Questions are only allowed in IN_PROGRESS state');
+      throw new HttpError(409, 'Les preguntes només són permeses durant la investigació');
     }
 
     const player = this.getPlayerOrThrow(game, input.playerId);
@@ -102,7 +112,7 @@ export class GameEngine {
 
     const currentPlayer = this.getCurrentTurnPlayer(game);
     if (!currentPlayer || currentPlayer.id !== input.playerId) {
-      throw new HttpError(403, 'Cannot ask out of turn');
+      throw new HttpError(403, 'Només pot preguntar el jugador del torn actual');
     }
 
     const response = await this.aiService.respondToQuestion(
@@ -126,19 +136,19 @@ export class GameEngine {
   public async handleAccusation(gameId: string, input: AccusationInput): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== 'ACCUSATION_PHASE') {
-      throw new HttpError(409, 'Accusations are only allowed in ACCUSATION_PHASE');
+      throw new HttpError(409, 'Les acusacions només són permeses en fase d’acusació');
     }
 
     const player = this.getPlayerOrThrow(game, input.playerId);
     this.assertActivePlayer(player);
 
     if (player.hasAccused) {
-      throw new HttpError(409, 'Player cannot accuse twice');
+      throw new HttpError(409, 'Aquest jugador ja ha acusat');
     }
 
     const murder = game.murder;
     if (!murder) {
-      throw new HttpError(500, 'Murder has not been generated');
+      throw new HttpError(500, 'No hi ha resolució del cas disponible');
     }
 
     player.hasAccused = true;
@@ -195,11 +205,45 @@ export class GameEngine {
     };
   }
 
+  public getParticipants(gameId: string): PublicParticipant[] {
+    const game = this.getGameOrThrow(gameId);
+    return game.players.map((player) => ({
+      id: player.id,
+      publicCharacter: player.publicCharacter
+    }));
+  }
+
+  public getInstructions(): string {
+    return this.aiService.getInstructionsContext();
+  }
+
+  public getIntro(gameId: string): string {
+    const game = this.getGameOrThrow(gameId);
+    if (!game.introNarration) {
+      throw new HttpError(404, 'La introducció encara no està disponible');
+    }
+    return game.introNarration;
+  }
+
+  public getSolution(gameId: string): GameSolution {
+    const game = this.getGameOrThrow(gameId);
+    if (!game.murder) {
+      throw new HttpError(409, 'La partida encara no té resolució');
+    }
+
+    const killer = this.getPlayerOrThrow(game, game.murder.killerPlayerId);
+    return {
+      assassi: killer.publicCharacter,
+      arma: game.murder.weapon,
+      lloc: game.murder.location
+    };
+  }
+
   private async startGame(game: Game): Promise<void> {
     game.state = 'STARTING';
     game.murder = this.generateMurder(game);
     this.assignRoles(game);
-    await this.aiService.generateIntroNarration(JSON.stringify(this.getPublicState(game.id)));
+    game.introNarration = await this.aiService.generateIntroNarration(JSON.stringify(this.getPublicState(game.id)));
     game.state = 'IN_PROGRESS';
     game.currentTurnIndex = 0;
     game.roundNumber = 1;
@@ -209,7 +253,7 @@ export class GameEngine {
   private generateMurder(game: Game): NonNullable<Game['murder']> {
     const killer = game.players[Math.floor(Math.random() * game.players.length)];
     if (!killer) {
-      throw new HttpError(400, 'Cannot start game without players');
+      throw new HttpError(400, 'No es pot iniciar una partida sense jugadors');
     }
 
     const weapon = WEAPONS[Math.floor(Math.random() * WEAPONS.length)];
@@ -217,7 +261,7 @@ export class GameEngine {
     const victim = VICTIMS[Math.floor(Math.random() * VICTIMS.length)];
 
     if (!weapon || !location || !victim) {
-      throw new HttpError(500, 'Failed to generate murder details');
+      throw new HttpError(500, 'No s’han pogut generar els detalls del crim');
     }
 
     return {
@@ -231,13 +275,13 @@ export class GameEngine {
   private assignRoles(game: Game): void {
     const murder = game.murder;
     if (!murder) {
-      throw new HttpError(500, 'Murder must exist before assigning roles');
+      throw new HttpError(500, 'Cal generar el crim abans d’assignar rols');
     }
 
     game.players.forEach((player) => {
       player.isKiller = player.id === murder.killerPlayerId;
       player.secretInfo = player.isKiller
-        ? `Ets l'assassí. Disimula les teves passes a ${murder.location}.`
+        ? `Ets l'assassí. Disimula qualsevol rastre relacionat amb ${murder.location}.`
         : `Has notat moviments sospitosos a prop de ${murder.location}.`;
     });
   }
@@ -245,7 +289,7 @@ export class GameEngine {
   private nextTurn(game: Game): void {
     const activePlayers = game.players.filter((player) => !player.isEliminated);
     if (activePlayers.length === 0) {
-      throw new HttpError(500, 'No active players available');
+      throw new HttpError(500, 'No hi ha cap jugador actiu');
     }
 
     let nextIndex = game.currentTurnIndex;
@@ -292,7 +336,7 @@ export class GameEngine {
   private getGameOrThrow(gameId: string): Game {
     const game = this.store.getById(gameId);
     if (!game) {
-      throw new HttpError(404, 'Game not found');
+      throw new HttpError(404, 'Partida no trobada');
     }
     return game;
   }
@@ -300,7 +344,7 @@ export class GameEngine {
   private getPlayerOrThrow(game: Game, playerId: string): Player {
     const player = game.players.find((entry) => entry.id === playerId);
     if (!player) {
-      throw new HttpError(404, 'Player not found');
+      throw new HttpError(404, 'Jugador no trobat');
     }
     return player;
   }
@@ -311,7 +355,7 @@ export class GameEngine {
 
   private assertActivePlayer(player: Player): void {
     if (player.isEliminated) {
-      throw new HttpError(409, 'Cannot act if eliminated');
+      throw new HttpError(409, 'Un jugador eliminat no pot actuar');
     }
   }
 }

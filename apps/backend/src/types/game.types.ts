@@ -39,6 +39,7 @@ export interface Game {
   state: GameState;
   players: Player[];
   murder: Murder | null;
+  introNarration: string | null;
   clues: Clue[];
   turns: Turn[];
   currentTurnIndex: number;
@@ -83,4 +84,15 @@ export interface PublicGameView {
   winnerPlayerId: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PublicParticipant {
+  id: string;
+  publicCharacter: string;
+}
+
+export interface GameSolution {
+  assassi: string;
+  arma: string;
+  lloc: string;
 }

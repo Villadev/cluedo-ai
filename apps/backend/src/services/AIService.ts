@@ -3,31 +3,26 @@ import path from 'node:path';
 import { openaiClient } from '../config/openai.js';
 
 const VILLAGE_CONTEXT_PATH = path.resolve(__dirname, '../context/village.txt');
+const INSTRUCTIONS_CONTEXT_PATH = path.resolve(__dirname, '../context/instructions.txt');
 
-const readVillageContext = (): string => {
-  if (!fs.existsSync(VILLAGE_CONTEXT_PATH)) {
-    throw new Error(`Village context file not found at: ${VILLAGE_CONTEXT_PATH}`);
+const readContextFile = (absolutePath: string, fileLabel: string): string => {
+  if (!fs.existsSync(absolutePath)) {
+    throw new Error(`No s'ha trobat el fitxer de context: ${fileLabel}`);
   }
 
-  return fs.readFileSync(VILLAGE_CONTEXT_PATH, 'utf-8').trim();
+  return fs.readFileSync(absolutePath, 'utf-8').trim();
 };
 
-const VILLAGE_CONTEXT = readVillageContext();
+const VILLAGE_CONTEXT = readContextFile(VILLAGE_CONTEXT_PATH, 'village.txt');
+const GAME_INSTRUCTIONS = readContextFile(INSTRUCTIONS_CONTEXT_PATH, 'instructions.txt');
 
 const SYSTEM_PROMPT = `Ets el Mestre del Joc d'un Cluedo narratiu.
-
-Regles estrictes i innegociables:
-- No pots decidir qui és l'assassí.
-- No pots modificar la veritat definida pel backend.
-- No pots revelar informació confidencial si no està autoritzat.
 - Només generes narrativa i ambientació.
-- Mantén sempre un to dramàtic i immersiu.
-- No trenquis mai el personatge.
-- Respon exclusivament en català.
-- Tots els noms, personatges, armes, ubicacions i pistes han d'estar en català.
-
-Context del poble:
-${VILLAGE_CONTEXT}`;
+- Mai decideixes qui és l'assassí.
+- Mai reveles informació confidencial sense autorització.
+- Sempre respon exclusivament en català.
+- Considera el context del poble i les instruccions del joc.
+- Mantingues coherència narrativa i dramàtica.`;
 
 interface OpenAICallInput {
   instruction: string;
@@ -38,46 +33,63 @@ interface OpenAICallInput {
 }
 
 export class AIService {
+  public getInstructionsContext(): string {
+    return GAME_INSTRUCTIONS;
+  }
+
   public async generateIntroNarration(publicGameState: string): Promise<string> {
-    return this.generateNarrative({
-      instruction: 'Genera una introducció d\'inici de partida intensa i breu.',
-      publicGameState
-    }, 220);
+    return this.generateNarrative(
+      {
+        instruction: 'Genera la narrativa inicial de la partida per a tots els jugadors.',
+        publicGameState
+      },
+      280
+    );
   }
 
   public async respondToQuestion(publicGameState: string, question: string): Promise<string> {
-    return this.generateNarrative({
-      instruction: 'Respon la pregunta del jugador sense revelar informació no autoritzada.',
-      publicGameState,
-      question
-    }, 260);
+    return this.generateNarrative(
+      {
+        instruction: 'Respon la pregunta del jugador amb to narratiu sense revelar cap secret no autoritzat.',
+        publicGameState,
+        question
+      },
+      300
+    );
   }
 
   public async generateClueNarration(publicGameState: string, clueDescription: string): Promise<string> {
-    return this.generateNarrative({
-      instruction: 'Narra la descoberta d\'aquesta pista amb misteri i claredat.',
-      publicGameState,
-      clueDescription
-    }, 220);
+    return this.generateNarrative(
+      {
+        instruction: 'Narra la descoberta de la pista amb misteri, ritme i coherència amb la història.',
+        publicGameState,
+        clueDescription
+      },
+      240
+    );
   }
 
   public async generatePrivateMessage(privateContext: string): Promise<string> {
-    return this.generateNarrative({
-      instruction: 'Crea un missatge privat narratiu, discret i totalment segur.',
-      privateContext
-    }, 180);
+    return this.generateNarrative(
+      {
+        instruction: 'Redacta un missatge privat i segur, alineat amb la partida i sense revelar informació aliena.',
+        privateContext
+      },
+      220
+    );
   }
 
   public async generateCharacterProfile(input: { playerName: string }): Promise<string> {
     return this.generatePrivateMessage(
-      `Nom del jugador: ${input.playerName}. Crea un perfil públic curt de personatge per a la partida.`
+      `Nom del jugador: ${input.playerName}. Crea un perfil públic curt de personatge en català per a la partida.`
     );
   }
 
   private async generateNarrative(payload: OpenAICallInput, maxOutputTokens: number): Promise<string> {
     const userContent = [
       payload.instruction,
-      'Respon exclusivament en català.',
+      `Context del poble:\n${VILLAGE_CONTEXT}`,
+      `Instruccions del joc:\n${GAME_INSTRUCTIONS}`,
       payload.publicGameState ? `Estat públic del joc:\n${payload.publicGameState}` : '',
       payload.question ? `Pregunta del jugador:\n${payload.question}` : '',
       payload.clueDescription ? `Descripció de la pista:\n${payload.clueDescription}` : '',
@@ -98,12 +110,12 @@ export class AIService {
 
       const outputText = response.output_text?.trim();
       if (!outputText) {
-        throw new Error('OpenAI returned empty output text');
+        throw new Error('Resposta buida del model');
       }
 
       return outputText;
     } catch {
-      throw new Error('AI narrative service unavailable. Please try again later.');
+      throw new Error('Servei narratiu no disponible temporalment.');
     }
   }
 }

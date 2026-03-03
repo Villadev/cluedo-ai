@@ -71,7 +71,29 @@ export class GameController {
     res.status(200).json(game);
   }
 
+  public async getPlayers(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    res.status(200).json(gameEngine.getParticipants(gameId));
+  }
+
+  public async getInstructions(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    gameEngine.getPublicState(gameId);
+    res.status(200).type('text/plain').send(gameEngine.getInstructions());
+  }
+
+  public async getIntro(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    res.status(200).json({ intro: gameEngine.getIntro(gameId) });
+  }
+
+  public async getSolution(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    res.status(200).json(gameEngine.getSolution(gameId));
+  }
+
   private getGameId(req: Request): string {
     return paramsSchema.parse(req.params).id;
   }
+
 }

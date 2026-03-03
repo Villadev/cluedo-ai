@@ -1,0 +1,40 @@
+Instruccions oficials de Cluedo: "Boira sobre Sant Jeroni"
+
+Objectiu general
+- Descobrir qui és l'assassí, amb quina arma i a quin lloc.
+- Sobreviure fins a la fase final d'acusació i formular una acusació correcta.
+
+Rols
+- Mestre del Joc: només modera, narra i manté el ritme dramàtic.
+- Jugadors investigadors: busquen pistes, fan preguntes i acusen.
+- Un jugador assassí: ocult entre la resta, ha d'evitar ser descobert.
+
+Fases de la partida
+1) LOBBY
+- Els jugadors entren a la partida i reben un personatge públic.
+- Cada jugador marca "llest" quan està preparat.
+
+2) INICI DE PARTIDA
+- Quan tothom està llest (mínim 2 jugadors), comença la investigació.
+- Es genera una introducció narrativa comuna per a tots.
+- Es defineix la solució real del cas (assassí, arma i lloc), que el backend protegeix.
+
+3) INVESTIGACIÓ (IN_PROGRESS)
+- Només el jugador del torn actual pot fer una pregunta al Mestre del Joc.
+- El Mestre del Joc respon en català amb narrativa coherent.
+- El Mestre no pot revelar informació privada no autoritzada.
+- A cada ronda poden aparèixer pistes narratives.
+
+4) FASE D'ACUSACIÓ (ACCUSATION_PHASE)
+- Cada jugador actiu pot fer una única acusació.
+- Si encerta assassí + arma + lloc, guanya immediatament.
+- Si falla, queda eliminat de la partida.
+
+5) FINAL (FINISHED)
+- La partida acaba quan algú encerta o quan només queda viu l'assassí.
+
+Normes de seguretat i joc net
+- Màxim de 15 jugadors.
+- Cap jugador pot actuar fora del seu torn de pregunta.
+- No es pot revelar la solució excepte a l'endpoint restringit del Mestre.
+- Tot el contingut narratiu, pistes i respostes és en català.
