@@ -9,6 +9,14 @@ export const gameRouter = Router();
 /**
  * @swagger
  * components:
+ *   parameters:
+ *     GameId:
+ *       in: path
+ *       name: id
+ *       required: true
+ *       schema:
+ *         type: string
+ *       description: ID únic de la partida
  *   schemas:
  *     CreateGameResponse:
  *       type: object
@@ -74,11 +82,7 @@ gameRouter.post('/', asyncHandler((req, res) => controller.createGame(req, res))
  *     summary: Adds a player to a lobby game.
  *     tags: [Game]
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
+ *       - $ref: '#/components/parameters/GameId'
  *     requestBody:
  *       required: true
  *       content:
@@ -97,6 +101,8 @@ gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req,
  *   post:
  *     summary: Marks player as ready and auto-starts when all are ready.
  *     tags: [Game]
+ *     parameters:
+ *       - $ref: '#/components/parameters/GameId'
  */
 gameRouter.post('/:id/ready', asyncHandler((req, res) => controller.setReady(req, res)));
 
@@ -106,6 +112,8 @@ gameRouter.post('/:id/ready', asyncHandler((req, res) => controller.setReady(req
  *   post:
  *     summary: Ask a question during IN_PROGRESS turn.
  *     tags: [Game]
+ *     parameters:
+ *       - $ref: '#/components/parameters/GameId'
  */
 gameRouter.post('/:id/ask', asyncHandler((req, res) => controller.ask(req, res)));
 
@@ -115,6 +123,8 @@ gameRouter.post('/:id/ask', asyncHandler((req, res) => controller.ask(req, res))
  *   post:
  *     summary: Submit an accusation during ACCUSATION_PHASE.
  *     tags: [Game]
+ *     parameters:
+ *       - $ref: '#/components/parameters/GameId'
  */
 gameRouter.post('/:id/accuse', asyncHandler((req, res) => controller.accuse(req, res)));
 
@@ -124,5 +134,7 @@ gameRouter.post('/:id/accuse', asyncHandler((req, res) => controller.accuse(req,
  *   get:
  *     summary: Returns the public game state.
  *     tags: [Game]
+ *     parameters:
+ *       - $ref: '#/components/parameters/GameId'
  */
 gameRouter.get('/:id', asyncHandler((req, res) => controller.getGame(req, res)));
