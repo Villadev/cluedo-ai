@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { GameApiService, SolutionResponse } from '../../services/game-api.service';
+import { GameApiService, GameSolution } from '../../services/game-api.service';
 
 // PrimeNG imports
 import { CardModule } from 'primeng/card';
@@ -23,7 +23,7 @@ import { DividerModule } from 'primeng/divider';
 export class SolutionComponent {
   private readonly gameApiService = inject(GameApiService);
 
-  readonly solution = signal<SolutionResponse | null>(null);
+  readonly solution = signal<GameSolution | null>(null);
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
   readonly gameId = this.gameApiService.gameId;
