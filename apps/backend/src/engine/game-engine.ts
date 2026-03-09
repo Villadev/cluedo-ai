@@ -13,10 +13,28 @@ import type {
 import { HttpError } from '../utils/http-error.js';
 import { generateId, nowIso } from '../utils/id.js';
 
-const MAX_PLAYERS = 15;
+const MAX_PLAYERS = 17;
 const MIN_PLAYERS = 2;
-const WEAPONS = ['Canelobre', 'Daga', 'Barra de ferro', 'Revòlver', 'Corda', 'Clau anglesa'];
-const LOCATIONS = ['Cuina', 'Sala de ball', 'Hivernacle', 'Menjador', 'Saló', 'Vestíbul', 'Despatx', 'Biblioteca'];
+const WEAPONS = [
+  'Eixada',
+  'Pinyol de cirera',
+  'Corda',
+  'Foulard esplai',
+  'Massa',
+  'Tronc'
+];
+const LOCATIONS = [
+  'Catalunya en Miniatura', // Parc temàtic amb maquetes de monuments de Catalunya. Secrets amagats entre les maquetes, passadissos tècnics.
+  'Ajuntament de Torrelles de Llobregat', // Centre polític. Documents secrets, rivalitats entre regidors.
+  'Església de Sant Martí', // Arxius antics, llegendes locals, misteris del passat.
+  'Penyes de Can Riera', // Rocoses i misterioses, ideals per desaparicions o trobades secretes a l’aire lliure.
+  'Ateneu Torrellenc', // Centre cultural i social del poble, lloc de reunions, intriga i conspiracions locals.
+  'Plaça de l’Església', // Centre del poble, lloc de celebracions i trobades entre veïns.
+  'Carrer Major', // Carrer principal amb botigues i bars, perfecte per trobades i intriga urbana.
+  'Bar La Plaçá', // Bar local amb clients habituals que poden tenir informació valuosa o secrets.
+  'Masia de Can Coll', // Masia històrica amb passat misteriós i documents antics amagats.
+  'Font del Mas Segarra' // Font antiga amb llegendes locals, lloc ideal per pistes amagades o trobades clandestines.
+];
 const VICTIMS = ['Jordi Ferrer', 'Mercè Vidal', 'Magí Pons', 'Dra. Núria Soler'];
 
 export class GameEngine {

@@ -1,6 +1,28 @@
-Sant Jeroni de la Boira és un poble reclòs entre turons, vinyes i un bosc d'alzines negres.
-Al centre, la Plaça Major conserva una font esquerdada i uns fanals antics que tremolen quan baixa la boira.
-La Casa Vallfogona domina el carrer principal: salons freds, passadissos de fusta i retrats que semblen vigilar cada conversa.
-L'hostal de la Riera és el lloc de confidències a mitja veu, on les promeses i les amenaces sovint comparteixen taula.
-A la vella biblioteca municipal, diversos volums han desaparegut sense registre, i ningú no en parla en públic.
-Quan arriba el capvespre, el poble queda mig desert i qualsevol petjada al carrer empedrat es converteix en una sospita.
+# Cluedo: Context de Torrelles de Llobregat
+
+## 1️⃣ Explicació del poble
+
+**Torrelles de Llobregat** és un municipi de la comarca del **Baix Llobregat**, situat a uns 20 km de **Barcelona**.  
+
+El centre urbà es troba enmig d’unes valls de pinedes on hi ha moltes vinyes de cirerers, conegudes localment com “vinyes”. La població supera els 5.660 habitants, la majoria dels quals treballen fora del municipi.  
+
+El poble s’estructura al voltant d’un nucli històric al qual s’ha adossat un ampli eixample format pels ravals: **Raval Mas i Torrelletes** (separats del poble), i **Raval Padró, Raval Javer, Raval Parruca i Raval Roig** (ajuntats al nucli). A més, hi ha tres grans urbanitzacions: **Can Güell, Can Guey i Cesalpina**.  
+
+Torrelles és un municipi amb terreny molt muntanyós, també conegut amb el nom de **Sant Martí de Torrelles**, situat a la part oriental del massís de la **Serra de Garraf i Ordal**.  
+
+Històricament, el poble ha combinat agricultura i vinya amb un creixement residencial i turístic, mantenint el seu encant natural i les seves masies tradicionals, ideals per a misteris i aventures al Cluedo.
+
+---
+
+## 2️⃣ 10 llocs del poble per convertir en escenari de joc
+
+1. **Catalunya en Miniatura** – Parc temàtic amb maquetes de monuments de Catalunya. Secrets amagats entre les maquetes, passadissos tècnics.  
+2. **Ajuntament de Torrelles de Llobregat** – Centre polític. Documents secrets, rivalitats entre regidors.  
+3. **Església de Sant Martí** – Arxius antics, llegendes locals, misteris del passat.  
+4. **Penyes de Can Riera** – Rocoses i misterioses, ideals per desaparicions o trobades secretes a l’aire lliure.  
+5. **Ateneu Torrellenc** – Centre cultural i social del poble, lloc de reunions, intriga i conspiracions locals.  
+6. **Plaça de l’Església** – Centre del poble, lloc de celebracions i trobades entre veïns.  
+7. **Carrer Major** – Carrer principal amb botigues i bars, perfecte per trobades i intriga urbana.  
+8. **Bar La Plaçá** – Bar local amb clients habituals que poden tenir informació valuosa o secrets.  
+9. **Masia de Can Coll** – Masia històrica amb passat misteriós i documents antics amagats.  
+10. **Font del Mas Segarra** – Font antiga amb llegendes locals, lloc ideal per pistes amagades o trobades clandestines.  

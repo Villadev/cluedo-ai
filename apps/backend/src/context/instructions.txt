@@ -1,4 +1,4 @@
-Instruccions oficials de Cluedo: "Boira sobre Sant Jeroni"
+Instruccions oficials de Cluedo: "Boira sobre Torrelles de Llobregat"
 
 Objectiu general
 - Descobrir qui és l'assassí, amb quina arma i a quin lloc.
@@ -34,7 +34,7 @@ Fases de la partida
 - La partida acaba quan algú encerta o quan només queda viu l'assassí.
 
 Normes de seguretat i joc net
-- Màxim de 15 jugadors.
+- Màxim de 17 jugadors.
 - Cap jugador pot actuar fora del seu torn de pregunta.
 - No es pot revelar la solució excepte a l'endpoint restringit del Mestre.
 - Tot el contingut narratiu, pistes i respostes és en català.
