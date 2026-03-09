@@ -73,6 +73,29 @@ export interface SolutionResponse {
   lloc: string;
 }
 
+export interface TimelineEvent {
+  timestamp: string;
+  type: string;
+  playerId?: string;
+  characterId?: string;
+  roundNumber?: number;
+  text?: string;
+  isTrue?: boolean;
+  targetCharacterId?: string;
+  success?: boolean;
+  winnerPlayerId?: string;
+  description: string;
+}
+
+export interface DebugData {
+  game: any;
+  players: any[];
+  characters: any[];
+  clues: any[];
+  roundNumber: number;
+  state: string;
+}
+
 export interface UsersResponse {
   players: { id: string; name: string }[];
 }
@@ -141,6 +164,14 @@ export class GameApiService {
 
   getSolution(gameId: string): Observable<ApiResponse<SolutionResponse>> {
     return this.http.get<ApiResponse<SolutionResponse>>(`${this.baseUrl}/game/${gameId}/solution`);
+  }
+
+  getDebug(gameId: string): Observable<ApiResponse<DebugData>> {
+    return this.http.get<ApiResponse<DebugData>>(`${this.baseUrl}/game/${gameId}/debug`);
+  }
+
+  getTimeline(gameId: string): Observable<ApiResponse<TimelineEvent[]>> {
+    return this.http.get<ApiResponse<TimelineEvent[]>>(`${this.baseUrl}/game/${gameId}/timeline`);
   }
 
   deleteUser(gameId: string, userId: string): Observable<ApiResponse<GameResponse>> {

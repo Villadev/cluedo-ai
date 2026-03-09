@@ -44,6 +44,18 @@ export class AppComponent {
         routerLink: '/solution',
         visible: hasGameId
       },
+      {
+        label: 'Depuració',
+        icon: 'pi pi-cog',
+        routerLink: '/debug',
+        visible: hasGameId
+      },
+      {
+        label: 'Historial',
+        icon: 'pi pi-list',
+        routerLink: '/timeline',
+        visible: hasGameId
+      },
       { label: 'Sales d\'espera', icon: 'pi pi-sitemap', routerLink: '/lobbies' },
       { label: 'Moderació', icon: 'pi pi-shield', routerLink: '/moderation' },
       { label: 'Configuració', icon: 'pi pi-cog', routerLink: '/settings' }
