@@ -42,8 +42,12 @@ export class InstructionsComponent {
     this.loading.set(true);
     this.error.set(null);
     this.gameApiService.getInstructions(id).subscribe({
-      next: (instructions) => {
-        this.instructions.set(instructions);
+      next: (response) => {
+        if (response.success && response.data) {
+          this.instructions.set(response.data);
+        } else {
+          this.error.set(response.error || 'Error en obtenir les instruccions');
+        }
         this.loading.set(false);
       },
       error: (err) => {

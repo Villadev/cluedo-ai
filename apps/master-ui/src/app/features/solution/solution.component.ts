@@ -44,8 +44,12 @@ export class SolutionComponent {
     this.loading.set(true);
     this.error.set(null);
     this.gameApiService.getSolution(id).subscribe({
-      next: (solution) => {
-        this.solution.set(solution);
+      next: (response) => {
+        if (response.success && response.data) {
+          this.solution.set(response.data);
+        } else {
+          this.error.set(response.error || 'Error en obtenir la solució');
+        }
         this.loading.set(false);
       },
       error: (err) => {

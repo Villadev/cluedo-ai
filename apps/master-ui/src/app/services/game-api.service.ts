@@ -28,10 +28,14 @@ export interface PublicGameView {
   updatedAt: string;
 }
 
-export interface GameResponse {
+export interface ApiResponse<T> {
   success: boolean;
-  gameState?: PublicGameView;
+  data?: T;
   error?: string;
+}
+
+export interface GameResponse {
+  gameState: PublicGameView;
 }
 
 export interface IntroResponse {
@@ -42,6 +46,10 @@ export interface SolutionResponse {
   assassi: string;
   arma: string;
   lloc: string;
+}
+
+export interface UsersResponse {
+  players: { id: string; name: string }[];
 }
 
 @Injectable({
@@ -63,28 +71,28 @@ export class GameApiService {
     this.gameId.set(id);
   }
 
-  createGame(): Observable<GameResponse> {
-    return this.http.post<GameResponse>(`${this.baseUrl}/game`, {}).pipe(
+  createGame(): Observable<ApiResponse<PublicGameView>> {
+    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game`, {}).pipe(
       tap(response => {
-        if (response.success && response.gameState?.id) {
-          this.setGameId(response.gameState.id);
+        if (response.success && response.data?.id) {
+          this.setGameId(response.data.id);
         }
       })
     );
   }
 
-  joinGame(gameId: string, playerName: string): Observable<GameResponse> {
-    return this.http.post<GameResponse>(`${this.baseUrl}/game/${gameId}/join`, {
+  joinGame(gameId: string, playerName: string): Observable<ApiResponse<PublicGameView>> {
+    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/join`, {
       name: playerName
     });
   }
 
-  setGameReady(gameId: string): Observable<GameResponse> {
-    return this.http.post<GameResponse>(`${this.baseUrl}/game/${gameId}/ready`, {});
+  setGameReady(gameId: string): Observable<ApiResponse<PublicGameView>> {
+    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/ready`, {});
   }
 
-  resetGame(gameId: string): Observable<GameResponse> {
-    return this.http.post<GameResponse>(`${this.baseUrl}/game/${gameId}/reset`, {}).pipe(
+  resetGame(gameId: string): Observable<ApiResponse<GameResponse>> {
+    return this.http.post<ApiResponse<GameResponse>>(`${this.baseUrl}/game/${gameId}/reset`, {}).pipe(
       tap(response => {
         if (response.success) {
           this.setGameId(null);
@@ -93,24 +101,24 @@ export class GameApiService {
     );
   }
 
-  getGame(gameId: string, playerId?: string): Observable<PublicGameView> {
+  getGame(gameId: string, playerId?: string): Observable<ApiResponse<PublicGameView>> {
     const url = playerId ? `${this.baseUrl}/game/${gameId}?playerId=${playerId}` : `${this.baseUrl}/game/${gameId}`;
-    return this.http.get<PublicGameView>(url);
+    return this.http.get<ApiResponse<PublicGameView>>(url);
   }
 
-  getInstructions(gameId: string): Observable<string> {
-    return this.http.get(`${this.baseUrl}/game/${gameId}/instructions`, { responseType: 'text' });
+  getInstructions(gameId: string): Observable<ApiResponse<string>> {
+    return this.http.get<ApiResponse<string>>(`${this.baseUrl}/game/${gameId}/instructions`);
   }
 
-  getIntro(gameId: string): Observable<IntroResponse> {
-    return this.http.get<IntroResponse>(`${this.baseUrl}/game/${gameId}/intro`);
+  getIntro(gameId: string): Observable<ApiResponse<IntroResponse>> {
+    return this.http.get<ApiResponse<IntroResponse>>(`${this.baseUrl}/game/${gameId}/intro`);
   }
 
-  getSolution(gameId: string): Observable<SolutionResponse> {
-    return this.http.get<SolutionResponse>(`${this.baseUrl}/game/${gameId}/solution`);
+  getSolution(gameId: string): Observable<ApiResponse<SolutionResponse>> {
+    return this.http.get<ApiResponse<SolutionResponse>>(`${this.baseUrl}/game/${gameId}/solution`);
   }
 
-  deleteUser(gameId: string, userId: string): Observable<GameResponse> {
-    return this.http.delete<GameResponse>(`${this.baseUrl}/game/${gameId}/users/${userId}`);
+  deleteUser(gameId: string, userId: string): Observable<ApiResponse<GameResponse>> {
+    return this.http.delete<ApiResponse<GameResponse>>(`${this.baseUrl}/game/${gameId}/users/${userId}`);
   }
 }

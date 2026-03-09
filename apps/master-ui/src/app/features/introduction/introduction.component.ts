@@ -43,7 +43,11 @@ export class IntroductionComponent {
     this.error.set(null);
     this.gameApiService.getIntro(id).subscribe({
       next: (response) => {
-        this.intro.set(response.intro);
+        if (response.success && response.data) {
+          this.intro.set(response.data.intro);
+        } else {
+          this.error.set(response.error || 'Error en obtenir la introducció');
+        }
         this.loading.set(false);
       },
       error: (err) => {

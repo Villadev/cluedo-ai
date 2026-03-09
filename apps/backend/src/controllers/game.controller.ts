@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { gameEngine } from '../models/dependencies.js';
+import { successResponse } from '../utils/api-response.js';
 
 const joinSchema = z.object({
   name: z.string().trim().min(2).max(50)
@@ -41,7 +42,7 @@ export class GameController {
    */
   public async createGame(_req: Request, res: Response): Promise<void> {
     const game = gameEngine.createGame();
-    res.status(200).json(gameEngine.getPublicState(game.id));
+    res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
   /**
@@ -51,7 +52,7 @@ export class GameController {
     const parsed = joinSchema.parse(req.body);
     const gameId = this.getGameId(req);
     const game = await gameEngine.addPlayer(gameId, parsed.name);
-    res.status(200).json(gameEngine.getPublicState(game.id));
+    res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
   /**
@@ -61,7 +62,7 @@ export class GameController {
     const parsed = readySchema.parse(req.body);
     const gameId = this.getGameId(req);
     const game = await gameEngine.setReady(gameId, parsed.playerId);
-    res.status(200).json(gameEngine.getPublicState(game.id, parsed.playerId));
+    res.status(200).json(successResponse(gameEngine.getPublicState(game.id, parsed.playerId)));
   }
 
   /**
@@ -72,10 +73,10 @@ export class GameController {
     const gameId = this.getGameId(req);
     const result = await gameEngine.askQuestion(gameId, parsed);
 
-    res.status(200).json({
+    res.status(200).json(successResponse({
       response: result.response,
       game: gameEngine.getPublicState(result.game.id, parsed.playerId)
-    });
+    }));
   }
 
   /**
@@ -85,7 +86,7 @@ export class GameController {
     const parsed = accusationSchema.parse(req.body);
     const gameId = this.getGameId(req);
     const game = await gameEngine.handleAccusation(gameId, parsed);
-    res.status(200).json(gameEngine.getPublicState(game.id, parsed.playerId));
+    res.status(200).json(successResponse(gameEngine.getPublicState(game.id, parsed.playerId)));
   }
 
   /**
@@ -95,7 +96,7 @@ export class GameController {
     const gameId = this.getGameId(req);
     const requesterPlayerId = typeof req.query.playerId === 'string' ? req.query.playerId : undefined;
     const game = gameEngine.getPublicState(gameId, requesterPlayerId);
-    res.status(200).json(game);
+    res.status(200).json(successResponse(game));
   }
 
   /**
@@ -103,7 +104,7 @@ export class GameController {
    */
   public async getPlayers(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
-    res.status(200).json(gameEngine.getParticipants(gameId));
+    res.status(200).json(successResponse(gameEngine.getParticipants(gameId)));
   }
 
   /**
@@ -112,7 +113,7 @@ export class GameController {
   public async getInstructions(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     gameEngine.getPublicState(gameId);
-    res.status(200).type('text/plain').send(gameEngine.getInstructions());
+    res.status(200).json(successResponse(gameEngine.getInstructions()));
   }
 
   /**
@@ -120,7 +121,7 @@ export class GameController {
    */
   public async getIntro(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
-    res.status(200).json({ intro: gameEngine.getIntro(gameId) });
+    res.status(200).json(successResponse({ intro: gameEngine.getIntro(gameId) }));
   }
 
   /**
@@ -128,7 +129,7 @@ export class GameController {
    */
   public async getSolution(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
-    res.status(200).json(gameEngine.getSolution(gameId));
+    res.status(200).json(successResponse(gameEngine.getSolution(gameId)));
   }
 
   /**
@@ -138,10 +139,9 @@ export class GameController {
     const gameId = this.getGameId(req);
     const parsed = endSchema.parse(req.body);
     const game = gameEngine.endGame(gameId, parsed.winnerPlayerId);
-    res.status(200).json({
-      success: true,
+    res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
-    });
+    }));
   }
 
   /**
@@ -150,10 +150,9 @@ export class GameController {
   public async resetGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const game = gameEngine.resetGame(gameId);
-    res.status(200).json({
-      success: true,
+    res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
-    });
+    }));
   }
 
   /**
@@ -162,10 +161,9 @@ export class GameController {
   public async getUsers(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const game = gameEngine.getPublicState(gameId);
-    res.status(200).json({
-      success: true,
+    res.status(200).json(successResponse({
       players: game.players.map((p) => ({ id: p.id, name: p.name }))
-    });
+    }));
   }
 
   /**
@@ -174,10 +172,9 @@ export class GameController {
   public async deleteUser(req: Request, res: Response): Promise<void> {
     const { id: gameId, userId } = userParamsSchema.parse(req.params);
     const game = gameEngine.deletePlayer(gameId, userId);
-    res.status(200).json({
-      success: true,
+    res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
-    });
+    }));
   }
 
   private getGameId(req: Request): string {
