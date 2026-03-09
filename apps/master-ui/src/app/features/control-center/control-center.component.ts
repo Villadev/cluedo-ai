@@ -80,21 +80,21 @@ export class ControlCenterComponent implements OnInit {
     });
   }
 
-  protected setReady(): void {
+  protected startGame(): void {
     const id = this.gameId();
     if (!id) return;
 
     this.loading.set(true);
     this.error.set(null);
-    this.gameApiService.setGameReady(id).subscribe({
+    this.gameApiService.startGame(id).subscribe({
       next: (response) => {
         if (!response.success) {
-          this.error.set(response.error || 'Error en posar la partida en ready');
+          this.error.set(response.error || 'Error en iniciar la partida');
         }
         this.loading.set(false);
       },
       error: (err) => {
-        this.error.set('Error en el servidor en posar la partida en ready');
+        this.error.set('Error en el servidor en iniciar la partida');
         this.loading.set(false);
       }
     });

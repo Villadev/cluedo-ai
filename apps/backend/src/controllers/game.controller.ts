@@ -56,13 +56,12 @@ export class GameController {
   }
 
   /**
-   * Marca un jugador com a llest per començar.
+   * Inicia la partida generant el cas i la narrativa.
    */
-  public async setReady(req: Request, res: Response): Promise<void> {
-    const parsed = readySchema.parse(req.body);
+  public async startGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
-    const game = await gameEngine.setReady(gameId, parsed.playerId);
-    res.status(200).json(successResponse(gameEngine.getPublicState(game.id, parsed.playerId)));
+    const game = await gameEngine.startGame(gameId);
+    res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
   /**
@@ -162,7 +161,7 @@ export class GameController {
     const gameId = this.getGameId(req);
     const game = gameEngine.getPublicState(gameId);
     res.status(200).json(successResponse({
-      players: game.players.map((p) => ({ id: p.id, name: p.name }))
+      players: game.players.map((p) => ({ id: p.id, nickname: p.nickname }))
     }));
   }
 

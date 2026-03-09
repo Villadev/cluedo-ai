@@ -2,24 +2,49 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 
-export type GameState = 'LOBBY' | 'STARTING' | 'IN_PROGRESS' | 'ACCUSATION_PHASE' | 'FINISHED';
+export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
+
+export interface Character {
+  id: string;
+  name: string;
+  description: string;
+  personality: string;
+  secrets: string;
+  isAssassin: boolean;
+}
+
+export interface PublicCharacterView {
+  id: string;
+  name: string;
+  description: string;
+  personality: string;
+}
+
+export interface PublicClueView {
+  id: string;
+  playerId: string;
+  text: string;
+  roundNumber: number;
+  createdAt: string;
+}
 
 export interface PublicPlayerView {
   id: string;
-  name: string;
-  publicCharacter: string;
+  nickname: string;
+  character?: PublicCharacterView;
   isReady: boolean;
   isEliminated: boolean;
   hasAccused: boolean;
-  secretInfo?: string;
-  isKiller?: boolean;
+  askedThisRound: boolean;
+  accusedThisRound: boolean;
+  accusationCooldown: number;
 }
 
 export interface PublicGameView {
   id: string;
   state: GameState;
   players: PublicPlayerView[];
-  clues: any[];
+  clues: PublicClueView[];
   currentTurnPlayerId: string | null;
   roundNumber: number;
   tensionLevel: number;
@@ -87,8 +112,8 @@ export class GameApiService {
     });
   }
 
-  setGameReady(gameId: string): Observable<ApiResponse<PublicGameView>> {
-    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/ready`, {});
+  startGame(gameId: string): Observable<ApiResponse<PublicGameView>> {
+    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/start`, {});
   }
 
   resetGame(gameId: string): Observable<ApiResponse<GameResponse>> {

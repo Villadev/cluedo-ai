@@ -48,6 +48,28 @@ export class AIService {
     return GAME_INSTRUCTIONS;
   }
 
+  public async generateNPCs(count: number): Promise<{ name: string; description: string; personality: string }[]> {
+    const response = await this.generateNarrative(
+      {
+        instruction: `Genera ${count} perfils de personatges NPC per a un joc de misteri.
+        Cada personatge ha de tenir un nom, una descripció i una personalitat.
+        Respon exclusivament en format JSON: [{"name": "...", "description": "...", "personality": "..."}]`
+      },
+      500
+    );
+
+    try {
+      return JSON.parse(response);
+    } catch {
+      // Fallback simple si falla el JSON
+      return Array.from({ length: count }).map((_, i) => ({
+        name: `NPC ${i + 1}`,
+        description: 'Habitant del poble amb secrets.',
+        personality: 'misteriós'
+      }));
+    }
+  }
+
   public async generateIntroNarration(publicGameState: string): Promise<string> {
     return this.generateNarrative(
       {
@@ -93,6 +115,16 @@ export class AIService {
   public async generateCharacterProfile(input: { playerName: string }): Promise<string> {
     return this.generatePrivateMessage(
       `Nom del jugador: ${input.playerName}. Crea un perfil públic curt de personatge en català per a la partida.`
+    );
+  }
+
+  public async generateCaseSolution(murderJson: string): Promise<string> {
+    return this.generateNarrative(
+      {
+        instruction: 'Explica la solució del crim de forma narrativa i detallada, incloent com l\'assassí va cometre el crim.',
+        privateContext: `Dades del crim: ${murderJson}`
+      },
+      400
     );
   }
 

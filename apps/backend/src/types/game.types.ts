@@ -1,4 +1,4 @@
-export type GameState = 'LOBBY' | 'STARTING' | 'IN_PROGRESS' | 'ACCUSATION_PHASE' | 'FINISHED';
+export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
 
 export interface Turn {
   id: string;
@@ -10,9 +10,10 @@ export interface Turn {
 
 export interface Clue {
   id: string;
+  playerId: string;
+  text: string;
+  isTrue: boolean;
   roundNumber: number;
-  structuredClue: string;
-  narration: string;
   createdAt: string;
 }
 
@@ -23,23 +24,41 @@ export interface Murder {
   victim: string;
 }
 
-export interface Player {
+export interface Character {
   id: string;
   name: string;
-  publicCharacter: string;
-  secretInfo: string;
-  isKiller: boolean;
+  description: string;
+  personality: string;
+  secrets: string;
+  isAssassin: boolean;
+}
+
+export interface Player {
+  id: string;
+  nickname: string;
+  characterId: string | null;
   isReady: boolean;
   isEliminated: boolean;
   hasAccused: boolean;
+  askedThisRound: boolean;
+  accusedThisRound: boolean;
+  accusationCooldown: number;
 }
 
 export interface Game {
   id: string;
   state: GameState;
   players: Player[];
+  characters: Character[];
+  assassinCharacterId: string | null;
   murder: Murder | null;
-  introNarration: string | null;
+  introNarrative: string | null;
+  solution: {
+    assassin: string;
+    weapon: string;
+    location: string;
+    explanation: string;
+  } | null;
   clues: Clue[];
   turns: Turn[];
   currentTurnIndex: number;
@@ -62,22 +81,38 @@ export interface AccusationInput {
   location: string;
 }
 
-export interface PublicPlayerView {
+export interface PublicCharacterView {
   id: string;
   name: string;
-  publicCharacter: string;
+  description: string;
+  personality: string;
+}
+
+export interface PublicClueView {
+  id: string;
+  playerId: string;
+  text: string;
+  roundNumber: number;
+  createdAt: string;
+}
+
+export interface PublicPlayerView {
+  id: string;
+  nickname: string;
+  character?: PublicCharacterView;
   isReady: boolean;
   isEliminated: boolean;
   hasAccused: boolean;
-  secretInfo?: string;
-  isKiller?: boolean;
+  askedThisRound: boolean;
+  accusedThisRound: boolean;
+  accusationCooldown: number;
 }
 
 export interface PublicGameView {
   id: string;
   state: GameState;
   players: PublicPlayerView[];
-  clues: Clue[];
+  clues: PublicClueView[];
   currentTurnPlayerId: string | null;
   roundNumber: number;
   tensionLevel: number;
@@ -92,7 +127,8 @@ export interface PublicParticipant {
 }
 
 export interface GameSolution {
-  assassi: string;
-  arma: string;
-  lloc: string;
+  assassin: string;
+  weapon: string;
+  location: string;
+  explanation: string;
 }

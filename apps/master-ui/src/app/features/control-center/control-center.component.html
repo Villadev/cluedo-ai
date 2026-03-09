@@ -60,11 +60,11 @@
       <p-card header="Control partida" styleClass="h-full">
         <div class="flex flex-column gap-3">
           <p-button
-            label="Posar partida en Ready"
-            (onClick)="setReady()"
+            label="Començar partida"
+            (onClick)="startGame()"
             [loading]="loading()"
             [disabled]="!gameId()"
-            icon="pi pi-check"
+            icon="pi pi-play"
             severity="success"
           ></p-button>
 

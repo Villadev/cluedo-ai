@@ -49,10 +49,10 @@ gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req,
 
 /**
  * @openapi
- * /game/{id}/ready:
+ * /game/{id}/start:
  *   post:
- *     summary: Marcar com a llest
- *     description: Un jugador indica que està llest per començar la partida.
+ *     summary: Iniciar la partida
+ *     description: Genera el cas, la narrativa i posa la partida en estat de joc.
  *     parameters:
  *       - in: path
  *         name: id
@@ -61,21 +61,11 @@ gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req,
  *           type: string
  *           format: uuid
  *         description: ID de la partida
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               playerId:
- *                 type: string
- *                 format: uuid
  *     responses:
  *       200:
- *         description: Estat de preparació actualitzat.
+ *         description: Partida iniciada correctament.
  */
-gameRouter.post('/:id/ready', asyncHandler((req, res) => controller.setReady(req, res)));
+gameRouter.post('/:id/start', asyncHandler((req, res) => controller.startGame(req, res)));
 
 /**
  * @openapi
