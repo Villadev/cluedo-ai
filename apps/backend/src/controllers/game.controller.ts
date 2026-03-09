@@ -36,18 +36,27 @@ const paramsSchema = z.object({
 });
 
 export class GameController {
+  /**
+   * Crea una nova partida.
+   */
   public async createGame(_req: Request, res: Response): Promise<void> {
     const game = gameEngine.createGame();
-    res.status(201).json(gameEngine.getPublicState(game.id));
+    res.status(200).json(gameEngine.getPublicState(game.id));
   }
 
+  /**
+   * Permet a un jugador unir-se a una partida.
+   */
   public async joinGame(req: Request, res: Response): Promise<void> {
     const parsed = joinSchema.parse(req.body);
     const gameId = this.getGameId(req);
     const game = await gameEngine.addPlayer(gameId, parsed.name);
-    res.status(201).json(gameEngine.getPublicState(game.id));
+    res.status(200).json(gameEngine.getPublicState(game.id));
   }
 
+  /**
+   * Marca un jugador com a llest per començar.
+   */
   public async setReady(req: Request, res: Response): Promise<void> {
     const parsed = readySchema.parse(req.body);
     const gameId = this.getGameId(req);
@@ -55,6 +64,9 @@ export class GameController {
     res.status(200).json(gameEngine.getPublicState(game.id, parsed.playerId));
   }
 
+  /**
+   * Realitza una pregunta al mestre del joc.
+   */
   public async ask(req: Request, res: Response): Promise<void> {
     const parsed = askSchema.parse(req.body);
     const gameId = this.getGameId(req);
@@ -66,6 +78,9 @@ export class GameController {
     });
   }
 
+  /**
+   * Realitza una acusació per intentar guanyar la partida.
+   */
   public async accuse(req: Request, res: Response): Promise<void> {
     const parsed = accusationSchema.parse(req.body);
     const gameId = this.getGameId(req);
@@ -73,6 +88,9 @@ export class GameController {
     res.status(200).json(gameEngine.getPublicState(game.id, parsed.playerId));
   }
 
+  /**
+   * Retorna l'estat actual de la partida.
+   */
   public async getGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const requesterPlayerId = typeof req.query.playerId === 'string' ? req.query.playerId : undefined;
@@ -80,22 +98,34 @@ export class GameController {
     res.status(200).json(game);
   }
 
+  /**
+   * Retorna la llista de participants de la partida.
+   */
   public async getPlayers(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     res.status(200).json(gameEngine.getParticipants(gameId));
   }
 
+  /**
+   * Retorna les instruccions del joc.
+   */
   public async getInstructions(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     gameEngine.getPublicState(gameId);
     res.status(200).type('text/plain').send(gameEngine.getInstructions());
   }
 
+  /**
+   * Retorna la introducció narrativa de la partida.
+   */
   public async getIntro(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     res.status(200).json({ intro: gameEngine.getIntro(gameId) });
   }
 
+  /**
+   * Retorna la solució de la partida.
+   */
   public async getSolution(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     res.status(200).json(gameEngine.getSolution(gameId));

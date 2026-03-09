@@ -13,7 +13,7 @@ export const gameRouter = Router();
  *     summary: Crear una nova partida
  *     description: Inicialitza una nova partida de Cluedo i en retorna l'estat inicial.
  *     responses:
- *       201:
+ *       200:
  *         description: Partida creada correctament.
  */
 gameRouter.post('/', asyncHandler((req, res) => controller.createGame(req, res)));
@@ -42,7 +42,7 @@ gameRouter.post('/', asyncHandler((req, res) => controller.createGame(req, res))
  *               name:
  *                 type: string
  *     responses:
- *       201:
+ *       200:
  *         description: Jugador unit correctament.
  */
 gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req, res)));
