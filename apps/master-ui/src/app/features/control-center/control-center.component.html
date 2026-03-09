@@ -1,0 +1,42 @@
+<div class="control-center-container">
+  <h1>Control Center</h1>
+
+  @if (error()) {
+    <div class="error-banner" style="color: red; padding: 10px; border: 1px solid red; margin-bottom: 20px;">
+      {{ error() }}
+    </div>
+  }
+
+  <!-- Section 1: Crear partida -->
+  <section class="section">
+    <h2>Crear partida</h2>
+    <button (click)="createGame()" [disabled]="loading()">Crear partida</button>
+    <p>Game ID: {{ gameId() || 'No hi ha cap partida activa' }}</p>
+  </section>
+
+  <!-- Section 2: Afegir jugador -->
+  <section class="section">
+    <h2>Afegir jugador</h2>
+    <div>
+      <label for="playerName">Nom del jugador:</label>
+      <input
+        id="playerName"
+        type="text"
+        [ngModel]="playerName()"
+        (ngModelChange)="onPlayerNameChange($event)"
+        placeholder="Nom del jugador"
+        [disabled]="loading() || !gameId()"
+      />
+      <button (click)="addPlayer()" [disabled]="loading() || !gameId() || !playerName()">Afegir jugador</button>
+    </div>
+  </section>
+
+  <!-- Section 3: Control partida -->
+  <section class="section">
+    <h2>Control partida</h2>
+    <div>
+      <button (click)="setReady()" [disabled]="loading() || !gameId()">Posar partida en Ready</button>
+      <button (click)="cancelGame()" [disabled]="loading() || !gameId()">Cancel·lar partida</button>
+    </div>
+  </section>
+</div>
