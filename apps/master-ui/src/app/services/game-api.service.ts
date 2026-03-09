@@ -64,7 +64,7 @@ export class GameApiService {
   }
 
   createGame(): Observable<GameResponse> {
-    return this.http.post<GameResponse>(`${this.baseUrl}/game/create`, {}).pipe(
+    return this.http.post<GameResponse>(`${this.baseUrl}/game`, {}).pipe(
       tap(response => {
         if (response.success && response.gameState?.id) {
           this.setGameId(response.gameState.id);
