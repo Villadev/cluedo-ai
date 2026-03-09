@@ -20,10 +20,10 @@ gameRouter.post('/', asyncHandler((req, res) => controller.createGame(req, res))
 
 /**
  * @openapi
- * /game/{id}/join:
+ * /game/{id}/start:
  *   post:
- *     summary: Unir-se a una partida
- *     description: Permet a un jugador unir-se a una partida existent mitjançant el seu nom.
+ *     summary: Iniciar la partida
+ *     description: Genera el cas, la narrativa i posa la partida en estat de joc.
  *     parameters:
  *       - in: path
  *         name: id
@@ -32,50 +32,11 @@ gameRouter.post('/', asyncHandler((req, res) => controller.createGame(req, res))
  *           type: string
  *           format: uuid
  *         description: ID de la partida
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
  *     responses:
  *       200:
- *         description: Jugador unit correctament.
+ *         description: Partida iniciada correctament.
  */
-gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req, res)));
-
-/**
- * @openapi
- * /game/{id}/ready:
- *   post:
- *     summary: Marcar com a llest
- *     description: Un jugador indica que està llest per començar la partida.
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID de la partida
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               playerId:
- *                 type: string
- *                 format: uuid
- *     responses:
- *       200:
- *         description: Estat de preparació actualitzat.
- */
-gameRouter.post('/:id/ready', asyncHandler((req, res) => controller.setReady(req, res)));
+gameRouter.post('/:id/start', asyncHandler((req, res) => controller.startGame(req, res)));
 
 /**
  * @openapi

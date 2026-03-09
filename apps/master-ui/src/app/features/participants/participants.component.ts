@@ -59,25 +59,4 @@ export class ParticipantsComponent {
     });
   }
 
-  protected deleteParticipant(userId: string): void {
-    const id = this.gameId();
-    if (!id) return;
-
-    this.loading.set(true);
-    this.error.set(null);
-    this.gameApiService.deleteUser(id, userId).subscribe({
-      next: (response) => {
-        if (response.success && response.data?.gameState) {
-          this.participants.set(response.data.gameState.players);
-        } else {
-          this.error.set(response.error || 'Error en eliminar el participant');
-        }
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.error.set('Error en el servidor en eliminar el participant');
-        this.loading.set(false);
-      }
-    });
-  }
 }

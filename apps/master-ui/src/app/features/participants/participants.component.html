@@ -14,22 +14,25 @@
           <div class="flex flex-column gap-3">
             <div>
               <span class="font-bold">Descripció:</span>
-              <p>{{ player.publicCharacter || 'Sense descripció disponible' }}</p>
+              <p>{{ player.description || 'Sense descripció disponible' }}</p>
             </div>
 
             <div>
-              <span class="font-bold">Rol:</span>
-              <p>{{ player.isKiller ? 'Assassí' : 'Ciutadà' }}</p>
+              <span class="font-bold">Personalitat:</span>
+              <p>{{ player.personality || 'Sense personalitat definida' }}</p>
             </div>
 
-            <p-button
-              label="Eliminar de la partida"
-              (onClick)="deleteParticipant(player.id)"
-              [loading]="loading()"
-              icon="pi pi-user-minus"
-              severity="danger"
-              [outlined]="true"
-            ></p-button>
+            <div>
+              <span class="font-bold">Perfil Narratiu:</span>
+              <p>{{ player.publicCharacter || 'Sense perfil disponible' }}</p>
+            </div>
+
+            @if (player.isKiller !== undefined) {
+              <div>
+                <span class="font-bold">Rol:</span>
+                <p>{{ player.isKiller ? 'Assassí' : 'Sospitós' }}</p>
+              </div>
+            }
           </div>
         </p-card>
       </div>

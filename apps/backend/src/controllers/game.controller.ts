@@ -41,28 +41,17 @@ export class GameController {
    * Crea una nova partida.
    */
   public async createGame(_req: Request, res: Response): Promise<void> {
-    const game = gameEngine.createGame();
+    const game = await gameEngine.createGame();
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
   /**
-   * Permet a un jugador unir-se a una partida.
+   * Inicia la partida generant el cas i la narrativa.
    */
-  public async joinGame(req: Request, res: Response): Promise<void> {
-    const parsed = joinSchema.parse(req.body);
+  public async startGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
-    const game = await gameEngine.addPlayer(gameId, parsed.name);
+    const game = await gameEngine.startGame(gameId);
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
-  }
-
-  /**
-   * Marca un jugador com a llest per començar.
-   */
-  public async setReady(req: Request, res: Response): Promise<void> {
-    const parsed = readySchema.parse(req.body);
-    const gameId = this.getGameId(req);
-    const game = await gameEngine.setReady(gameId, parsed.playerId);
-    res.status(200).json(successResponse(gameEngine.getPublicState(game.id, parsed.playerId)));
   }
 
   /**

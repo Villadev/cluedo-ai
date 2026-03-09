@@ -2,15 +2,20 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 
-export type GameState = 'LOBBY' | 'STARTING' | 'IN_PROGRESS' | 'ACCUSATION_PHASE' | 'FINISHED';
+export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
 
 export interface PublicPlayerView {
   id: string;
   name: string;
+  description: string;
+  personality: string;
   publicCharacter: string;
   isReady: boolean;
   isEliminated: boolean;
   hasAccused: boolean;
+  askedThisRound: boolean;
+  accusedThisRound: boolean;
+  accusationCooldown: number;
   secretInfo?: string;
   isKiller?: boolean;
 }
@@ -81,14 +86,8 @@ export class GameApiService {
     );
   }
 
-  joinGame(gameId: string, playerName: string): Observable<ApiResponse<PublicGameView>> {
-    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/join`, {
-      name: playerName
-    });
-  }
-
-  setGameReady(gameId: string): Observable<ApiResponse<PublicGameView>> {
-    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/ready`, {});
+  startGame(gameId: string): Observable<ApiResponse<PublicGameView>> {
+    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/start`, {});
   }
 
   resetGame(gameId: string): Observable<ApiResponse<GameResponse>> {

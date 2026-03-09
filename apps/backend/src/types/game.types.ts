@@ -1,4 +1,4 @@
-export type GameState = 'LOBBY' | 'STARTING' | 'IN_PROGRESS' | 'ACCUSATION_PHASE' | 'FINISHED';
+export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
 
 export interface Turn {
   id: string;
@@ -10,9 +10,10 @@ export interface Turn {
 
 export interface Clue {
   id: string;
+  playerId: string;
+  text: string;
+  isTrue: boolean;
   roundNumber: number;
-  structuredClue: string;
-  narration: string;
   createdAt: string;
 }
 
@@ -26,12 +27,17 @@ export interface Murder {
 export interface Player {
   id: string;
   name: string;
+  description: string;
+  personality: string;
   publicCharacter: string;
   secretInfo: string;
   isKiller: boolean;
   isReady: boolean;
   isEliminated: boolean;
   hasAccused: boolean;
+  askedThisRound: boolean;
+  accusedThisRound: boolean;
+  accusationCooldown: number;
 }
 
 export interface Game {
@@ -39,7 +45,13 @@ export interface Game {
   state: GameState;
   players: Player[];
   murder: Murder | null;
-  introNarration: string | null;
+  introNarrative: string | null;
+  solution: {
+    assassin: string;
+    weapon: string;
+    location: string;
+    explanation: string;
+  } | null;
   clues: Clue[];
   turns: Turn[];
   currentTurnIndex: number;
@@ -65,10 +77,15 @@ export interface AccusationInput {
 export interface PublicPlayerView {
   id: string;
   name: string;
+  description: string;
+  personality: string;
   publicCharacter: string;
   isReady: boolean;
   isEliminated: boolean;
   hasAccused: boolean;
+  askedThisRound: boolean;
+  accusedThisRound: boolean;
+  accusationCooldown: number;
   secretInfo?: string;
   isKiller?: boolean;
 }
@@ -92,7 +109,8 @@ export interface PublicParticipant {
 }
 
 export interface GameSolution {
-  assassi: string;
-  arma: string;
-  lloc: string;
+  assassin: string;
+  weapon: string;
+  location: string;
+  explanation: string;
 }
