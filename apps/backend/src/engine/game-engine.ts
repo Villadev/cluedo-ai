@@ -151,6 +151,55 @@ export class GameEngine {
     return { response, game };
   }
 
+  /**
+   * Finalitza una partida en curs.
+   */
+  public endGame(gameId: string, winnerPlayerId?: string): Game {
+    const game = this.getGameOrThrow(gameId);
+    game.state = 'FINISHED';
+    if (winnerPlayerId) {
+      game.winnerPlayerId = winnerPlayerId;
+    }
+    game.updatedAt = nowIso();
+    this.store.save(game);
+    return game;
+  }
+
+  /**
+   * Reinicia completament una partida.
+   */
+  public resetGame(gameId: string): Game {
+    const game = this.getGameOrThrow(gameId);
+    game.players = [];
+    game.murder = null;
+    game.introNarration = null;
+    game.clues = [];
+    game.turns = [];
+    game.currentTurnIndex = 0;
+    game.roundNumber = 1;
+    game.tensionLevel = 0;
+    game.winnerPlayerId = null;
+    game.state = 'LOBBY';
+    game.updatedAt = nowIso();
+    this.store.save(game);
+    return game;
+  }
+
+  /**
+   * Elimina un jugador de la partida.
+   */
+  public deletePlayer(gameId: string, playerId: string): Game {
+    const game = this.getGameOrThrow(gameId);
+    const playerIndex = game.players.findIndex((p) => p.id === playerId);
+    if (playerIndex === -1) {
+      throw new HttpError(404, 'Jugador no trobat');
+    }
+    game.players.splice(playerIndex, 1);
+    game.updatedAt = nowIso();
+    this.store.save(game);
+    return game;
+  }
+
   public async handleAccusation(gameId: string, input: AccusationInput): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== 'ACCUSATION_PHASE') {

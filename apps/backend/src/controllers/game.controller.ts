@@ -22,6 +22,15 @@ const accusationSchema = z.object({
   location: z.string().trim().min(2).max(100)
 });
 
+const endSchema = z.object({
+  winnerPlayerId: z.string().uuid().optional()
+});
+
+const userParamsSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid()
+});
+
 const paramsSchema = z.object({
   id: z.string().uuid()
 });
@@ -90,6 +99,55 @@ export class GameController {
   public async getSolution(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     res.status(200).json(gameEngine.getSolution(gameId));
+  }
+
+  /**
+   * Finalitza una partida en curs.
+   */
+  public async endGame(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    const parsed = endSchema.parse(req.body);
+    const game = gameEngine.endGame(gameId, parsed.winnerPlayerId);
+    res.status(200).json({
+      success: true,
+      gameState: gameEngine.getPublicState(game.id)
+    });
+  }
+
+  /**
+   * Reinicia completament una partida.
+   */
+  public async resetGame(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    const game = gameEngine.resetGame(gameId);
+    res.status(200).json({
+      success: true,
+      gameState: gameEngine.getPublicState(game.id)
+    });
+  }
+
+  /**
+   * Retorna la llista de jugadors actuals.
+   */
+  public async getUsers(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    const game = gameEngine.getPublicState(gameId);
+    res.status(200).json({
+      success: true,
+      players: game.players.map((p) => ({ id: p.id, name: p.name }))
+    });
+  }
+
+  /**
+   * Elimina un jugador de la partida.
+   */
+  public async deleteUser(req: Request, res: Response): Promise<void> {
+    const { id: gameId, userId } = userParamsSchema.parse(req.params);
+    const game = gameEngine.deletePlayer(gameId, userId);
+    res.status(200).json({
+      success: true,
+      gameState: gameEngine.getPublicState(game.id)
+    });
   }
 
   private getGameId(req: Request): string {
