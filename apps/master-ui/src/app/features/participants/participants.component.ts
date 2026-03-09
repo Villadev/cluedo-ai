@@ -44,8 +44,12 @@ export class ParticipantsComponent {
     this.loading.set(true);
     this.error.set(null);
     this.gameApiService.getGame(id).subscribe({
-      next: (game) => {
-        this.participants.set(game.players);
+      next: (response) => {
+        if (response.success && response.data) {
+          this.participants.set(response.data.players);
+        } else {
+          this.error.set(response.error || 'Error en obtenir els participants');
+        }
         this.loading.set(false);
       },
       error: (err) => {
@@ -63,8 +67,8 @@ export class ParticipantsComponent {
     this.error.set(null);
     this.gameApiService.deleteUser(id, userId).subscribe({
       next: (response) => {
-        if (response.success && response.gameState) {
-          this.participants.set(response.gameState.players);
+        if (response.success && response.data?.gameState) {
+          this.participants.set(response.data.gameState.players);
         } else {
           this.error.set(response.error || 'Error en eliminar el participant');
         }
