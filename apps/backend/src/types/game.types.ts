@@ -1,5 +1,26 @@
 export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
 
+export const GameStates: Record<GameState, GameState> = {
+  LOBBY: 'LOBBY',
+  READY: 'READY',
+  PLAYING: 'PLAYING',
+  FINISHED: 'FINISHED'
+};
+
+export interface TimelineEvent {
+  timestamp: string;
+  type: 'PLAYER_JOIN' | 'CHARACTER_ASSIGNED' | 'ROUND_START' | 'QUESTION' | 'CLUE' | 'ACCUSATION' | 'GAME_END' | 'STATE_CHANGE';
+  playerId?: string;
+  characterId?: string;
+  roundNumber?: number;
+  text?: string;
+  isTrue?: boolean;
+  targetCharacterId?: string;
+  success?: boolean;
+  winnerPlayerId?: string;
+  description: string;
+}
+
 export interface Turn {
   id: string;
   playerId: string;
@@ -65,6 +86,7 @@ export interface Game {
   roundNumber: number;
   tensionLevel: number;
   winnerPlayerId: string | null;
+  timeline: TimelineEvent[];
   createdAt: string;
   updatedAt: string;
 }

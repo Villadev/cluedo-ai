@@ -99,6 +99,22 @@ export class GameController {
   }
 
   /**
+   * Retorna l'estat complet per a depuració.
+   */
+  public async debug(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    res.status(200).json(successResponse(gameEngine.getDebugData(gameId)));
+  }
+
+  /**
+   * Retorna l'historial d'esdeveniments de la partida.
+   */
+  public async timeline(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    res.status(200).json(successResponse(gameEngine.getTimeline(gameId)));
+  }
+
+  /**
    * Retorna la llista de participants de la partida.
    */
   public async getPlayers(req: Request, res: Response): Promise<void> {

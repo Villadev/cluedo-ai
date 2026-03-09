@@ -218,6 +218,46 @@ gameRouter.get('/:id/intro', asyncHandler((req, res) => controller.getIntro(req,
 
 /**
  * @openapi
+ * /game/{id}/debug:
+ *   get:
+ *     summary: Obtenir dades de depuració
+ *     description: Retorna l'estat complet de la partida per a fins de depuració.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Dades de depuració obtingudes.
+ */
+gameRouter.get('/:id/debug', asyncHandler((req, res) => controller.debug(req, res)));
+
+/**
+ * @openapi
+ * /game/{id}/timeline:
+ *   get:
+ *     summary: Obtenir historial d'esdeveniments
+ *     description: Retorna una llista cronològica de tots els esdeveniments de la partida.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Historial d'esdeveniments obtingut.
+ */
+gameRouter.get('/:id/timeline', asyncHandler((req, res) => controller.timeline(req, res)));
+
+/**
+ * @openapi
  * /game/{id}:
  *   get:
  *     summary: Obtenir estat de la partida
