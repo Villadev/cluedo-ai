@@ -1,0 +1,50 @@
+<div class="p-4">
+  <h1 class="text-3xl font-bold mb-4">Solució de la Partida</h1>
+
+  @if (error()) {
+    <div class="mb-4">
+      <p-message severity="error" [text]="error() || ''"></p-message>
+    </div>
+  }
+
+  @if (solution()) {
+    <p-card header="La Resolució del Cas" styleClass="p-fluid shadow-4">
+      <div class="flex flex-column gap-4">
+        <div class="text-center">
+          <h2 class="text-red-600 font-bold mb-2">L'ASSASSÍ ÉS:</h2>
+          <div class="text-3xl p-3 border-round bg-red-50 font-bold text-red-900 border-1 border-red-200">
+            {{ solution()?.assassi }}
+          </div>
+        </div>
+
+        <p-divider></p-divider>
+
+        <div class="grid">
+          <div class="col-12 md:col-6 text-center">
+            <h3 class="font-bold text-gray-700"><i class="pi pi-hammer mr-2"></i>ARMA:</h3>
+            <p class="text-xl font-medium">{{ solution()?.arma }}</p>
+          </div>
+          <div class="col-12 md:col-6 text-center">
+            <h3 class="font-bold text-gray-700"><i class="pi pi-map-marker mr-2"></i>LLOC:</h3>
+            <p class="text-xl font-medium">{{ solution()?.lloc }}</p>
+          </div>
+        </div>
+
+        <p-divider></p-divider>
+
+        <div class="bg-blue-50 p-4 border-round border-1 border-blue-200">
+          <h3 class="font-bold text-blue-900 mb-2">Resum Final:</h3>
+          <p class="text-blue-800 line-height-3">
+            Aquest ha estat el desenllaç de la història. Gràcies per participar en aquesta investigació!
+          </p>
+        </div>
+      </div>
+    </p-card>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-content-center p-4">
+      <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+    </div>
+  }
+</div>

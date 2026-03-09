@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { GameApiService } from '../../services/game-api.service';
 
 // PrimeNG imports
@@ -27,30 +28,24 @@ import { MessagesModule } from 'primeng/messages';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ControlCenterComponent implements OnInit {
-  private readonly gameApiService = inject(GameApiService);
+  protected readonly gameApiService = inject(GameApiService);
+  private readonly router = inject(Router);
 
-  readonly gameId = signal<string | null>(null);
+  readonly gameId = this.gameApiService.gameId;
   readonly playerName = signal<string>('');
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
-    const savedGameId = localStorage.getItem('gameId');
-    if (savedGameId) {
-      this.gameId.set(savedGameId);
-    }
+    // El gameId ja està sincronitzat amb el servei
   }
 
-  createGame(): void {
+  protected createGame(): void {
     this.loading.set(true);
     this.error.set(null);
     this.gameApiService.createGame().subscribe({
       next: (response) => {
-        if (response.success && response.gameState?.id) {
-          const id = response.gameState.id;
-          this.gameId.set(id);
-          localStorage.setItem('gameId', id);
-        } else {
+        if (!response.success) {
           this.error.set(response.error || 'Error al crear la partida');
         }
         this.loading.set(false);
@@ -62,7 +57,7 @@ export class ControlCenterComponent implements OnInit {
     });
   }
 
-  addPlayer(): void {
+  protected addPlayer(): void {
     const id = this.gameId();
     const name = this.playerName().trim();
     if (!id || !name) return;
@@ -85,7 +80,7 @@ export class ControlCenterComponent implements OnInit {
     });
   }
 
-  setReady(): void {
+  protected setReady(): void {
     const id = this.gameId();
     if (!id) return;
 
@@ -105,10 +100,11 @@ export class ControlCenterComponent implements OnInit {
     });
   }
 
-  cancelGame(): void {
+  protected cancelGame(): void {
     const id = this.gameId();
     if (!id) {
-      this.resetLocalState();
+      this.gameApiService.setGameId(null);
+      this.router.navigate(['/control-center']);
       return;
     }
 
@@ -117,28 +113,22 @@ export class ControlCenterComponent implements OnInit {
     this.gameApiService.resetGame(id).subscribe({
       next: (response) => {
         if (response.success) {
-          this.resetLocalState();
+          this.router.navigate(['/control-center']);
         } else {
           this.error.set(response.error || 'Error en cancel·lar la partida');
         }
         this.loading.set(false);
       },
       error: (err) => {
-        // Even if there is a server error, we should probably reset locally if requested
         this.error.set('Error en el servidor en cancel·lar la partida. S\'ha resetat localment.');
-        this.resetLocalState();
+        this.gameApiService.setGameId(null);
+        this.router.navigate(['/control-center']);
         this.loading.set(false);
       }
     });
   }
 
-  private resetLocalState(): void {
-    localStorage.removeItem('gameId');
-    this.gameId.set(null);
-    this.playerName.set('');
-  }
-
-  onPlayerNameChange(value: string): void {
+  protected onPlayerNameChange(value: string): void {
     this.playerName.set(value);
   }
 }
