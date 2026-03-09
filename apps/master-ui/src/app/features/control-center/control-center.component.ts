@@ -3,10 +3,25 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GameApiService } from '../../services/game-api.service';
 
+// PrimeNG imports
+import { ButtonModule } from 'primeng/button';
+import { InputTextModule } from 'primeng/inputtext';
+import { CardModule } from 'primeng/card';
+import { MessageModule } from 'primeng/message';
+import { MessagesModule } from 'primeng/messages';
+
 @Component({
   selector: 'app-control-center',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ButtonModule,
+    InputTextModule,
+    CardModule,
+    MessageModule,
+    MessagesModule
+  ],
   templateUrl: './control-center.component.html',
   styleUrls: [],
   changeDetection: ChangeDetectionStrategy.OnPush

@@ -1,42 +1,84 @@
-<div class="control-center-container">
-  <h1>Control Center</h1>
+<div class="p-4">
+  <h1 class="text-3xl font-bold mb-4">Control Center</h1>
 
   @if (error()) {
-    <div class="error-banner" style="color: red; padding: 10px; border: 1px solid red; margin-bottom: 20px;">
-      {{ error() }}
+    <div class="mb-4">
+      <p-message severity="error" [text]="error() || ''"></p-message>
     </div>
   }
 
-  <!-- Section 1: Crear partida -->
-  <section class="section">
-    <h2>Crear partida</h2>
-    <button (click)="createGame()" [disabled]="loading()">Crear partida</button>
-    <p>Game ID: {{ gameId() || 'No hi ha cap partida activa' }}</p>
-  </section>
+  <div class="grid">
+    <!-- Section 1: Crear partida -->
+    <div class="col-12 md:col-6 lg:col-4 mb-4">
+      <p-card header="Crear partida" styleClass="h-full">
+        <div class="flex flex-column gap-3">
+          <p-button
+            label="Crear partida"
+            (onClick)="createGame()"
+            [loading]="loading()"
+            icon="pi pi-plus"
+          ></p-button>
 
-  <!-- Section 2: Afegir jugador -->
-  <section class="section">
-    <h2>Afegir jugador</h2>
-    <div>
-      <label for="playerName">Nom del jugador:</label>
-      <input
-        id="playerName"
-        type="text"
-        [ngModel]="playerName()"
-        (ngModelChange)="onPlayerNameChange($event)"
-        placeholder="Nom del jugador"
-        [disabled]="loading() || !gameId()"
-      />
-      <button (click)="addPlayer()" [disabled]="loading() || !gameId() || !playerName()">Afegir jugador</button>
+          <div class="p-3 border-round bg-primary-reverse font-medium">
+            Game ID: {{ gameId() || 'No hi ha cap partida activa' }}
+          </div>
+        </div>
+      </p-card>
     </div>
-  </section>
 
-  <!-- Section 3: Control partida -->
-  <section class="section">
-    <h2>Control partida</h2>
-    <div>
-      <button (click)="setReady()" [disabled]="loading() || !gameId()">Posar partida en Ready</button>
-      <button (click)="cancelGame()" [disabled]="loading() || !gameId()">Cancel·lar partida</button>
+    <!-- Section 2: Afegir jugador -->
+    <div class="col-12 md:col-6 lg:col-4 mb-4">
+      <p-card header="Afegir jugador" styleClass="h-full">
+        <div class="flex flex-column gap-3">
+          <div class="flex flex-column gap-2">
+            <label for="playerName" class="font-bold">Nom del jugador</label>
+            <input
+              pInputText
+              id="playerName"
+              type="text"
+              [ngModel]="playerName()"
+              (ngModelChange)="onPlayerNameChange($event)"
+              placeholder="Ex: Joan"
+              [disabled]="loading() || !gameId()"
+              class="w-full"
+            />
+          </div>
+          <p-button
+            label="Afegir jugador"
+            (onClick)="addPlayer()"
+            [loading]="loading()"
+            [disabled]="!gameId() || !playerName()"
+            icon="pi pi-user-plus"
+            severity="secondary"
+          ></p-button>
+        </div>
+      </p-card>
     </div>
-  </section>
+
+    <!-- Section 3: Control partida -->
+    <div class="col-12 md:col-12 lg:col-4 mb-4">
+      <p-card header="Control partida" styleClass="h-full">
+        <div class="flex flex-column gap-3">
+          <p-button
+            label="Posar partida en Ready"
+            (onClick)="setReady()"
+            [loading]="loading()"
+            [disabled]="!gameId()"
+            icon="pi pi-check"
+            severity="success"
+          ></p-button>
+
+          <p-button
+            label="Cancel·lar partida"
+            (onClick)="cancelGame()"
+            [loading]="loading()"
+            [disabled]="!gameId()"
+            icon="pi pi-trash"
+            severity="danger"
+            [outlined]="true"
+          ></p-button>
+        </div>
+      </p-card>
+    </div>
+  </div>
 </div>
