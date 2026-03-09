@@ -41,7 +41,17 @@ export class GameController {
    * Crea una nova partida.
    */
   public async createGame(_req: Request, res: Response): Promise<void> {
-    const game = await gameEngine.createGame();
+    const game = gameEngine.createGame();
+    res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
+  }
+
+  /**
+   * Permet a un jugador unir-se a una partida.
+   */
+  public async joinGame(req: Request, res: Response): Promise<void> {
+    const parsed = joinSchema.parse(req.body);
+    const gameId = this.getGameId(req);
+    const game = await gameEngine.addPlayer(gameId, parsed.name);
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
@@ -151,7 +161,7 @@ export class GameController {
     const gameId = this.getGameId(req);
     const game = gameEngine.getPublicState(gameId);
     res.status(200).json(successResponse({
-      players: game.players.map((p) => ({ id: p.id, name: p.name }))
+      players: game.players.map((p) => ({ id: p.id, nickname: p.nickname }))
     }));
   }
 

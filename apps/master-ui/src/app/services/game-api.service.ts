@@ -4,27 +4,47 @@ import { Observable, tap } from 'rxjs';
 
 export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
 
-export interface PublicPlayerView {
+export interface Character {
   id: string;
   name: string;
   description: string;
   personality: string;
-  publicCharacter: string;
+  secrets: string;
+  isAssassin: boolean;
+}
+
+export interface PublicCharacterView {
+  id: string;
+  name: string;
+  description: string;
+  personality: string;
+}
+
+export interface PublicClueView {
+  id: string;
+  playerId: string;
+  text: string;
+  roundNumber: number;
+  createdAt: string;
+}
+
+export interface PublicPlayerView {
+  id: string;
+  nickname: string;
+  character?: PublicCharacterView;
   isReady: boolean;
   isEliminated: boolean;
   hasAccused: boolean;
   askedThisRound: boolean;
   accusedThisRound: boolean;
   accusationCooldown: number;
-  secretInfo?: string;
-  isKiller?: boolean;
 }
 
 export interface PublicGameView {
   id: string;
   state: GameState;
   players: PublicPlayerView[];
-  clues: any[];
+  clues: PublicClueView[];
   currentTurnPlayerId: string | null;
   roundNumber: number;
   tensionLevel: number;
@@ -84,6 +104,12 @@ export class GameApiService {
         }
       })
     );
+  }
+
+  joinGame(gameId: string, playerName: string): Observable<ApiResponse<PublicGameView>> {
+    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/join`, {
+      name: playerName
+    });
   }
 
   startGame(gameId: string): Observable<ApiResponse<PublicGameView>> {

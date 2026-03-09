@@ -32,6 +32,7 @@ export class ControlCenterComponent implements OnInit {
   private readonly router = inject(Router);
 
   readonly gameId = this.gameApiService.gameId;
+  readonly playerName = signal<string>('');
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
@@ -51,6 +52,29 @@ export class ControlCenterComponent implements OnInit {
       },
       error: (err) => {
         this.error.set('Error en el servidor al crear la partida');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  protected addPlayer(): void {
+    const id = this.gameId();
+    const name = this.playerName().trim();
+    if (!id || !name) return;
+
+    this.loading.set(true);
+    this.error.set(null);
+    this.gameApiService.joinGame(id, name).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.playerName.set('');
+        } else {
+          this.error.set(response.error || 'Error en afegir el jugador');
+        }
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.error.set('Error en el servidor en afegir el jugador');
         this.loading.set(false);
       }
     });
@@ -102,5 +126,9 @@ export class ControlCenterComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  protected onPlayerNameChange(value: string): void {
+    this.playerName.set(value);
   }
 }

@@ -24,14 +24,19 @@ export interface Murder {
   victim: string;
 }
 
-export interface Player {
+export interface Character {
   id: string;
   name: string;
   description: string;
   personality: string;
-  publicCharacter: string;
-  secretInfo: string;
-  isKiller: boolean;
+  secrets: string;
+  isAssassin: boolean;
+}
+
+export interface Player {
+  id: string;
+  nickname: string;
+  characterId: string | null;
   isReady: boolean;
   isEliminated: boolean;
   hasAccused: boolean;
@@ -44,6 +49,8 @@ export interface Game {
   id: string;
   state: GameState;
   players: Player[];
+  characters: Character[];
+  assassinCharacterId: string | null;
   murder: Murder | null;
   introNarrative: string | null;
   solution: {
@@ -74,27 +81,38 @@ export interface AccusationInput {
   location: string;
 }
 
-export interface PublicPlayerView {
+export interface PublicCharacterView {
   id: string;
   name: string;
   description: string;
   personality: string;
-  publicCharacter: string;
+}
+
+export interface PublicClueView {
+  id: string;
+  playerId: string;
+  text: string;
+  roundNumber: number;
+  createdAt: string;
+}
+
+export interface PublicPlayerView {
+  id: string;
+  nickname: string;
+  character?: PublicCharacterView;
   isReady: boolean;
   isEliminated: boolean;
   hasAccused: boolean;
   askedThisRound: boolean;
   accusedThisRound: boolean;
   accusationCooldown: number;
-  secretInfo?: string;
-  isKiller?: boolean;
 }
 
 export interface PublicGameView {
   id: string;
   state: GameState;
   players: PublicPlayerView[];
-  clues: Clue[];
+  clues: PublicClueView[];
   currentTurnPlayerId: string | null;
   roundNumber: number;
   tensionLevel: number;

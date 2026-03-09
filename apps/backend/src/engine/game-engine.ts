@@ -7,6 +7,7 @@ import type {
   Game,
   GameSolution,
   Player,
+  Character,
   PublicGameView,
   PublicParticipant
 } from '../types/game.types.js';
@@ -24,16 +25,16 @@ const WEAPONS = [
   'Tronc'
 ];
 const LOCATIONS = [
-  'Catalunya en Miniatura', // Parc temàtic amb maquetes de monuments de Catalunya. Secrets amagats entre les maquetes, passadissos tècnics.
-  'Ajuntament de Torrelles de Llobregat', // Centre polític. Documents secrets, rivalitats entre regidors.
-  'Església de Sant Martí', // Arxius antics, llegendes locals, misteris del passat.
-  'Penyes de Can Riera', // Rocoses i misterioses, ideals per desaparicions o trobades secretes a l’aire lliure.
-  'Ateneu Torrellenc', // Centre cultural i social del poble, lloc de reunions, intriga i conspiracions locals.
-  'Plaça de l’Església', // Centre del poble, lloc de celebracions i trobades entre veïns.
-  'Carrer Major', // Carrer principal amb botigues i bars, perfecte per trobades i intriga urbana.
-  'Bar La Plaçá', // Bar local amb clients habituals que poden tenir informació valuosa o secrets.
-  'Masia de Can Coll', // Masia històrica amb passat misteriós i documents antics amagats.
-  'Font del Mas Segarra' // Font antiga amb llegendes locals, lloc ideal per pistes amagades o trobades clandestines.
+  'Catalunya en Miniatura',
+  'Ajuntament de Torrelles de Llobregat',
+  'Església de Sant Martí',
+  'Penyes de Can Riera',
+  'Ateneu Torrellenc',
+  'Plaça de l’Església',
+  'Carrer Major',
+  'Bar La Plaçá',
+  'Masia de Can Coll',
+  'Font del Mas Segarra'
 ];
 const VICTIMS = ['Jordi Ferrer', 'Mercè Vidal', 'Magí Pons', 'Dra. Núria Soler'];
 
@@ -43,33 +44,14 @@ export class GameEngine {
     private readonly aiService: AIService
   ) {}
 
-  public async createGame(): Promise<Game> {
+  public createGame(): Game {
     const timestamp = nowIso();
-    const npcCount = Math.floor(Math.random() * 3) + 4; // 4 to 6
-    const npcs = await this.aiService.generateNPCs(npcCount);
-
-    const players: Player[] = await Promise.all(
-      npcs.map(async (npc) => ({
-        id: generateId(),
-        name: npc.name,
-        description: npc.description,
-        personality: npc.personality,
-        publicCharacter: await this.aiService.generateCharacterProfile({ playerName: npc.name }),
-        secretInfo: '',
-        isKiller: false,
-        isReady: true,
-        isEliminated: false,
-        hasAccused: false,
-        askedThisRound: false,
-        accusedThisRound: false,
-        accusationCooldown: 0
-      }))
-    );
-
     const game: Game = {
       id: generateId(),
       state: 'LOBBY',
-      players,
+      players: [],
+      characters: [],
+      assassinCharacterId: null,
       murder: null,
       introNarrative: null,
       solution: null,
@@ -87,18 +69,71 @@ export class GameEngine {
     return game;
   }
 
+  public addPlayer(gameId: string, nickname: string): Game {
+    const game = this.getGameOrThrow(gameId);
+    if (game.state !== 'LOBBY') {
+      throw new HttpError(409, 'Només es poden unir jugadors durant la sala d\'espera');
+    }
+
+    const player: Player = {
+      id: generateId(),
+      nickname,
+      characterId: null,
+      isReady: true,
+      isEliminated: false,
+      hasAccused: false,
+      askedThisRound: false,
+      accusedThisRound: false,
+      accusationCooldown: 0
+    };
+
+    game.players.push(player);
+    game.updatedAt = nowIso();
+    this.store.save(game);
+    return game;
+  }
+
   public async startGame(gameId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== 'LOBBY') {
       throw new HttpError(409, 'La partida ja ha començat');
     }
 
+    if (game.players.length < 2) {
+      throw new HttpError(400, 'Es necessiten almenys 2 jugadors per començar');
+    }
+
     game.state = 'READY';
+
+    // Generar personatges automàticament
+    const npcs = await this.aiService.generateNPCs(game.players.length);
+    game.characters = npcs.map((npc) => ({
+      id: generateId(),
+      name: npc.name,
+      description: npc.description,
+      personality: npc.personality,
+      secrets: 'Secret per defecte',
+      isAssassin: false
+    }));
+
+    // Seleccionar assassí aleatòriament
+    const assassinIndex = Math.floor(Math.random() * game.characters.length);
+    const assassin = game.characters[assassinIndex];
+    if (assassin) {
+      assassin.isAssassin = true;
+      game.assassinCharacterId = assassin.id;
+    }
+
+    // Assignar personatges als jugadors
+    const shuffledCharacters = this.shuffle(game.characters);
+    game.players.forEach((player, index) => {
+      player.characterId = shuffledCharacters[index]?.id || null;
+    });
+
     game.murder = this.generateMurder(game);
-    this.assignRoles(game);
 
     const murderDetails = JSON.stringify({
-      assassin: game.players.find((p) => p.isKiller)?.name,
+      assassin: game.characters.find((c) => c.isAssassin)?.name,
       weapon: game.murder.weapon,
       location: game.murder.location,
       explanation: 'Generant...'
@@ -111,7 +146,7 @@ export class GameEngine {
 
     game.introNarrative = intro;
     game.solution = {
-      assassin: game.players.find((p) => p.isKiller)?.name || '',
+      assassin: game.characters.find((c) => c.isAssassin)?.name || '',
       weapon: game.murder.weapon,
       location: game.murder.location,
       explanation
@@ -167,9 +202,6 @@ export class GameEngine {
     return { response, game };
   }
 
-  /**
-   * Finalitza una partida en curs.
-   */
   public endGame(gameId: string, winnerPlayerId?: string): Game {
     const game = this.getGameOrThrow(gameId);
     game.state = 'FINISHED';
@@ -181,14 +213,14 @@ export class GameEngine {
     return game;
   }
 
-  /**
-   * Reinicia completament una partida.
-   */
   public resetGame(gameId: string): Game {
     const game = this.getGameOrThrow(gameId);
     game.players = [];
+    game.characters = [];
+    game.assassinCharacterId = null;
     game.murder = null;
     game.introNarrative = null;
+    game.solution = null;
     game.clues = [];
     game.turns = [];
     game.currentTurnIndex = 0;
@@ -201,9 +233,6 @@ export class GameEngine {
     return game;
   }
 
-  /**
-   * Elimina un jugador de la partida.
-   */
   public deletePlayer(gameId: string, playerId: string): Game {
     const game = this.getGameOrThrow(gameId);
     const playerIndex = game.players.findIndex((p) => p.id === playerId);
@@ -238,9 +267,12 @@ export class GameEngine {
       throw new HttpError(500, 'No hi ha resolució del cas disponible');
     }
 
+    const accusedPlayer = this.getPlayerOrThrow(game, input.accusedPlayerId);
+    const accusedCharacterId = accusedPlayer.characterId;
+
     player.accusedThisRound = true;
     const isCorrect =
-      input.accusedPlayerId === murder.killerPlayerId &&
+      accusedCharacterId === game.assassinCharacterId &&
       input.weapon === murder.weapon &&
       input.location === murder.location;
 
@@ -252,7 +284,6 @@ export class GameEngine {
       return game;
     }
 
-    // Accusation incorrect
     player.accusationCooldown = 2;
 
     await this.nextTurn(game);
@@ -267,22 +298,34 @@ export class GameEngine {
     return {
       id: game.id,
       state: game.state,
-      players: game.players.map((player) => ({
-        id: player.id,
-        name: player.name,
-        description: player.description,
-        personality: player.personality,
-        publicCharacter: player.publicCharacter,
-        isReady: player.isReady,
-        isEliminated: player.isEliminated,
-        hasAccused: player.hasAccused,
-        askedThisRound: player.askedThisRound,
-        accusedThisRound: player.accusedThisRound,
-        accusationCooldown: player.accusationCooldown,
-        ...(requesterPlayerId === player.id ? { secretInfo: player.secretInfo } : {}),
-        ...(game.state === 'FINISHED' ? { isKiller: player.isKiller } : {})
+      players: game.players.map((player) => {
+        const character = game.characters.find((c) => c.id === player.characterId);
+        const publicCharacter = character ? {
+          id: character.id,
+          name: character.name,
+          description: character.description,
+          personality: character.personality
+        } : undefined;
+
+        return {
+          id: player.id,
+          nickname: player.nickname,
+          character: publicCharacter,
+          isReady: player.isReady,
+          isEliminated: player.isEliminated,
+          hasAccused: player.hasAccused,
+          askedThisRound: player.askedThisRound,
+          accusedThisRound: player.accusedThisRound,
+          accusationCooldown: player.accusationCooldown
+        };
+      }),
+      clues: game.clues.map(c => ({
+        id: c.id,
+        playerId: c.playerId,
+        text: c.text,
+        roundNumber: c.roundNumber,
+        createdAt: c.createdAt
       })),
-      clues: game.clues,
       currentTurnPlayerId: currentTurnPlayer?.id ?? null,
       roundNumber: game.roundNumber,
       tensionLevel: game.tensionLevel,
@@ -294,10 +337,13 @@ export class GameEngine {
 
   public getParticipants(gameId: string): PublicParticipant[] {
     const game = this.getGameOrThrow(gameId);
-    return game.players.map((player) => ({
-      id: player.id,
-      publicCharacter: player.publicCharacter
-    }));
+    return game.players.map((player) => {
+      const character = game.characters.find((c) => c.id === player.characterId);
+      return {
+        id: player.id,
+        publicCharacter: character ? character.description : 'Sospitós'
+      };
+    });
   }
 
   public getInstructions(): string {
@@ -322,9 +368,13 @@ export class GameEngine {
   }
 
   private generateMurder(game: Game): NonNullable<Game['murder']> {
-    const killer = game.players[Math.floor(Math.random() * game.players.length)];
-    if (!killer) {
-      throw new HttpError(400, 'No es pot iniciar una partida sense jugadors');
+    if (!game.assassinCharacterId) {
+      throw new HttpError(500, 'No hi ha assassí assignat');
+    }
+
+    const killerPlayer = game.players.find((p) => p.characterId === game.assassinCharacterId);
+    if (!killerPlayer) {
+      throw new HttpError(500, 'No s\'ha trobat el jugador assassí');
     }
 
     const weapon = WEAPONS[Math.floor(Math.random() * WEAPONS.length)];
@@ -336,25 +386,11 @@ export class GameEngine {
     }
 
     return {
-      killerPlayerId: killer.id,
+      killerPlayerId: killerPlayer.id,
       weapon,
       location,
       victim
     };
-  }
-
-  private assignRoles(game: Game): void {
-    const murder = game.murder;
-    if (!murder) {
-      throw new HttpError(500, 'Cal generar el crim abans d’assignar rols');
-    }
-
-    game.players.forEach((player) => {
-      player.isKiller = player.id === murder.killerPlayerId;
-      player.secretInfo = player.isKiller
-        ? `Ets l'assassí. Disimula qualsevol rastre relacionat amb ${murder.location}.`
-        : `Has notat moviments sospitosos a prop de ${murder.location}.`;
-    });
   }
 
   private async nextTurn(game: Game): Promise<void> {
@@ -364,7 +400,6 @@ export class GameEngine {
       game.roundNumber += 1;
       game.tensionLevel = Math.min(100, game.tensionLevel + 10);
 
-      // Reset per-round flags and update cooldowns
       game.players.forEach((p) => {
         p.askedThisRound = false;
         p.accusedThisRound = false;
@@ -403,17 +438,18 @@ export class GameEngine {
         const type = types[Math.floor(Math.random() * types.length)];
         if (type === 'weapon') text = `Sembla que l'arma utilitzada va ser ${murder.weapon}.`;
         else if (type === 'location') text = `Hi ha indicis que el crim va ocórrer a ${murder.location}.`;
-        else text = `S'ha vist a algú amb aspecte de ${player.id === murder.killerPlayerId ? 'l\'assassí' : 'sospitós'} a prop.`;
+        else text = `S'ha vist a algú amb aspecte de ${player.characterId === game.assassinCharacterId ? 'l\'assassí' : 'sospitós'} a prop.`;
       } else {
         const fakeWeapon = WEAPONS.find((w) => w !== murder.weapon) || WEAPONS[0];
         const fakeLocation = LOCATIONS.find((l) => l !== murder.location) || LOCATIONS[0];
-        const fakeKiller = game.players.find((p) => p.id !== murder.killerPlayerId)?.name || 'algú';
+        const fakeKillerCharacter = game.characters.find((c) => c.id !== game.assassinCharacterId);
+        const fakeKillerName = fakeKillerCharacter ? fakeKillerCharacter.name : 'algú';
 
         const types = ['weapon', 'location', 'killer'];
         const type = types[Math.floor(Math.random() * types.length)];
         if (type === 'weapon') text = `Diuen que l'arma podria ser ${fakeWeapon}.`;
         else if (type === 'location') text = `Alguns testimonis parlen de ${fakeLocation}.`;
-        else text = `Es comenta que ${fakeKiller} té un comportament estrany.`;
+        else text = `Es comenta que ${fakeKillerName} té un comportament estrany.`;
       }
 
       const clue: Clue = {

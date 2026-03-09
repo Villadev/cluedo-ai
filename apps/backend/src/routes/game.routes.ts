@@ -20,6 +20,35 @@ gameRouter.post('/', asyncHandler((req, res) => controller.createGame(req, res))
 
 /**
  * @openapi
+ * /game/{id}/join:
+ *   post:
+ *     summary: Unir-se a una partida
+ *     description: Permet a un jugador unir-se a una partida existent mitjançant el seu nom.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Jugador unit correctament.
+ */
+gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req, res)));
+
+/**
+ * @openapi
  * /game/{id}/start:
  *   post:
  *     summary: Iniciar la partida

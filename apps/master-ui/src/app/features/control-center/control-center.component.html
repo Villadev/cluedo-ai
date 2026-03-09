@@ -26,8 +26,37 @@
       </p-card>
     </div>
 
-    <!-- Section 2: Control partida -->
-    <div class="col-12 md:col-6 lg:col-8 mb-4">
+    <!-- Section 2: Afegir jugador -->
+    <div class="col-12 md:col-6 lg:col-4 mb-4">
+      <p-card header="Afegir jugador" styleClass="h-full">
+        <div class="flex flex-column gap-3">
+          <div class="flex flex-column gap-2">
+            <label for="playerName" class="font-bold">Nom del jugador</label>
+            <input
+              pInputText
+              id="playerName"
+              type="text"
+              [ngModel]="playerName()"
+              (ngModelChange)="onPlayerNameChange($event)"
+              placeholder="Ex: Joan"
+              [disabled]="loading() || !gameId()"
+              class="w-full"
+            />
+          </div>
+          <p-button
+            label="Afegir jugador"
+            (onClick)="addPlayer()"
+            [loading]="loading()"
+            [disabled]="!gameId() || !playerName()"
+            icon="pi pi-user-plus"
+            severity="secondary"
+          ></p-button>
+        </div>
+      </p-card>
+    </div>
+
+    <!-- Section 3: Control partida -->
+    <div class="col-12 md:col-12 lg:col-4 mb-4">
       <p-card header="Control partida" styleClass="h-full">
         <div class="flex flex-column gap-3">
           <p-button

@@ -10,28 +10,26 @@
   <div class="grid">
     @for (player of participants(); track player.id) {
       <div class="col-12 md:col-6 lg:col-4 mb-4">
-        <p-card [header]="player.name" styleClass="h-full">
+        <p-card [header]="player.nickname" styleClass="h-full">
           <div class="flex flex-column gap-3">
-            <div>
-              <span class="font-bold">Descripció:</span>
-              <p>{{ player.description || 'Sense descripció disponible' }}</p>
-            </div>
-
-            <div>
-              <span class="font-bold">Personalitat:</span>
-              <p>{{ player.personality || 'Sense personalitat definida' }}</p>
-            </div>
-
-            <div>
-              <span class="font-bold">Perfil Narratiu:</span>
-              <p>{{ player.publicCharacter || 'Sense perfil disponible' }}</p>
-            </div>
-
-            @if (player.isKiller !== undefined) {
+            @if (player.character) {
               <div>
-                <span class="font-bold">Rol:</span>
-                <p>{{ player.isKiller ? 'Assassí' : 'Sospitós' }}</p>
+                <span class="font-bold">Personatge:</span>
+                <p>{{ player.character.name }}</p>
               </div>
+
+              <div>
+                <span class="font-bold">Descripció:</span>
+                <p>{{ player.character.description }}</p>
+              </div>
+
+              <div>
+                <span class="font-bold">Personalitat:</span>
+                <p>{{ player.character.personality }}</p>
+              </div>
+
+            } @else {
+              <p-message severity="info" text="Esperant assignació de personatge..."></p-message>
             }
           </div>
         </p-card>
