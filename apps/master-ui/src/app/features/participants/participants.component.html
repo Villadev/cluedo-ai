@@ -1,0 +1,50 @@
+<div class="p-4">
+  <h1 class="text-3xl font-bold mb-4">Llista de Participants</h1>
+
+  @if (error()) {
+    <div class="mb-4">
+      <p-message severity="error" [text]="error() || ''"></p-message>
+    </div>
+  }
+
+  <div class="grid">
+    @for (player of participants(); track player.id) {
+      <div class="col-12 md:col-6 lg:col-4 mb-4">
+        <p-card [header]="player.name" styleClass="h-full">
+          <div class="flex flex-column gap-3">
+            <div>
+              <span class="font-bold">Descripció:</span>
+              <p>{{ player.publicCharacter || 'Sense descripció disponible' }}</p>
+            </div>
+
+            <div>
+              <span class="font-bold">Rol:</span>
+              <p>{{ player.isKiller ? 'Assassí' : 'Ciutadà' }}</p>
+            </div>
+
+            <p-button
+              label="Eliminar de la partida"
+              (onClick)="deleteParticipant(player.id)"
+              [loading]="loading()"
+              icon="pi pi-user-minus"
+              severity="danger"
+              [outlined]="true"
+            ></p-button>
+          </div>
+        </p-card>
+      </div>
+    } @empty {
+      @if (!loading() && !error()) {
+        <div class="col-12">
+          <p-message severity="info" text="No hi ha participants encara."></p-message>
+        </div>
+      }
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="flex justify-content-center p-4">
+      <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+    </div>
+  }
+</div>

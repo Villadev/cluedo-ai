@@ -1,0 +1,23 @@
+<div class="p-4">
+  <h1 class="text-3xl font-bold mb-4">Instruccions del Joc</h1>
+
+  @if (error()) {
+    <div class="mb-4">
+      <p-message severity="error" [text]="error() || ''"></p-message>
+    </div>
+  }
+
+  @if (instructions()) {
+    <p-card header="Com jugar" styleClass="p-fluid">
+      <div class="instructions-content" style="white-space: pre-wrap;">
+        {{ instructions() }}
+      </div>
+    </p-card>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-content-center p-4">
+      <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+    </div>
+  }
+</div>
