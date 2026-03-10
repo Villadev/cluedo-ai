@@ -8,17 +8,26 @@
 
       <div class="field-checkbox mb-3 flex align-items-center gap-2">
         <p-checkbox inputId="usePlayerId" binary="true" formControlName="usePlayerId" />
-        <label for="usePlayerId" class="m-0">Fer servir ID de jugador</label>
+        <label for="usePlayerId" class="m-0">Fer servir ID de jugador existent</label>
       </div>
 
       @if (joinForm.controls.usePlayerId.value) {
         <div class="field mb-4">
-          <label for="playerId" class="font-semibold mb-2 block">ID de jugador (opcional)</label>
-          <input id="playerId" type="text" pInputText formControlName="playerId" placeholder="Exemple: Joan" />
+          <label for="playerId" class="font-semibold mb-2 block">ID de jugador</label>
+          <input id="playerId" type="text" pInputText formControlName="playerId" placeholder="Exemple: 4f4f2c95..." />
+        </div>
+      } @else {
+        <div class="field mb-4">
+          <label for="name" class="font-semibold mb-2 block">Nom de jugador</label>
+          <input id="name" type="text" pInputText formControlName="name" placeholder="Exemple: Joana" />
         </div>
       }
 
-      <button pButton type="submit" label="Entrar" [disabled]="!joinForm.controls.gameId.value.trim()"></button>
+      @if (errorMessage) {
+        <small class="error-message block mb-3">{{ errorMessage }}</small>
+      }
+
+      <button pButton type="submit" label="Entrar" [loading]="isSubmitting" [disabled]="joinForm.invalid || isSubmitting"></button>
     </form>
   </p-card>
 </section>
