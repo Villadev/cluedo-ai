@@ -42,16 +42,39 @@ import { AccordionModule } from 'primeng/accordion';
             </p-card>
           </div>
           <div class="col-12 md:col-6 lg:col-3">
-            <p-card header="Pistes" subheader="Total de pistes generades">
-              <span class="text-xl font-bold">{{ data.clues.length }}</span>
+            <p-card header="Errors" subheader="Total d'errors registrats">
+              <span class="text-xl font-bold" [class.text-red-500]="data.errors.length > 0">{{ data.errors.length }}</span>
             </p-card>
           </div>
         </div>
 
         <p-accordion [multiple]="true" class="mt-4">
+          <p-accordionTab header="Errors del Servidor (Recents)">
+            <div *ngIf="data.errors.length === 0" class="p-3 text-green-600 font-bold">
+              No s'ha detectat cap error recent al servidor.
+            </div>
+            <ul *ngIf="data.errors.length > 0" class="list-none p-0 m-0">
+              <li *ngFor="let err of data.errors" class="p-3 mb-2 border-round bg-red-50 border-left-3 border-red-500">
+                <div class="flex justify-content-between mb-1">
+                  <span class="font-bold text-red-700">[{{ err.timestamp | date:'HH:mm:ss' }}] {{ err.source }}</span>
+                </div>
+                <div class="text-red-600">{{ err.message }}</div>
+                <details *ngIf="err.stack" class="mt-2">
+                  <summary class="cursor-pointer text-sm text-red-400">Veure stack trace</summary>
+                  <pre class="text-xs mt-2 p-2 bg-red-100 border-round overflow-auto"><code>{{ err.stack }}</code></pre>
+                </details>
+              </li>
+            </ul>
+          </p-accordionTab>
+
           <p-accordionTab header="Informació Detallada de la Partida">
             <pre class="bg-gray-900 text-white p-3 border-round overflow-auto" style="max-height: 400px"><code>{{ data.game | json }}</code></pre>
           </p-accordionTab>
+
+          <p-accordionTab header="Errors (Raw JSON)">
+            <pre class="bg-gray-900 text-white p-3 border-round overflow-auto" style="max-height: 400px"><code>{{ data.errors | json }}</code></pre>
+          </p-accordionTab>
+
           <p-accordionTab header="Jugadors">
             <pre class="bg-gray-900 text-white p-3 border-round overflow-auto" style="max-height: 400px"><code>{{ data.players | json }}</code></pre>
           </p-accordionTab>

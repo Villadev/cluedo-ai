@@ -5,6 +5,8 @@ const bootstrap = (): void => {
   const app = createApp();
 
   app.listen(env.PORT, () => {
+    console.log("[SERVER] Backend started");
+    console.log("[SERVER] Environment validated");
     process.stdout.write(`Backend listening on port ${env.PORT}\n`);
   });
 };

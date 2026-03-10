@@ -12,9 +12,16 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("[CONFIG ERROR] OPENAI_API_KEY is missing");
+  }
   throw new Error(`Variables d'entorn invàlides: ${parsed.error.message}`);
 }
 
 export const env = parsed.data;
+
+if (env.OPENAI_API_KEY) {
+  console.log("[CONFIG] OpenAI API key detected");
+}
 
 export const corsOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim());
