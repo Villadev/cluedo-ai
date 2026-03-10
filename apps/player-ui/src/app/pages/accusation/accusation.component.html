@@ -1,0 +1,46 @@
+<p-toast></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<section class="accusation-page">
+  <p-card header="Acusació">
+    @if (loading()) {
+      <div class="loading-wrapper">
+        <p-progress-spinner ariaLabel="Carregant dades d'acusació"></p-progress-spinner>
+      </div>
+    } @else {
+      @if (blockedReason()) {
+        <p class="blocked-message">{{ blockedReason() }}</p>
+      }
+
+      <div class="participant-grid">
+        @for (participant of participants(); track participant.id) {
+          <p-card>
+            <div class="participant-content">
+              @if (participant.avatar) {
+                <p-avatar [image]="participant.avatar" shape="circle" size="xlarge"></p-avatar>
+              } @else {
+                <p-avatar [label]="participant.name.charAt(0)" shape="circle" size="xlarge"></p-avatar>
+              }
+
+              <div>
+                <h3>{{ participant.name }}</h3>
+                <p>{{ participant.description }}</p>
+              </div>
+            </div>
+
+            <ng-template pTemplate="footer">
+              <button
+                pButton
+                type="button"
+                label="Acusar"
+                icon="pi pi-user-minus"
+                [disabled]="!canAccuse() || accusationSent()"
+                (click)="confirmAccusation(participant)"
+              ></button>
+            </ng-template>
+          </p-card>
+        }
+      </div>
+    }
+  </p-card>
+</section>

@@ -21,6 +21,8 @@ export class AppComponent implements OnInit {
 
   protected readonly menuItems: MenuItem[] = [
     { label: 'Inici', icon: 'pi pi-home', routerLink: '/' },
+    { label: 'Introducció', icon: 'pi pi-book', command: () => this.navigateToGameSection('introduction') },
+    { label: 'Acusació', icon: 'pi pi-megaphone', command: () => this.navigateToGameSection('accusation') },
     { label: 'Sortir de la partida', icon: 'pi pi-sign-out', command: () => this.leaveGame() }
   ];
 
@@ -33,6 +35,16 @@ export class AppComponent implements OnInit {
         queryParams: { playerId }
       });
     }
+  }
+
+  private navigateToGameSection(section: 'introduction' | 'accusation'): void {
+    const gameId = this.sessionService.getGameId();
+    if (!gameId) {
+      void this.router.navigate(['/']);
+      return;
+    }
+
+    void this.router.navigate(['/game', gameId, section]);
   }
 
   private leaveGame(): void {
