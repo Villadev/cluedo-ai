@@ -8,7 +8,7 @@ COPY . .
 # Habilitar corepack per utilitzar pnpm sense necessitat d'instal·lació global externa
 RUN corepack enable && corepack prepare pnpm@9.15.2 --activate
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm --dir apps/master-ui run build --configuration production
 
 # ---------- NGINX STAGE ----------
