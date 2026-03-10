@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { BehaviorSubject, map, Observable } from 'rxjs';
 import { Participant } from '../models/participant.model';
+import { PublicGameState, PublicPlayerState } from '../models/player.model';
 
 export interface GameSession {
   gameId: string;
@@ -12,20 +13,6 @@ export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
-}
-
-export interface PublicPlayerState {
-  id: string;
-  nickname?: string;
-  askedThisRound: boolean;
-  accusedThisRound: boolean;
-  accusationCooldown: number;
-  isEliminated: boolean;
-}
-
-export interface PublicGameState {
-  id: string;
-  players: PublicPlayerState[];
 }
 
 export interface IntroductionResponse {
@@ -84,13 +71,13 @@ export class GameService {
     return this.http
       .post<ApiResponse<PublicGameState> | PlayerJoinResponse>(`${this.baseUrl}/game/${gameId}/join`, { name })
       .pipe(
-        map((response) => {
+        map((response: ApiResponse<PublicGameState> | PlayerJoinResponse) => {
           if ('playerId' in response && typeof response.playerId === 'string') {
             return { playerId: response.playerId };
           }
 
-          const players = response.data?.players ?? [];
-          const joinedPlayer = players.find((player) => player.nickname === name);
+          const players: PublicPlayerState[] = response.data?.players ?? [];
+          const joinedPlayer = players.find((player: PublicPlayerState) => player.nickname === name);
           if (!joinedPlayer?.id) {
             throw new Error("No s'ha pogut recuperar l'ID del jugador.");
           }
