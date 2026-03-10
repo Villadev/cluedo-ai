@@ -32,3 +32,12 @@
   background: var(--primary-color);
   color: var(--primary-color-text);
 }
+
+.layout-menu-button {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}

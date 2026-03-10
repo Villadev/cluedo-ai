@@ -1,0 +1,35 @@
+.chat-list {
+  max-height: 26rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chat-message {
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--surface-border);
+}
+
+.chat-system {
+  background: #f4f4f5;
+}
+
+.chat-clue {
+  background: #eff6ff;
+}
+
+.chat-player {
+  background: #ecfdf5;
+}
+
+.chat-master {
+  background: #fef3c7;
+}
+
+.chat-input {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.75rem;
+}

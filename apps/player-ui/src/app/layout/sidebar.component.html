@@ -1,20 +1,29 @@
 <nav class="layout-sidebar surface-card border-right-1 surface-border p-3">
   <ul class="layout-menu-list">
-    @for (item of menuItems; track item.label) {
+    @for (item of menuItems(); track item.label) {
       <li>
-        <a
-          pRipple
-          class="layout-menu-link"
-          [routerLink]="item.routerLink"
-          routerLinkActive="layout-menu-link-active"
-          [routerLinkActiveOptions]="{ exact: true }"
-          (click)="onMenuItemClick()"
-        >
-          @if (item.icon) {
-            <i [class]="item.icon"></i>
-          }
-          <span>{{ item.label }}</span>
-        </a>
+        @if (item.routerLink) {
+          <a
+            pRipple
+            class="layout-menu-link"
+            [routerLink]="item.routerLink"
+            routerLinkActive="layout-menu-link-active"
+            [routerLinkActiveOptions]="{ exact: true }"
+            (click)="onMenuItemSelected(item)"
+          >
+            @if (item.icon) {
+              <i [class]="item.icon"></i>
+            }
+            <span>{{ item.label }}</span>
+          </a>
+        } @else {
+          <button pRipple type="button" class="layout-menu-link layout-menu-button" (click)="onMenuItemSelected(item)">
+            @if (item.icon) {
+              <i [class]="item.icon"></i>
+            }
+            <span>{{ item.label }}</span>
+          </button>
+        }
       </li>
     }
   </ul>

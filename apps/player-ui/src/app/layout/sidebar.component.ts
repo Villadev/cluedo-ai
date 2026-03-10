@@ -1,21 +1,23 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { MenuItem } from 'primeng/api';
+import { MenuItem, MenuItemCommandEvent } from 'primeng/api';
 import { DividerModule } from 'primeng/divider';
 import { RippleModule } from 'primeng/ripple';
 
 @Component({
   selector: 'ui-sidebar',
-  standalone: true,
   imports: [DividerModule, RouterLink, RouterLinkActive, RippleModule],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss'
 })
 export class SidebarComponent {
-  @Input({ required: true }) menuItems: MenuItem[] = [];
-  @Output() readonly menuItemClick = new EventEmitter<void>();
+  readonly menuItems = input.required<MenuItem[]>();
+  readonly menuItemClick = output<void>();
 
-  protected onMenuItemClick(): void {
+  protected onMenuItemSelected(item: MenuItem): void {
+    if (item.command) {
+      item.command({ item } as MenuItemCommandEvent);
+    }
     this.menuItemClick.emit();
   }
 }

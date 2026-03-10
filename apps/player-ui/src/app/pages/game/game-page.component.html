@@ -1,0 +1,34 @@
+<section class="game-layout grid">
+  <aside class="col-12 lg:col-3">
+    <p-card header="Informació de partida">
+      <p><strong>Partida:</strong> {{ gameId }}</p>
+      <p><strong>Jugador:</strong> {{ playerId || 'Anònim' }}</p>
+      <p><strong>Estat de ronda:</strong> {{ roundStatus }}</p>
+      <p><strong>Connexió:</strong> {{ (connected$ | async) ? 'Connectat' : 'Desconnectat' }}</p>
+    </p-card>
+  </aside>
+
+  <div class="col-12 lg:col-9">
+    <p-card header="Xat d'investigació">
+      <div class="chat-list mb-3">
+        @for (message of (chatMessages$ | async); track message.id) {
+          <article class="chat-message" [ngClass]="'chat-' + message.type">
+            <p class="m-0">{{ message.content }}</p>
+            <small>{{ message.createdAt | date: 'shortTime' }}</small>
+          </article>
+        } @empty {
+          <p class="text-500">Encara no hi ha missatges.</p>
+        }
+      </div>
+
+      <form class="chat-input" [formGroup]="questionForm" (ngSubmit)="onSendQuestion()">
+        <input pInputText formControlName="question" placeholder="Escriu la teva pregunta" class="w-full" [disabled]="askedThisRound" />
+        <button pButton type="submit" icon="pi pi-send" label="Enviar" [disabled]="askedThisRound || questionForm.invalid"></button>
+      </form>
+
+      @if (askedThisRound) {
+        <p class="mt-2 text-orange-500">Ja has enviat una pregunta en aquesta ronda.</p>
+      }
+    </p-card>
+  </div>
+</section>
