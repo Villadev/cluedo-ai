@@ -1,5 +1,11 @@
 <div class="p-4">
-  <h1 class="text-3xl font-bold mb-4">Centre de Control</h1>
+  <div class="flex justify-content-between align-items-center mb-4">
+    <h1 class="text-3xl font-bold m-0">Centre de Control</h1>
+    <div class="flex align-items-center gap-2 font-medium">
+      <span [style.color]="currentStatus().color">●</span>
+      <span>Game Status: {{ currentStatus().state }}</span>
+    </div>
+  </div>
 
   @if (error()) {
     <div class="mb-4">

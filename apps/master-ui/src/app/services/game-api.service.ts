@@ -96,6 +96,13 @@ export interface DebugData {
   state: string;
 }
 
+export interface GameStateInfo {
+  state: string;
+  playersCount: number;
+  charactersCount: number;
+  roundNumber: number;
+}
+
 export interface UsersResponse {
   players: { id: string; name: string }[];
 }
@@ -172,6 +179,10 @@ export class GameApiService {
 
   getTimeline(gameId: string): Observable<ApiResponse<TimelineEvent[]>> {
     return this.http.get<ApiResponse<TimelineEvent[]>>(`${this.baseUrl}/game/${gameId}/timeline`);
+  }
+
+  getGameState(gameId: string): Observable<ApiResponse<GameStateInfo>> {
+    return this.http.get<ApiResponse<GameStateInfo>>(`${this.baseUrl}/game/${gameId}/state`);
   }
 
   deleteUser(gameId: string, userId: string): Observable<ApiResponse<GameResponse>> {
