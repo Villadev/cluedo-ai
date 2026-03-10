@@ -7,8 +7,11 @@ export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
 export interface Character {
   id: string;
   name: string;
+  role: string;
   description: string;
   personality: string;
+  possibleMotive: string;
+  relationshipWithVictim: string;
   secrets: string;
   isAssassin: boolean;
 }
@@ -16,8 +19,11 @@ export interface Character {
 export interface PublicCharacterView {
   id: string;
   name: string;
+  role: string;
   description: string;
   personality: string;
+  possibleMotive: string;
+  relationshipWithVictim: string;
 }
 
 export interface PublicClueView {
@@ -68,9 +74,11 @@ export interface IntroResponse {
 }
 
 export interface SolutionResponse {
-  assassi: string;
-  arma: string;
-  lloc: string;
+  assassin: string;
+  weapon: string;
+  location: string;
+  victimName: string;
+  finalNarrative: string;
 }
 
 export interface TimelineEvent {

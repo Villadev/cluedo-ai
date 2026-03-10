@@ -6,6 +6,8 @@ import { GameApiService, PublicPlayerView } from '../../services/game-api.servic
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ConfirmationService } from 'primeng/api';
 
 @Component({
   selector: 'app-participants',
@@ -14,14 +16,17 @@ import { MessageModule } from 'primeng/message';
     CommonModule,
     ButtonModule,
     CardModule,
-    MessageModule
+    MessageModule,
+    ConfirmDialogModule
   ],
+  providers: [ConfirmationService],
   templateUrl: './participants.component.html',
   styleUrls: [],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ParticipantsComponent {
   private readonly gameApiService = inject(GameApiService);
+  private readonly confirmationService = inject(ConfirmationService);
 
   readonly participants = signal<PublicPlayerView[]>([]);
   readonly loading = signal<boolean>(false);
@@ -59,4 +64,35 @@ export class ParticipantsComponent {
     });
   }
 
+  confirmDelete(player: PublicPlayerView): void {
+    this.confirmationService.confirm({
+      message: 'Segur que vols eliminar aquest participant de la partida?',
+      header: 'Confirmació d\'eliminació',
+      icon: 'pi pi-exclamation-triangle',
+      accept: () => {
+        this.deleteParticipant(player.id);
+      }
+    });
+  }
+
+  private deleteParticipant(userId: string): void {
+    const id = this.gameId();
+    if (!id) return;
+
+    this.loading.set(true);
+    this.gameApiService.deleteUser(id, userId).subscribe({
+      next: (response) => {
+        if (response.success) {
+          this.fetchParticipants(id);
+        } else {
+          this.error.set(response.error || 'Error en eliminar el participant');
+          this.loading.set(false);
+        }
+      },
+      error: (err) => {
+        this.error.set('Error en eliminar el participant');
+        this.loading.set(false);
+      }
+    });
+  }
 }

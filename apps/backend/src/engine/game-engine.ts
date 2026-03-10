@@ -139,11 +139,14 @@ export class GameEngine {
       console.log("[GAME START] Generating characters");
       // Generar personatges automàticament
       const npcs = await this.aiService.generateNPCs(game.players.length);
-      game.characters = npcs.map((npc) => ({
+      game.characters = npcs.map((npc: any) => ({
         id: generateId(),
         name: npc.name,
+        role: npc.role,
         description: npc.description,
         personality: npc.personality,
+        possibleMotive: npc.possibleMotive,
+        relationshipWithVictim: npc.relationshipWithVictim,
         secrets: 'Secret per defecte',
         isAssassin: false
       }));
@@ -165,8 +168,8 @@ export class GameEngine {
       game.murder = this.generateMurder(game);
 
       // Generar narrativa inicial
-      const publicStateDesc = `Jugadors: ${game.players.map(p => p.nickname).join(', ')}. Personatges: ${game.characters.map(c => c.name).join(', ')}.`;
-      game.introNarrative = await this.aiService.generateIntroNarration(publicStateDesc);
+      const charactersList = game.characters.map(c => `${c.name} (${c.role}): ${c.description}`).join('\n');
+      game.introNarrative = await this.aiService.generateIntroNarration(charactersList);
 
       // Generar solució detallada
       const murderJson = JSON.stringify({
@@ -180,7 +183,8 @@ export class GameEngine {
         assassin: game.characters.find(c => c.id === game.assassinCharacterId)?.name || 'Desconegut',
         weapon: game.murder.weapon,
         location: game.murder.location,
-        explanation: solutionText
+        victimName: game.murder.victim,
+        finalNarrative: solutionText
       };
 
       // Passar a PLAYING
@@ -321,8 +325,11 @@ export class GameEngine {
         const publicCharacter = character ? {
           id: character.id,
           name: character.name,
+          role: character.role,
           description: character.description,
-          personality: character.personality
+          personality: character.personality,
+          possibleMotive: character.possibleMotive,
+          relationshipWithVictim: character.relationshipWithVictim
         } : undefined;
 
         return {
