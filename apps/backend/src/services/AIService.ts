@@ -49,51 +49,70 @@ export class AIService {
     return GAME_INSTRUCTIONS;
   }
 
-  public async generateNPCs(count: number): Promise<{ name: string; role: string; description: string; personality: string; possibleMotive: string; relationshipWithVictim: string }[]> {
+  public async generateUniqueCharacter(): Promise<{
+    name: string;
+    description: string;
+    personality: string;
+    possibleMotive: string;
+    secret: string;
+    alibi: string;
+    rumor: string;
+    relationships: string;
+  }> {
     const response = await this.generateNarrative(
       {
         instruction: `Respon sempre en català.
 
-Ets un escriptor que crea personatges per a un joc de misteri d'assassinat tipus Cluedo.
-
-La història té lloc en aquest poble:
+Estàs creant un personatge per a un joc de misteri d'assassinat tipus Cluedo.
+La història té lloc en aquest entorn:
 ${VILLAGE_CONTEXT}
 
-Crea ${count} habitants del poble que podrien viure realment en aquest lloc.
-Els personatges han de sentir-se integrats al poble, amb història, relacions i possibles secrets.
+Crea un personatge únic per a aquesta història.
+El personatge ha de tenir identitat pròpia, història i possibles secrets.
 
-Retorna els personatges en format JSON.
-Cada personatge ha d'incloure:
-- name
-- role
-- description
-- personality
-- possibleMotive
-- relationshipWithVictim
+Inclou els següents camps:
+- name → nom complet del personatge
+- description → descripció del personatge
+- personality → trets de personalitat
+- possibleMotive → possible motiu per cometre el crim
+- secret → alguna cosa que el personatge amaga
+- alibi → on diu que era durant el crim
+- rumor → algun rumor que circula sobre aquest personatge
+- relationships → relacions amb altres personatges o amb la víctima
 
-Regles importants:
-- Els personatges han de semblar habitants reals del poble
-- Han de tenir relacions amb altres habitants
-- Alguns poden tenir conflictes amb la víctima
-- Alguns poden amagar secrets
-- Les motivacions han de ser plausibles`
+Important:
+El personatge no ha de ser un "habitant genèric".
+Ha de semblar una persona real amb història, conflictes i secrets.
+
+Retorna el resultat en JSON:
+{
+ "name": "",
+ "description": "",
+ "personality": "",
+ "possibleMotive": "",
+ "secret": "",
+ "alibi": "",
+ "rumor": "",
+ "relationships": ""
+}`
       },
       800
     );
 
     try {
-      const parsed = JSON.parse(response);
-      return Array.isArray(parsed) ? parsed : parsed.characters || [];
+      return JSON.parse(response);
     } catch (error) {
       errorLogger.push("OPENAI_JSON_PARSE", error);
-      return Array.from({ length: count }).map((_, i) => ({
-        name: `Habitant ${i + 1}`,
-        role: 'Habitant del poble',
-        description: 'Un habitant misteriós amb molts secrets per amagar.',
-        personality: 'Reservat i desconfiat',
-        possibleMotive: 'Té un passat fosc amb la víctima',
-        relationshipWithVictim: 'Conegut de tota la vida'
-      }));
+      return {
+        name: 'Personatge Misteriós',
+        description: 'Un habitant reservat del poble.',
+        personality: 'Misteriós i callat',
+        possibleMotive: 'Tenia deutes pendents',
+        secret: 'Amaga la seva identitat real',
+        alibi: 'Diu que estava sol a casa',
+        rumor: 'Es diu que rep visites estranyes de nit',
+        relationships: 'No es relaciona amb ningú'
+      };
     }
   }
 
@@ -153,12 +172,6 @@ Longitud: entre 200 i 400 paraules.`
         privateContext
       },
       220
-    );
-  }
-
-  public async generateCharacterProfile(input: { playerName: string }): Promise<string> {
-    return this.generatePrivateMessage(
-      `Nom del jugador: ${input.playerName}. Crea un perfil públic curt de personatge en català per a la partida.`
     );
   }
 

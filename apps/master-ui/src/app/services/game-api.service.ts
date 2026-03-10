@@ -4,26 +4,16 @@ import { Observable, tap } from 'rxjs';
 
 export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
 
-export interface Character {
-  id: string;
-  name: string;
-  role: string;
-  description: string;
-  personality: string;
-  possibleMotive: string;
-  relationshipWithVictim: string;
-  secrets: string;
-  isAssassin: boolean;
-}
-
 export interface PublicCharacterView {
   id: string;
   name: string;
-  role: string;
   description: string;
   personality: string;
   possibleMotive: string;
-  relationshipWithVictim: string;
+  secret: string;
+  alibi: string;
+  rumor: string;
+  relationships: string;
 }
 
 export interface PublicClueView {
