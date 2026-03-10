@@ -76,7 +76,7 @@ export class GameService {
             return { playerId: response.playerId };
           }
 
-          const players: PublicPlayerState[] = response.data?.players ?? [];
+          const players: PublicPlayerState[] = (response as ApiResponse<PublicGameState>).data?.players ?? [];
           const joinedPlayer = players.find((player: PublicPlayerState) => player.nickname === name);
           if (!joinedPlayer?.id) {
             throw new Error("No s'ha pogut recuperar l'ID del jugador.");

@@ -5,7 +5,7 @@
   <p-card header="Acusació">
     @if (loading()) {
       <div class="loading-wrapper">
-        <p-progress-spinner ariaLabel="Carregant dades d'acusació"></p-progress-spinner>
+        <p-progressSpinner ariaLabel="Carregant dades d'acusació"></p-progressSpinner>
       </div>
     } @else {
       @if (blockedReason()) {
