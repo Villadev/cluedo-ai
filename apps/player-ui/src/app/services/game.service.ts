@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, map, Observable } from 'rxjs';
 import { Participant } from '../models/participant.model';
 
 export interface GameSession {
@@ -16,6 +16,7 @@ export interface ApiResponse<T> {
 
 export interface PublicPlayerState {
   id: string;
+  nickname?: string;
   askedThisRound: boolean;
   accusedThisRound: boolean;
   accusationCooldown: number;
@@ -29,6 +30,10 @@ export interface PublicGameState {
 
 export interface IntroductionResponse {
   intro: string;
+}
+
+export interface PlayerJoinResponse {
+  playerId: string;
 }
 
 export interface AccusationPayload {
@@ -73,6 +78,26 @@ export class GameService {
 
   getGame(gameId: string): Observable<ApiResponse<PublicGameState>> {
     return this.http.get<ApiResponse<PublicGameState>>(`${this.baseUrl}/game/${gameId}`);
+  }
+
+  joinGame(gameId: string, name: string): Observable<PlayerJoinResponse> {
+    return this.http
+      .post<ApiResponse<PublicGameState> | PlayerJoinResponse>(`${this.baseUrl}/game/${gameId}/join`, { name })
+      .pipe(
+        map((response) => {
+          if ('playerId' in response && typeof response.playerId === 'string') {
+            return { playerId: response.playerId };
+          }
+
+          const players = response.data?.players ?? [];
+          const joinedPlayer = players.find((player) => player.nickname === name);
+          if (!joinedPlayer?.id) {
+            throw new Error("No s'ha pogut recuperar l'ID del jugador.");
+          }
+
+          return { playerId: joinedPlayer.id };
+        })
+      );
   }
 
   accuse(gameId: string, playerId: string, accusedId: string): Observable<ApiResponse<unknown>> {
