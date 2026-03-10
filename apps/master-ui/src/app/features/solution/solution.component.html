@@ -8,12 +8,20 @@
   }
 
   @if (solution()) {
-    <p-card header="La Resolució del Cas" styleClass="p-fluid shadow-4">
+    <p-card header="EL MISTERI RESOLT" styleClass="p-fluid shadow-4">
       <div class="flex flex-column gap-4">
-        <div class="text-center">
-          <h2 class="text-red-600 font-bold mb-2">L'ASSASSÍ ÉS:</h2>
-          <div class="text-3xl p-3 border-round bg-red-50 font-bold text-red-900 border-1 border-red-200">
-            {{ solution()?.assassi }}
+        <div class="grid">
+          <div class="col-12 md:col-6">
+            <h3 class="font-bold text-red-700 mb-2">VÍCTIMA:</h3>
+            <div class="text-2xl p-3 border-round bg-gray-50 font-bold text-gray-900 border-1 border-gray-200">
+              {{ solution()?.victimName }}
+            </div>
+          </div>
+          <div class="col-12 md:col-6">
+            <h3 class="font-bold text-red-700 mb-2">ASSASSÍ:</h3>
+            <div class="text-2xl p-3 border-round bg-red-50 font-bold text-red-900 border-1 border-red-200">
+              {{ solution()?.assassin }}
+            </div>
           </div>
         </div>
 
@@ -22,19 +30,25 @@
         <div class="grid">
           <div class="col-12 md:col-6 text-center">
             <h3 class="font-bold text-gray-700"><i class="pi pi-hammer mr-2"></i>ARMA:</h3>
-            <p class="text-xl font-medium">{{ solution()?.arma }}</p>
+            <p class="text-xl font-medium">{{ solution()?.weapon }}</p>
           </div>
           <div class="col-12 md:col-6 text-center">
-            <h3 class="font-bold text-gray-700"><i class="pi pi-map-marker mr-2"></i>LLOC:</h3>
-            <p class="text-xl font-medium">{{ solution()?.lloc }}</p>
+            <h3 class="font-bold text-gray-700"><i class="pi pi-map-marker mr-2"></i>LLOC DEL CRIM:</h3>
+            <p class="text-xl font-medium">{{ solution()?.location }}</p>
           </div>
         </div>
 
         <p-divider></p-divider>
 
         <div class="bg-blue-50 p-4 border-round border-1 border-blue-200">
-          <h3 class="font-bold text-blue-900 mb-2">Resum Final:</h3>
-          <p class="text-blue-800 line-height-3">
+          <h3 class="font-bold text-blue-900 mb-2">Narrativa final:</h3>
+          <p class="text-blue-800 line-height-3 white-space-pre-wrap">
+            {{ solution()?.finalNarrative }}
+          </p>
+        </div>
+
+        <div class="text-center mt-2">
+          <p class="text-gray-500 italic">
             Aquest ha estat el desenllaç de la història. Gràcies per participar en aquesta investigació!
           </p>
         </div>

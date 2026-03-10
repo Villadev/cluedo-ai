@@ -48,8 +48,11 @@ export interface Murder {
 export interface Character {
   id: string;
   name: string;
+  role: string;
   description: string;
   personality: string;
+  possibleMotive: string;
+  relationshipWithVictim: string;
   secrets: string;
   isAssassin: boolean;
 }
@@ -74,12 +77,7 @@ export interface Game {
   assassinCharacterId: string | null;
   murder: Murder | null;
   introNarrative: string | null;
-  solution: {
-    assassin: string;
-    weapon: string;
-    location: string;
-    explanation: string;
-  } | null;
+  solution: GameSolution | null;
   clues: Clue[];
   turns: Turn[];
   currentTurnIndex: number;
@@ -106,8 +104,11 @@ export interface AccusationInput {
 export interface PublicCharacterView {
   id: string;
   name: string;
+  role: string;
   description: string;
   personality: string;
+  possibleMotive: string;
+  relationshipWithVictim: string;
 }
 
 export interface PublicClueView {
@@ -152,5 +153,6 @@ export interface GameSolution {
   assassin: string;
   weapon: string;
   location: string;
-  explanation: string;
+  victimName: string;
+  finalNarrative: string;
 }

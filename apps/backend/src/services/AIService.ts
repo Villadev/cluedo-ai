@@ -49,43 +49,85 @@ export class AIService {
     return GAME_INSTRUCTIONS;
   }
 
-  public async generateNPCs(count: number): Promise<{ name: string; description: string; personality: string }[]> {
+  public async generateNPCs(count: number): Promise<{ name: string; role: string; description: string; personality: string; possibleMotive: string; relationshipWithVictim: string }[]> {
     const response = await this.generateNarrative(
       {
-        instruction: `Genera ${count} perfils de personatges NPC per a un joc de misteri.
-        Cada personatge ha de tenir un nom, una descripció i una personalitat.
-        Respon exclusivament en format JSON: [{"name": "...", "description": "...", "personality": "..."}]`
+        instruction: `Respon sempre en català.
+
+Ets un escriptor que crea personatges per a un joc de misteri d'assassinat tipus Cluedo.
+
+La història té lloc en aquest poble:
+${VILLAGE_CONTEXT}
+
+Crea ${count} habitants del poble que podrien viure realment en aquest lloc.
+Els personatges han de sentir-se integrats al poble, amb història, relacions i possibles secrets.
+
+Retorna els personatges en format JSON.
+Cada personatge ha d'incloure:
+- name
+- role
+- description
+- personality
+- possibleMotive
+- relationshipWithVictim
+
+Regles importants:
+- Els personatges han de semblar habitants reals del poble
+- Han de tenir relacions amb altres habitants
+- Alguns poden tenir conflictes amb la víctima
+- Alguns poden amagar secrets
+- Les motivacions han de ser plausibles`
       },
-      500
+      800
     );
 
     try {
-      return JSON.parse(response);
+      const parsed = JSON.parse(response);
+      return Array.isArray(parsed) ? parsed : parsed.characters || [];
     } catch (error) {
       errorLogger.push("OPENAI_JSON_PARSE", error);
-      // Fallback simple si falla el JSON
       return Array.from({ length: count }).map((_, i) => ({
-        name: `NPC ${i + 1}`,
-        description: 'Habitant del poble amb secrets.',
-        personality: 'misteriós'
+        name: `Habitant ${i + 1}`,
+        role: 'Habitant del poble',
+        description: 'Un habitant misteriós amb molts secrets per amagar.',
+        personality: 'Reservat i desconfiat',
+        possibleMotive: 'Té un passat fosc amb la víctima',
+        relationshipWithVictim: 'Conegut de tota la vida'
       }));
     }
   }
 
-  public async generateIntroNarration(publicGameState: string): Promise<string> {
+  public async generateIntroNarration(charactersList: string): Promise<string> {
     return this.generateNarrative(
       {
-        instruction: 'Genera la narrativa inicial de la partida per a tots els jugadors.',
-        publicGameState
+        instruction: `Respon sempre en català.
+
+Estàs escrivint la introducció d'un joc de misteri d'assassinat.
+La història té lloc en el següent poble:
+${VILLAGE_CONTEXT}
+
+Els habitants implicats en la història són:
+${charactersList}
+
+Escriu una introducció immersiva per als jugadors.
+La introducció ha d'incloure:
+1. Una descripció del poble i la seva atmosfera
+2. La presentació de la víctima
+3. El moment en què es descobreix l'assassinat
+4. Les sospites sobre els habitants del poble
+5. Un ambient de misteri i tensió
+
+Estil: narratiu, cinematogràfic, misteriós, amb tensió narrativa.
+Longitud: entre 200 i 400 paraules.`
       },
-      280
+      600
     );
   }
 
   public async respondToQuestion(publicGameState: string, question: string): Promise<string> {
     return this.generateNarrative(
       {
-        instruction: 'Respon la pregunta del jugador amb to narratiu sense revelar cap secret no autoritzat.',
+        instruction: 'Respon la pregunta del jugador amb to narratiu sense revelar cap secret no autoritzat. Respon sempre en català.',
         publicGameState,
         question
       },
@@ -96,7 +138,7 @@ export class AIService {
   public async generateClueNarration(publicGameState: string, clueDescription: string): Promise<string> {
     return this.generateNarrative(
       {
-        instruction: 'Narra la descoberta de la pista amb misteri, ritme i coherència amb la història.',
+        instruction: 'Narra la descoberta de la pista amb misteri, ritme i coherència amb la història. Respon sempre en català.',
         publicGameState,
         clueDescription
       },
@@ -107,7 +149,7 @@ export class AIService {
   public async generatePrivateMessage(privateContext: string): Promise<string> {
     return this.generateNarrative(
       {
-        instruction: 'Redacta un missatge privat i segur, alineat amb la partida i sense revelar informació aliena.',
+        instruction: 'Redacta un missatge privat i segur, alineat amb la partida i sense revelar informació aliena. Respon sempre en català.',
         privateContext
       },
       220
@@ -121,12 +163,33 @@ export class AIService {
   }
 
   public async generateCaseSolution(murderJson: string): Promise<string> {
+    const data = JSON.parse(murderJson);
     return this.generateNarrative(
       {
-        instruction: 'Explica la solució del crim de forma narrativa i detallada, incloent com l\'assassí va cometre el crim.',
-        privateContext: `Dades del crim: ${murderJson}`
+        instruction: `Respon sempre en català.
+
+Estàs escrivint la revelació final d'un misteri d'assassinat.
+La història té lloc en el següent poble:
+${VILLAGE_CONTEXT}
+
+La veritat del cas és la següent:
+Assassí: ${data.killer}
+Arma: ${data.weapon}
+Lloc del crim: ${data.location}
+Víctima: ${data.victim}
+
+Escriu la narrativa final que explica què va passar realment.
+La narrativa ha d'incloure:
+- els esdeveniments previs a l'assassinat
+- el motiu de l'assassí
+- com es va cometre el crim
+- com les pistes conduïen a la veritat
+- una revelació final dramàtica
+
+To narratiu: misteriós, dramàtic, estil revelació de detectiu.
+Longitud: entre 200 i 400 paraules.`
       },
-      400
+      600
     );
   }
 

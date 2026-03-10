@@ -19,6 +19,11 @@
               </div>
 
               <div>
+                <span class="font-bold">Rol:</span>
+                <p>{{ player.character.role }}</p>
+              </div>
+
+              <div>
                 <span class="font-bold">Descripció:</span>
                 <p>{{ player.character.description }}</p>
               </div>
@@ -31,6 +36,22 @@
             } @else {
               <p-message severity="info" text="Esperant assignació de personatge..."></p-message>
             }
+
+            <div class="mt-2 pt-2 border-top-1 border-gray-200">
+              <span class="text-sm text-gray-500 font-bold">Participant ID:</span>
+              <p class="text-xs text-gray-400 overflow-hidden text-overflow-ellipsis">{{ player.id }}</p>
+            </div>
+
+            <div class="mt-auto">
+              <p-button
+                label="Eliminar participant"
+                icon="pi pi-trash"
+                severity="danger"
+                [outlined]="true"
+                styleClass="w-full"
+                (onClick)="confirmDelete(player)">
+              </p-button>
+            </div>
           </div>
         </p-card>
       </div>
@@ -48,4 +69,6 @@
       <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
     </div>
   }
+
+  <p-confirmDialog></p-confirmDialog>
 </div>
