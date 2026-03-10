@@ -14,7 +14,7 @@ import { SessionService } from '../../services/session.service';
 
 @Component({
   selector: 'app-accusation',
-  imports: [CardModule, ButtonModule, AvatarModule, ConfirmDialogModule, ToastModule, ProgressSpinnerModule],
+  imports: [CardModule, ButtonModule, AvatarModule, ConfirmDialogModule, ToastModule, ProgressSpinnerModule], standalone: true,
   providers: [ConfirmationService, MessageService],
   templateUrl: './accusation.component.html',
   styleUrl: './accusation.component.scss',

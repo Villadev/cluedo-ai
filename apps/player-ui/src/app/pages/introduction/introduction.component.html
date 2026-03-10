@@ -2,7 +2,7 @@
   <p-card header="Introducció">
     @if (loading()) {
       <div class="loading-wrapper">
-        <p-progress-spinner ariaLabel="Carregant introducció"></p-progress-spinner>
+        <p-progressSpinner ariaLabel="Carregant introducció"></p-progressSpinner>
       </div>
     } @else if (error()) {
       <p class="error-message">{{ error() }}</p>

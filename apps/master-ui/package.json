@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "ng serve master-ui --host 0.0.0.0 --port 4300",
-    "build": "ng build master-ui",
+    "build": "ng build master-ui --base-href /",
     "build:dev": "ng build master-ui --configuration development",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "lint": "echo 'No lint configured for master-ui'"

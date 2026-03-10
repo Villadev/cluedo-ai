@@ -7,7 +7,7 @@ import { GameService } from '../../services/game.service';
 
 @Component({
   selector: 'app-introduction',
-  imports: [CardModule, ButtonModule, ProgressSpinnerModule],
+  imports: [CardModule, ButtonModule, ProgressSpinnerModule], standalone: true,
   templateUrl: './introduction.component.html',
   styleUrl: './introduction.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
