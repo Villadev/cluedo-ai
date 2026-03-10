@@ -19,18 +19,38 @@
               </div>
 
               <div>
-                <span class="font-bold">Rol:</span>
-                <p>{{ player.character.role }}</p>
-              </div>
-
-              <div>
-                <span class="font-bold">Descripció:</span>
+                <span class="font-bold font-italic">Descripció:</span>
                 <p>{{ player.character.description }}</p>
               </div>
 
               <div>
-                <span class="font-bold">Personalitat:</span>
+                <span class="font-bold font-italic">Personalitat:</span>
                 <p>{{ player.character.personality }}</p>
+              </div>
+
+              <div>
+                <span class="font-bold font-italic text-red-600">Possible motiu:</span>
+                <p>{{ player.character.possibleMotive }}</p>
+              </div>
+
+              <div>
+                <span class="font-bold font-italic text-orange-600">Secret:</span>
+                <p>{{ player.character.secret }}</p>
+              </div>
+
+              <div>
+                <span class="font-bold font-italic text-blue-600">Alibi:</span>
+                <p>{{ player.character.alibi }}</p>
+              </div>
+
+              <div>
+                <span class="font-bold font-italic text-purple-600">Rumor:</span>
+                <p>{{ player.character.rumor }}</p>
+              </div>
+
+              <div>
+                <span class="font-bold font-italic">Relacions:</span>
+                <p>{{ player.character.relationships }}</p>
               </div>
 
             } @else {
