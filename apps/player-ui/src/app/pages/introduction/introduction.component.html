@@ -1,0 +1,19 @@
+<section class="introduction-page">
+  <p-card header="Introducció">
+    @if (loading()) {
+      <div class="loading-wrapper">
+        <p-progress-spinner ariaLabel="Carregant introducció"></p-progress-spinner>
+      </div>
+    } @else if (error()) {
+      <p class="error-message">{{ error() }}</p>
+    } @else {
+      <div class="introduction-text">
+        {{ introductionText() }}
+      </div>
+    }
+
+    <ng-template pTemplate="footer">
+      <button pButton type="button" label="Començar investigació" icon="pi pi-arrow-right" (click)="continueToGame()"></button>
+    </ng-template>
+  </p-card>
+</section>

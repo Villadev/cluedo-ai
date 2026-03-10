@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
+import { Participant } from '../models/participant.model';
 
 export interface GameSession {
   gameId: string;
@@ -11,6 +12,28 @@ export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
+}
+
+export interface PublicPlayerState {
+  id: string;
+  askedThisRound: boolean;
+  accusedThisRound: boolean;
+  accusationCooldown: number;
+  isEliminated: boolean;
+}
+
+export interface PublicGameState {
+  id: string;
+  players: PublicPlayerState[];
+}
+
+export interface IntroductionResponse {
+  intro: string;
+}
+
+export interface AccusationPayload {
+  playerId: string;
+  accusedPlayerId: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -38,5 +61,25 @@ export class GameService {
 
   leaveGame(gameId: string, playerId: string): Observable<ApiResponse<unknown>> {
     return this.http.delete<ApiResponse<unknown>>(`${this.baseUrl}/game/${gameId}/users/${playerId}`);
+  }
+
+  getIntroduction(gameId: string): Observable<ApiResponse<IntroductionResponse>> {
+    return this.http.get<ApiResponse<IntroductionResponse>>(`${this.baseUrl}/game/${gameId}/intro`);
+  }
+
+  getParticipants(gameId: string): Observable<ApiResponse<Participant[]>> {
+    return this.http.get<ApiResponse<Participant[]>>(`${this.baseUrl}/game/${gameId}/players`);
+  }
+
+  getGame(gameId: string): Observable<ApiResponse<PublicGameState>> {
+    return this.http.get<ApiResponse<PublicGameState>>(`${this.baseUrl}/game/${gameId}`);
+  }
+
+  accuse(gameId: string, playerId: string, accusedId: string): Observable<ApiResponse<unknown>> {
+    const payload: AccusationPayload = {
+      playerId,
+      accusedPlayerId: accusedId
+    };
+    return this.http.post<ApiResponse<unknown>>(`${this.baseUrl}/game/${gameId}/accuse`, payload);
   }
 }
