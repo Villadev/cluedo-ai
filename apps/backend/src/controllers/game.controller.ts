@@ -99,6 +99,14 @@ export class GameController {
   }
 
   /**
+   * Retorna informació resumida de l'estat de la partida per a polling.
+   */
+  public async getState(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    res.status(200).json(successResponse(gameEngine.getGameStateInfo(gameId)));
+  }
+
+  /**
    * Retorna l'estat complet per a depuració.
    */
   public async debug(req: Request, res: Response): Promise<void> {

@@ -258,6 +258,26 @@ gameRouter.get('/:id/timeline', asyncHandler((req, res) => controller.timeline(r
 
 /**
  * @openapi
+ * /game/{id}/state:
+ *   get:
+ *     summary: Obtenir informació resumida de l'estat
+ *     description: Retorna l'estat actual, nombre de jugadors, personatges i ronda.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Estat de la partida obtingut.
+ */
+gameRouter.get('/:id/state', asyncHandler((req, res) => controller.getState(req, res)));
+
+/**
+ * @openapi
  * /game/{id}:
  *   get:
  *     summary: Obtenir estat de la partida

@@ -142,6 +142,9 @@ export class AIService {
       .join('\n\n');
 
     try {
+      console.log("[OPENAI] Sending request to OpenAI");
+      console.log("[OPENAI] Prompt length:", userContent.length);
+
       const response = await openaiClient.responses.create({
         model: 'gpt-4o-mini',
         max_output_tokens: maxOutputTokens,
@@ -151,13 +154,16 @@ export class AIService {
         ]
       });
 
+      console.log("[OPENAI] Response received");
+
       const outputText = response.output_text?.trim();
       if (!outputText) {
         throw new Error('Resposta buida del model');
       }
 
       return outputText;
-    } catch {
+    } catch (error: any) {
+      console.error("[OPENAI ERROR]", error.message || error);
       throw new Error('Servei narratiu no disponible temporalment.');
     }
   }

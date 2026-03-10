@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -27,7 +27,7 @@ import { MessagesModule } from 'primeng/messages';
   styleUrls: [],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class ControlCenterComponent implements OnInit {
+export class ControlCenterComponent implements OnInit, OnDestroy {
   protected readonly gameApiService = inject(GameApiService);
   private readonly router = inject(Router);
 
@@ -36,8 +36,51 @@ export class ControlCenterComponent implements OnInit {
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
+  readonly currentStatus = signal<{ state: string; color: string }>({ state: 'No Active Game', color: 'red' });
+  private pollInterval?: any;
+
   ngOnInit(): void {
-    // El gameId ja està sincronitzat amb el servei
+    this.startPolling();
+  }
+
+  ngOnDestroy(): void {
+    this.stopPolling();
+  }
+
+  private startPolling(): void {
+    this.updateStatus();
+    this.pollInterval = setInterval(() => this.updateStatus(), 5000);
+  }
+
+  private stopPolling(): void {
+    if (this.pollInterval) {
+      clearInterval(this.pollInterval);
+    }
+  }
+
+  private updateStatus(): void {
+    const id = this.gameId();
+    if (!id) {
+      this.currentStatus.set({ state: 'No Active Game', color: 'red' });
+      return;
+    }
+
+    this.gameApiService.getGameState(id).subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          const state = response.data.state;
+          let color = 'red';
+          if (state === 'READY') color = 'orange';
+          else if (state === 'PLAYING') color = 'green';
+          else if (state === 'LOBBY') color = 'orange'; // Added LOBBY as orange as well since it is active
+
+          this.currentStatus.set({ state, color });
+        }
+      },
+      error: () => {
+        this.currentStatus.set({ state: 'Error Polling', color: 'red' });
+      }
+    });
   }
 
   protected createGame(): void {
