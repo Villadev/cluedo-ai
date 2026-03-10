@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { openaiClient } from '../config/openai.js';
+import { errorLogger } from '../utils/error-logger.js';
 
 const resolveContextPath = (fileName: string): string => {
   const candidatePaths = [
@@ -60,7 +61,8 @@ export class AIService {
 
     try {
       return JSON.parse(response);
-    } catch {
+    } catch (error) {
+      errorLogger.push("OPENAI_JSON_PARSE", error);
       // Fallback simple si falla el JSON
       return Array.from({ length: count }).map((_, i) => ({
         name: `NPC ${i + 1}`,
@@ -129,6 +131,12 @@ export class AIService {
   }
 
   private async generateNarrative(payload: OpenAICallInput, maxOutputTokens: number): Promise<string> {
+    if (!process.env.OPENAI_API_KEY) {
+      const error = new Error("OPENAI_API_KEY not configured");
+      errorLogger.push("OPENAI", error);
+      throw error;
+    }
+
     const userContent = [
       payload.instruction,
       `Context del poble:\n${VILLAGE_CONTEXT}`,
@@ -142,7 +150,7 @@ export class AIService {
       .join('\n\n');
 
     try {
-      console.log("[OPENAI] Sending request to OpenAI");
+      console.log("[OPENAI] Sending request");
       console.log("[OPENAI] Prompt length:", userContent.length);
 
       const response = await openaiClient.responses.create({
@@ -164,6 +172,7 @@ export class AIService {
       return outputText;
     } catch (error: any) {
       console.error("[OPENAI ERROR]", error.message || error);
+      errorLogger.push("OPENAI", error);
       throw new Error('Servei narratiu no disponible temporalment.');
     }
   }

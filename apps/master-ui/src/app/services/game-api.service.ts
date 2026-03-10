@@ -87,6 +87,13 @@ export interface TimelineEvent {
   description: string;
 }
 
+export interface BackendErrorLog {
+  timestamp: string;
+  source: string;
+  message: string;
+  stack?: string;
+}
+
 export interface DebugData {
   game: any;
   players: any[];
@@ -94,6 +101,7 @@ export interface DebugData {
   clues: any[];
   roundNumber: number;
   state: string;
+  errors: BackendErrorLog[];
 }
 
 export interface GameStateInfo {
