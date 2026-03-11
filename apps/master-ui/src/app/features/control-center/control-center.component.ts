@@ -37,6 +37,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   readonly error = signal<string | null>(null);
 
   readonly currentStatus = signal<{ state: string; color: string }>({ state: 'No Active Game', color: 'red' });
+  readonly solutionStatus = signal<string>('Solution pending...');
   private pollInterval?: any;
 
   ngOnInit(): void {
@@ -72,13 +73,28 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
           let color = 'red';
           if (state === 'READY') color = 'orange';
           else if (state === 'PLAYING') color = 'green';
-          else if (state === 'LOBBY') color = 'orange'; // Added LOBBY as orange as well since it is active
+          else if (state === 'LOBBY') color = 'orange';
 
           this.currentStatus.set({ state, color });
         }
       },
       error: () => {
         this.currentStatus.set({ state: 'Error Polling', color: 'red' });
+      }
+    });
+
+    this.gameApiService.getSolution(id).subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+           if (response.data.message) {
+             this.solutionStatus.set('Solution pending...');
+           } else {
+             this.solutionStatus.set('Solution generated ✔');
+           }
+        }
+      },
+      error: () => {
+        this.solutionStatus.set('Solution pending...');
       }
     });
   }
@@ -138,6 +154,26 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.error.set('Error en el servidor en iniciar la partida');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  protected startPlaying(): void {
+    const id = this.gameId();
+    if (!id) return;
+
+    this.loading.set(true);
+    this.error.set(null);
+    this.gameApiService.startPlaying(id).subscribe({
+      next: (response) => {
+        if (!response.success) {
+          this.error.set(response.error || 'Error en començar a jugar');
+        }
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.error.set('Error en el servidor en començar a jugar');
         this.loading.set(false);
       }
     });
