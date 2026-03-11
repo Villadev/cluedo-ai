@@ -51,43 +51,45 @@ export class AIService {
   public async generateFullCase(playerCount: number): Promise<FullCase> {
     const instruction = `Respon sempre en català.
 
-Estàs creant la història completa d'un joc de misteri d'assassinat tipus Cluedo.
+Estàs creant un cas complet d'assassinat per un joc de misteri narratiu.
 
-El joc té lloc en aquest entorn:
+L'objectiu és crear una història amb personatges connectats entre si, amb secrets, tensions i possibles motius per matar.
+
+Context del poble:
 ${VILLAGE_CONTEXT}
 
 Crea un cas complet d'assassinat amb exactament ${Math.max(playerCount, 4)} personatges sospitosos.
 
-El resultat ha de ser coherent i narrativament interessant.
-
 Crea:
-1️⃣ Personatges sospitosos
-2️⃣ Una víctima
-3️⃣ Un assassí (ha de ser un dels personatges)
-4️⃣ Una arma del crim
-5️⃣ Un lloc on ha passat el crim
-6️⃣ Una introducció narrativa
-7️⃣ Una narrativa final que revela la veritat
-8️⃣ Un conjunt de 10-15 pistes que ajudin a descobrir el cas
+- diversos personatges sospitosos
+- una víctima
+- un assassí (que ha de ser un dels personatges)
+- una arma del crim
+- un lloc on ha passat el crim
 
-Regles importants:
-- Cada personatge ha de ser únic
-- Els noms han de ser ficticis
-- Les professions han de ser diferentes
-- Cada personatge ha de tenir motius possibles
-- L'assassí ha de tenir un motiu clar
-- Les pistes han de relacionar-se amb la solució i poden ser de tipus: "rumor", "witness", "contradiction" o "evidence".
-
-Cada personatge ha d'incloure:
-- name
-- profession
-- description
-- personality
-- possibleMotive
+Cada personatge ha de tenir:
+- nom fictici
+- professió
+- descripció
+- personalitat
+- possible motiu (possibleMotive)
 - secret
 - coartada
 - rumor
-- relationships
+- relacions amb altres personatges (relationships)
+- tensions o conflictes (tensions)
+
+Regles importants:
+- els personatges s'han de conèixer entre ells
+- diversos personatges han de tenir conflictes amb la víctima
+- les coartades poden tenir contradiccions
+- alguns rumors poden ser falsos
+- només un personatge és realment l'assassí
+
+També has de generar:
+1. una narrativa inicial (introductionNarrative) que expliqui el crim i presenti els sospitosos (entre 200 i 300 paraules)
+2. una narrativa final (solutionNarrative) que reveli què ha passat realment, explicant el motiu real, com es va cometre el crim, com s'han interpretat malament algunes pistes i una revelació dramàtica final.
+3. un conjunt de 10-15 pistes (clues) que ajudin a descobrir la veritat, de tipus: "rumor", "witness", "contradiction" o "evidence".
 
 Retorna el resultat en JSON amb aquesta estructura:
 {
@@ -105,7 +107,8 @@ Retorna el resultat en JSON amb aquesta estructura:
       "secret": "",
       "coartada": "",
       "rumor": "",
-      "relationships": ""
+      "relationships": "",
+      "tensions": ""
     }
  ],
  "introductionNarrative": "",

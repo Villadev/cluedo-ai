@@ -59,6 +59,7 @@ export interface Character {
   coartada: string;
   rumor: string;
   relationships: string;
+  tensions: string;
   isAssassin: boolean;
 }
 
@@ -117,6 +118,7 @@ export interface PublicCharacterView {
   coartada: string;
   rumor: string;
   relationships: string;
+  tensions: string;
 }
 
 export interface PublicClueView {
@@ -176,6 +178,7 @@ export interface AIServiceCharacter {
   coartada: string;
   rumor: string;
   relationships: string;
+  tensions: string;
 }
 
 export interface AIServiceClue {

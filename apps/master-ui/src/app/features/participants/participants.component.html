@@ -58,6 +58,11 @@
                 <p>{{ player.character.relationships }}</p>
               </div>
 
+              <div>
+                <span class="font-bold font-italic text-pink-600">Tensions:</span>
+                <p>{{ player.character.tensions }}</p>
+              </div>
+
             } @else {
               <p-message severity="info" text="Esperant assignació de personatge..."></p-message>
             }

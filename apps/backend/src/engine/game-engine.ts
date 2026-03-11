@@ -108,11 +108,45 @@ export class GameEngine {
       game.state = GameStates.READY;
       this.recordTimelineEvent(game, {
         type: 'STATE_CHANGE',
-        description: 'Generant la història i assignant personatges...'
+        description: 'Iniciant generació del cas amb OpenAI...'
       });
 
+      // Timeline event per a l'inici de la generació
+      this.recordTimelineEvent(game, {
+        type: 'STATE_CHANGE',
+        description: 'case_generation_started'
+      });
+
+      console.log("[AI] Case generation started");
+
       // Generar cas complet
-      const fullCase = await this.aiService.generateFullCase(game.players.length);
+      let fullCase;
+      try {
+        this.recordTimelineEvent(game, {
+          type: 'STATE_CHANGE',
+          description: 'openai_request'
+        });
+
+        fullCase = await this.aiService.generateFullCase(game.players.length);
+
+        this.recordTimelineEvent(game, {
+          type: 'STATE_CHANGE',
+          description: 'openai_response'
+        });
+
+        console.log("[AI] Case generation completed");
+        this.recordTimelineEvent(game, {
+          type: 'STATE_CHANGE',
+          description: 'case_generation_completed'
+        });
+      } catch (aiError: any) {
+        console.error("[AI ERROR]", aiError);
+        this.recordTimelineEvent(game, {
+          type: 'STATE_CHANGE',
+          description: 'openai_error'
+        });
+        throw aiError;
+      }
 
       // Mapejar personatges de la IA a l'estructura del joc
       game.characters = fullCase.characters.map(c => ({
@@ -126,6 +160,7 @@ export class GameEngine {
         coartada: c.coartada,
         rumor: c.rumor,
         relationships: c.relationships,
+        tensions: c.tensions,
         isAssassin: c.name === fullCase.assassin
       }));
 
@@ -174,7 +209,7 @@ export class GameEngine {
         id: generateId(),
         type: c.type,
         text: c.text,
-        isTrue: true, // OpenAI generates consistent clues now
+        isTrue: true,
         roundNumber: Math.floor(index / game.players.length) + 1,
         createdAt: nowIso()
       }));
@@ -321,7 +356,8 @@ export class GameEngine {
           secret: canSeePrivateInfo ? character.secret : '???',
           coartada: canSeePrivateInfo ? character.coartada : '???',
           rumor: character.rumor,
-          relationships: character.relationships
+          relationships: character.relationships,
+          tensions: character.tensions
         } : undefined;
 
         return {

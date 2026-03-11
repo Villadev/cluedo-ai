@@ -15,6 +15,7 @@ export interface PublicCharacterView {
   coartada: string;
   rumor: string;
   relationships: string;
+  tensions: string;
 }
 
 export interface PublicClueView {
