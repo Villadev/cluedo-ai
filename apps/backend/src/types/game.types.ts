@@ -29,9 +29,12 @@ export interface Turn {
   createdAt: string;
 }
 
+export type ClueType = 'rumor' | 'witness' | 'contradiction' | 'evidence';
+
 export interface Clue {
   id: string;
-  playerId: string;
+  playerId?: string; // Optional if pre-generated and not yet assigned
+  type: ClueType;
   text: string;
   isTrue: boolean;
   roundNumber: number;
@@ -48,11 +51,12 @@ export interface Murder {
 export interface Character {
   id: string;
   name: string;
+  profession: string;
   description: string;
   personality: string;
   possibleMotive: string;
   secret: string;
-  alibi: string;
+  coartada: string;
   rumor: string;
   relationships: string;
   isAssassin: boolean;
@@ -105,18 +109,20 @@ export interface AccusationInput {
 export interface PublicCharacterView {
   id: string;
   name: string;
+  profession: string;
   description: string;
   personality: string;
   possibleMotive: string;
   secret: string;
-  alibi: string;
+  coartada: string;
   rumor: string;
   relationships: string;
 }
 
 export interface PublicClueView {
   id: string;
-  playerId: string;
+  playerId?: string;
+  type: ClueType;
   text: string;
   roundNumber: number;
   createdAt: string;
@@ -158,4 +164,32 @@ export interface GameSolution {
   location: string;
   victimName: string;
   finalNarrative: string;
+}
+
+export interface AIServiceCharacter {
+  name: string;
+  profession: string;
+  description: string;
+  personality: string;
+  possibleMotive: string;
+  secret: string;
+  coartada: string;
+  rumor: string;
+  relationships: string;
+}
+
+export interface AIServiceClue {
+  type: ClueType;
+  text: string;
+}
+
+export interface FullCase {
+  victim: string;
+  weapon: string;
+  location: string;
+  assassin: string;
+  characters: AIServiceCharacter[];
+  introductionNarrative: string;
+  solutionNarrative: string;
+  clues: AIServiceClue[];
 }
