@@ -5,7 +5,6 @@ WORKDIR /app
 
 COPY . .
 
-# Habilitar corepack per utilitzar pnpm
 RUN corepack enable && corepack prepare pnpm@9.15.2 --activate
 
 RUN pnpm install --no-frozen-lockfile
@@ -18,7 +17,6 @@ COPY apps/player-ui/nginx.conf /etc/nginx/conf.d/default.conf
 
 RUN rm -rf /usr/share/nginx/html/*
 
-# COPY segons configuracio a angular.json
 COPY --from=builder /app/apps/player-ui/dist/player-ui /usr/share/nginx/html
 
 EXPOSE 80

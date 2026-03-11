@@ -4,8 +4,7 @@ WORKDIR /app
 
 RUN apk add --no-cache python3 make g++
 
-RUN corepack enable
-RUN corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.2 --activate
 
 COPY . .
 
