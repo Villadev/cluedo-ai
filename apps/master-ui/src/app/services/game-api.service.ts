@@ -66,11 +66,12 @@ export interface IntroResponse {
 }
 
 export interface SolutionResponse {
-  assassin: string;
-  weapon: string;
-  location: string;
-  victimName: string;
-  finalNarrative: string;
+  assassin?: string;
+  weapon?: string;
+  location?: string;
+  victimName?: string;
+  finalNarrative?: string;
+  message?: string;
 }
 
 export interface TimelineEvent {
@@ -152,6 +153,10 @@ export class GameApiService {
 
   startGame(gameId: string): Observable<ApiResponse<PublicGameView>> {
     return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/start`, {});
+  }
+
+  startPlaying(gameId: string): Observable<ApiResponse<PublicGameView>> {
+    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/play`, {});
   }
 
   resetGame(gameId: string): Observable<ApiResponse<GameResponse>> {

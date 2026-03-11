@@ -106,15 +106,10 @@ export class GameEngine {
       }
 
       game.state = GameStates.READY;
-      this.recordTimelineEvent(game, {
-        type: 'STATE_CHANGE',
-        description: 'Iniciant generació del cas amb OpenAI...'
-      });
 
-      // Timeline event per a l'inici de la generació
       this.recordTimelineEvent(game, {
         type: 'STATE_CHANGE',
-        description: 'case_generation_started'
+        description: 'CASE_GENERATION_STARTED'
       });
 
       console.log("[AI] Case generation started");
@@ -124,26 +119,26 @@ export class GameEngine {
       try {
         this.recordTimelineEvent(game, {
           type: 'STATE_CHANGE',
-          description: 'openai_request'
+          description: 'OPENAI_REQUEST_CASE'
         });
 
         fullCase = await this.aiService.generateFullCase(game.players.length);
 
         this.recordTimelineEvent(game, {
           type: 'STATE_CHANGE',
-          description: 'openai_response'
+          description: 'OPENAI_RESPONSE_RECEIVED'
         });
 
         console.log("[AI] Case generation completed");
-        this.recordTimelineEvent(game, {
-          type: 'STATE_CHANGE',
-          description: 'case_generation_completed'
-        });
       } catch (aiError: any) {
         console.error("[AI ERROR]", aiError);
         this.recordTimelineEvent(game, {
           type: 'STATE_CHANGE',
-          description: 'openai_error'
+          description: 'OPENAI_ERROR'
+        });
+        this.recordTimelineEvent(game, {
+          type: 'STATE_CHANGE',
+          description: 'CASE_GENERATION_FAILED'
         });
         throw aiError;
       }
@@ -214,19 +209,14 @@ export class GameEngine {
         createdAt: nowIso()
       }));
 
-      // Passar a PLAYING
-      this.validateGameStateTransition(game.state, GameStates.PLAYING);
-      game.state = GameStates.PLAYING;
-
       this.recordTimelineEvent(game, {
         type: 'STATE_CHANGE',
-        description: 'La partida ha començat. Que comenci el misteri!'
+        description: 'CASE_STORED'
       });
 
       this.recordTimelineEvent(game, {
-        type: 'ROUND_START',
-        roundNumber: 1,
-        description: 'Ronda 1 iniciada'
+        type: 'STATE_CHANGE',
+        description: 'SOLUTION_AVAILABLE'
       });
 
       game.updatedAt = nowIso();
@@ -237,6 +227,31 @@ export class GameEngine {
       this.store.save(game);
       throw error;
     }
+  }
+
+  public async startPlaying(gameId: string): Promise<Game> {
+    const game = this.getGameOrThrow(gameId);
+    if (game.state !== 'READY') {
+      throw new HttpError(409, 'La partida ha d\'estar en estat READY per començar a jugar');
+    }
+
+    this.validateGameStateTransition(game.state, GameStates.PLAYING);
+    game.state = GameStates.PLAYING;
+
+    this.recordTimelineEvent(game, {
+      type: 'STATE_CHANGE',
+      description: 'La partida ha començat. Que comenci el misteri!'
+    });
+
+    this.recordTimelineEvent(game, {
+      type: 'ROUND_START',
+      roundNumber: 1,
+      description: 'Ronda 1 iniciada'
+    });
+
+    game.updatedAt = nowIso();
+    this.store.save(game);
+    return game;
   }
 
   public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ response: string; game: Game }> {
@@ -414,10 +429,10 @@ export class GameEngine {
     return game.introNarrative;
   }
 
-  public getSolution(gameId: string): GameSolution {
+  public getSolution(gameId: string): GameSolution | { message: string } {
     const game = this.getGameOrThrow(gameId);
-    if (game.state !== 'FINISHED' || !game.solution) {
-      throw new HttpError(409, 'La solució només està disponible quan la partida ha finalitzat');
+    if (!game.solution) {
+      return { message: 'La solució encara no està disponible' };
     }
 
     return game.solution;

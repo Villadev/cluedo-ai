@@ -52,7 +52,7 @@ gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req,
  * /game/{id}/start:
  *   post:
  *     summary: Iniciar la partida
- *     description: Genera el cas, la narrativa i posa la partida en estat de joc.
+ *     description: Genera el cas, la narrativa i posa la partida en estat READY.
  *     parameters:
  *       - in: path
  *         name: id
@@ -63,9 +63,29 @@ gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req,
  *         description: ID de la partida
  *     responses:
  *       200:
- *         description: Partida iniciada correctament.
+ *         description: Cas generat correctament.
  */
 gameRouter.post('/:id/start', asyncHandler((req, res) => controller.startGame(req, res)));
+
+/**
+ * @openapi
+ * /game/{id}/play:
+ *   post:
+ *     summary: Començar a jugar la partida
+ *     description: Passa la partida d'estat READY a PLAYING.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Partida en joc.
+ */
+gameRouter.post('/:id/play', asyncHandler((req, res) => controller.startPlaying(req, res)));
 
 /**
  * @openapi
@@ -181,7 +201,7 @@ gameRouter.get('/:id/instructions', asyncHandler((req, res) => controller.getIns
  * /game/{id}/solution:
  *   get:
  *     summary: Obtenir la solució
- *     description: Retorna la solució del cas si la partida ha finalitzat.
+ *     description: Retorna la solució del cas.
  *     parameters:
  *       - in: path
  *         name: id

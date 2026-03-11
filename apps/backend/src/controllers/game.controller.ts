@@ -65,6 +65,15 @@ export class GameController {
   }
 
   /**
+   * Comença a jugar la partida (canvi d'estat de READY a PLAYING).
+   */
+  public async startPlaying(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    const game = await gameEngine.startPlaying(gameId);
+    res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
+  }
+
+  /**
    * Realitza una pregunta al mestre del joc.
    */
   public async ask(req: Request, res: Response): Promise<void> {

@@ -1,9 +1,14 @@
 <div class="p-4">
   <div class="flex justify-content-between align-items-center mb-4">
     <h1 class="text-3xl font-bold m-0">Centre de Control</h1>
-    <div class="flex align-items-center gap-2 font-medium">
-      <span [style.color]="currentStatus().color">●</span>
-      <span>Game Status: {{ currentStatus().state }}</span>
+    <div class="flex flex-column align-items-end gap-1">
+      <div class="flex align-items-center gap-2 font-medium">
+        <span [style.color]="currentStatus().color">●</span>
+        <span>Game Status: {{ currentStatus().state }}</span>
+      </div>
+      <div class="text-sm font-medium" [class.text-green-600]="solutionStatus() === 'Solution generated ✔'" [class.text-orange-600]="solutionStatus() === 'Solution pending...'">
+        {{ solutionStatus() }}
+      </div>
     </div>
   </div>
 
@@ -65,14 +70,25 @@
     <div class="col-12 md:col-12 lg:col-4 mb-4">
       <p-card header="Control partida" styleClass="h-full">
         <div class="flex flex-column gap-3">
-          <p-button
-            label="Començar partida"
-            (onClick)="startGame()"
-            [loading]="loading()"
-            [disabled]="!gameId()"
-            icon="pi pi-play"
-            severity="success"
-          ></p-button>
+          @if (currentStatus().state === 'LOBBY') {
+            <p-button
+              label="Generar cas"
+              (onClick)="startGame()"
+              [loading]="loading()"
+              [disabled]="!gameId()"
+              icon="pi pi-play"
+              severity="success"
+            ></p-button>
+          } @else if (currentStatus().state === 'READY') {
+            <p-button
+              label="Començar a jugar"
+              (onClick)="startPlaying()"
+              [loading]="loading()"
+              [disabled]="!gameId()"
+              icon="pi pi-play"
+              severity="success"
+            ></p-button>
+          }
 
           <p-button
             label="Cancel·lar partida"
