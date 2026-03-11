@@ -11,35 +11,14 @@ import type {
   Character,
   TimelineEvent,
   PublicGameView,
-  PublicParticipant
+  PublicParticipant,
+  PublicCharacterView
 } from '../types/game.types.js';
 import { GameStates } from '../types/game.types.js';
 import { HttpError } from '../utils/http-error.js';
 import { generateId, nowIso } from '../utils/id.js';
 
 const MAX_PLAYERS = 17;
-const MIN_PLAYERS = 2;
-const WEAPONS = [
-  'Eixada',
-  'Pinyol de cirera',
-  'Corda',
-  'Foulard esplai',
-  'Massa',
-  'Tronc'
-];
-const LOCATIONS = [
-  'Catalunya en Miniatura',
-  'Ajuntament de Torrelles de Llobregat',
-  'Església de Sant Martí',
-  'Penyes de Can Riera',
-  'Ateneu Torrellenc',
-  'Plaça de l’Església',
-  'Carrer Major',
-  'Bar La Plaçá',
-  'Masia de Can Coll',
-  'Font del Mas Segarra'
-];
-const VICTIMS = ['Jordi Ferrer', 'Mercè Vidal', 'Magí Pons', 'Dra. Núria Soler'];
 
 export class GameEngine {
   constructor(
@@ -72,7 +51,7 @@ export class GameEngine {
     console.log("[GAME STATE] NEW → LOBBY");
     this.recordTimelineEvent(game, {
       type: 'STATE_CHANGE',
-      description: 'Game created and initialized in LOBBY state'
+      description: 'Partida creada i inicialitzada en la sala d\'espera.'
     });
 
     this.store.save(game);
@@ -85,28 +64,14 @@ export class GameEngine {
       throw new HttpError(409, 'Només es poden unir jugadors durant la sala d\'espera');
     }
 
-    const aiCharacter = await this.aiService.generateUniqueCharacter();
-    const characterId = generateId();
-
-    const character: Character = {
-      id: characterId,
-      name: aiCharacter.name,
-      description: aiCharacter.description,
-      personality: aiCharacter.personality,
-      possibleMotive: aiCharacter.possibleMotive,
-      secret: aiCharacter.secret,
-      alibi: aiCharacter.alibi,
-      rumor: aiCharacter.rumor,
-      relationships: aiCharacter.relationships,
-      isAssassin: false
-    };
-
-    game.characters.push(character);
+    if (game.players.length >= MAX_PLAYERS) {
+      throw new HttpError(400, 'La partida està plena');
+    }
 
     const player: Player = {
       id: generateId(),
       nickname,
-      characterId: characterId,
+      characterId: null,
       isReady: true,
       isEliminated: false,
       hasAccused: false,
@@ -117,11 +82,11 @@ export class GameEngine {
 
     game.players.push(player);
 
-    console.log("Player joined:", nickname, "as", character.name);
+    console.log("Player joined:", nickname);
     this.recordTimelineEvent(game, {
       type: 'PLAYER_JOIN',
       playerId: player.id,
-      description: `Player ${nickname} joined the game as ${character.name}`
+      description: `El jugador ${nickname} s'ha unit a la partida.`
     });
 
     game.updatedAt = nowIso();
@@ -134,7 +99,6 @@ export class GameEngine {
     console.log("[GAME START] Preparing game", gameId);
 
     try {
-      const previousState = game.state;
       this.validateGameStateTransition(game.state, GameStates.READY);
 
       if (game.players.length < 2) {
@@ -142,167 +106,193 @@ export class GameEngine {
       }
 
       game.state = GameStates.READY;
-      console.log("[GAME STATE]", previousState, "→", game.state);
-
       this.recordTimelineEvent(game, {
         type: 'STATE_CHANGE',
-        description: 'Game state changed to READY'
+        description: 'Generant la història i assignant personatges...'
       });
 
-      // Assignar un assassí aleatòriament entre els jugadors actuals
-      const shuffledIndices = this.shuffle(Array.from({ length: game.players.length }, (_, i) => i));
-      const assassinIndex = shuffledIndices[0]!;
-      const assassinCharacterId = game.players[assassinIndex]!.characterId;
-      game.assassinCharacterId = assassinCharacterId;
+      // Generar cas complet
+      const fullCase = await this.aiService.generateFullCase(game.players.length);
 
-      const assassinCharacter = game.characters.find(c => c.id === assassinCharacterId);
-      if (assassinCharacter) {
-        assassinCharacter.isAssassin = true;
+      // Mapejar personatges de la IA a l'estructura del joc
+      game.characters = fullCase.characters.map(c => ({
+        id: generateId(),
+        name: c.name,
+        profession: c.profession,
+        description: c.description,
+        personality: c.personality,
+        possibleMotive: c.possibleMotive,
+        secret: c.secret,
+        coartada: c.coartada,
+        rumor: c.rumor,
+        relationships: c.relationships,
+        isAssassin: c.name === fullCase.assassin
+      }));
+
+      // Si l'assassí no s'ha trobat pel nom (rar), n'assignem un
+      if (!game.characters.some(c => c.isAssassin)) {
+        game.characters[0]!.isAssassin = true;
       }
 
-      // Generar el crim
-      game.murder = this.generateMurder(game);
+      const assassinChar = game.characters.find(c => c.isAssassin)!;
+      game.assassinCharacterId = assassinChar.id;
 
-      // Generar narrativa inicial
-      const charactersList = game.characters.map(c => `${c.name}: ${c.description}`).join('\n');
-      game.introNarrative = await this.aiService.generateIntroNarration(charactersList);
-
-      // Generar solució detallada
-      const murderJson = JSON.stringify({
-        killer: game.characters.find(c => c.id === game.assassinCharacterId)?.name,
-        weapon: game.murder.weapon,
-        location: game.murder.location,
-        victim: game.murder.victim
+      // Assignar personatges als jugadors
+      const shuffledCharacters = this.shuffle([...game.characters]);
+      game.players.forEach((player, index) => {
+        const assignedChar = shuffledCharacters[index % shuffledCharacters.length]!;
+        player.characterId = assignedChar.id;
+        this.recordTimelineEvent(game, {
+          type: 'CHARACTER_ASSIGNED',
+          playerId: player.id,
+          characterId: assignedChar.id,
+          description: `A ${player.nickname} se li ha assignat el personatge: ${assignedChar.name}`
+        });
       });
-      const solutionText = await this.aiService.generateCaseSolution(murderJson);
-      game.solution = {
-        assassin: game.characters.find(c => c.id === game.assassinCharacterId)?.name || 'Desconegut',
-        weapon: game.murder.weapon,
-        location: game.murder.location,
-        victimName: game.murder.victim,
-        finalNarrative: solutionText
+
+      // Configurar el crim
+      const killerPlayer = game.players.find(p => p.characterId === game.assassinCharacterId);
+      game.murder = {
+        killerPlayerId: killerPlayer?.id || 'IA',
+        weapon: fullCase.weapon,
+        location: fullCase.location,
+        victim: fullCase.victim
       };
 
+      // Narrativa
+      game.introNarrative = fullCase.introductionNarrative;
+      game.solution = {
+        assassin: assassinChar.name,
+        weapon: fullCase.weapon,
+        location: fullCase.location,
+        victimName: fullCase.victim,
+        finalNarrative: fullCase.solutionNarrative
+      };
+
+      // Pistes
+      game.clues = fullCase.clues.map((c, index) => ({
+        id: generateId(),
+        type: c.type,
+        text: c.text,
+        isTrue: true, // OpenAI generates consistent clues now
+        roundNumber: Math.floor(index / game.players.length) + 1,
+        createdAt: nowIso()
+      }));
+
       // Passar a PLAYING
-      const stateBeforePlaying = game.state;
       this.validateGameStateTransition(game.state, GameStates.PLAYING);
       game.state = GameStates.PLAYING;
-      console.log("[GAME STATE]", stateBeforePlaying, "→", game.state);
 
       this.recordTimelineEvent(game, {
         type: 'STATE_CHANGE',
-        description: 'Game state changed to PLAYING. Let the mystery begin!'
+        description: 'La partida ha començat. Que comenci el misteri!'
       });
 
       this.recordTimelineEvent(game, {
         type: 'ROUND_START',
         roundNumber: 1,
-        description: 'Round 1 started'
+        description: 'Ronda 1 iniciada'
       });
 
       game.updatedAt = nowIso();
       this.store.save(game);
       return game;
     } catch (error: any) {
-      console.error("[GAME START ERROR]", error.message || error);
-      errorLogger.push("GAME START", error);
+      game.state = GameStates.LOBBY;
+      this.store.save(game);
       throw error;
     }
   }
 
   public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ response: string; game: Game }> {
     const game = this.getGameOrThrow(gameId);
-    const player = this.getPlayerOrThrow(game, input.playerId);
+    if (game.state !== 'PLAYING') {
+      throw new HttpError(409, 'La partida no està en curs');
+    }
 
+    const player = this.getPlayerOrThrow(game, input.playerId);
     this.assertActivePlayer(player);
 
-    if (player.askedThisRound) {
-      throw new HttpError(400, 'Ja has fet una pregunta en aquesta ronda');
+    if (player.askedThisRound || player.accusedThisRound) {
+      throw new HttpError(409, 'Ja has realitzat la teva acció en aquesta ronda');
     }
 
-    const currentTurnPlayer = this.getCurrentTurnPlayer(game);
-    if (currentTurnPlayer?.id !== player.id) {
-      throw new HttpError(403, 'No és el teu torn');
-    }
-
-    const publicGameState = `Ronda ${game.roundNumber}, Tensió ${game.tensionLevel}%`;
-    const response = await this.aiService.respondToQuestion(publicGameState, input.question);
+    const publicState = JSON.stringify(this.getPublicState(game.id));
+    const response = await this.aiService.respondToQuestion(publicState, input.question);
 
     player.askedThisRound = true;
+    game.turns.push({
+      id: generateId(),
+      playerId: player.id,
+      question: input.question,
+      answer: response,
+      createdAt: nowIso()
+    });
 
     this.recordTimelineEvent(game, {
       type: 'QUESTION',
       playerId: player.id,
       text: input.question,
-      description: `Player ${player.nickname} asked: ${input.question}`
+      description: `${player.nickname} ha preguntat: ${input.question}`
     });
 
     await this.nextTurn(game);
     this.store.save(game);
-
     return { response, game };
   }
 
   public async handleAccusation(gameId: string, input: AccusationInput): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
-    const player = this.getPlayerOrThrow(game, input.playerId);
+    if (game.state !== 'PLAYING') {
+      throw new HttpError(409, 'La partida no està en curs');
+    }
 
+    const player = this.getPlayerOrThrow(game, input.playerId);
     this.assertActivePlayer(player);
 
-    if (player.accusedThisRound) {
-      throw new HttpError(400, 'Ja has fet una acusació en aquesta ronda');
+    if (player.askedThisRound || player.accusedThisRound) {
+      throw new HttpError(409, 'Ja has realitzat la teva acció en aquesta ronda');
     }
 
     if (player.accusationCooldown > 0) {
-      throw new HttpError(400, `Has d'esperar ${player.accusationCooldown} rondes per tornar a acusar`);
-    }
-
-    const currentTurnPlayer = this.getCurrentTurnPlayer(game);
-    if (currentTurnPlayer?.id !== player.id) {
-      throw new HttpError(403, 'No és el teu torn');
+      throw new HttpError(409, `Has d'esperar ${player.accusationCooldown} rondes per tornar a acusar`);
     }
 
     const accusedPlayer = this.getPlayerOrThrow(game, input.accusedPlayerId);
-    const accusedCharacterId = accusedPlayer.characterId;
     const murder = game.murder;
 
     if (!murder) {
-      throw new HttpError(500, 'No s\'han trobat dades del crim');
+      throw new HttpError(500, 'No s\'ha trobat la informació del crim');
     }
 
-    player.accusedThisRound = true;
-
     const isCorrect =
-      accusedCharacterId === game.assassinCharacterId &&
-      input.weapon === murder.weapon &&
-      input.location === murder.location;
+      accusedPlayer.characterId === game.assassinCharacterId &&
+      input.weapon.toLowerCase().includes(murder.weapon.toLowerCase()) &&
+      input.location.toLowerCase().includes(murder.location.toLowerCase());
+
+    player.accusedThisRound = true;
+    player.hasAccused = true;
 
     this.recordTimelineEvent(game, {
       type: 'ACCUSATION',
       playerId: player.id,
-      targetCharacterId: accusedCharacterId || undefined,
+      targetCharacterId: accusedPlayer.characterId || undefined,
       success: isCorrect,
-      description: `Player ${player.nickname} accused ${accusedPlayer.nickname}. Result: ${isCorrect ? 'SUCCESS' : 'FAILURE'}`
+      description: `${player.nickname} ha acusat a ${accusedPlayer.nickname}`
     });
 
     if (isCorrect) {
-      game.winnerPlayerId = player.id;
-      const previousState = game.state;
-      this.validateGameStateTransition(game.state, GameStates.FINISHED);
       game.state = GameStates.FINISHED;
-      console.log("[GAME STATE]", previousState, "→", game.state);
-
+      game.winnerPlayerId = player.id;
       this.recordTimelineEvent(game, {
         type: 'GAME_END',
         winnerPlayerId: player.id,
-        description: `Game finished. Winner: ${player.nickname}`
+        description: `Enhorabona! ${player.nickname} ha resolt el cas!`
       });
-      game.updatedAt = nowIso();
-      this.store.save(game);
-      return game;
+    } else {
+      player.accusationCooldown = 2;
+      game.tensionLevel = Math.min(100, game.tensionLevel + 15);
     }
-
-    player.accusationCooldown = 2;
 
     await this.nextTurn(game);
     this.store.save(game);
@@ -318,14 +308,18 @@ export class GameEngine {
       state: game.state,
       players: game.players.map((player) => {
         const character = game.characters.find((c) => c.id === player.characterId);
-        const publicCharacter: any = character ? {
+
+        const canSeePrivateInfo = requesterPlayerId === player.id || game.state === 'FINISHED';
+
+        const publicCharacter: PublicCharacterView | undefined = character ? {
           id: character.id,
           name: character.name,
+          profession: character.profession,
           description: character.description,
           personality: character.personality,
           possibleMotive: character.possibleMotive,
-          secret: character.secret,
-          alibi: character.alibi,
+          secret: canSeePrivateInfo ? character.secret : '???',
+          coartada: canSeePrivateInfo ? character.coartada : '???',
           rumor: character.rumor,
           relationships: character.relationships
         } : undefined;
@@ -342,13 +336,16 @@ export class GameEngine {
           accusationCooldown: player.accusationCooldown
         };
       }),
-      clues: game.clues.map(c => ({
-        id: c.id,
-        playerId: c.playerId,
-        text: c.text,
-        roundNumber: c.roundNumber,
-        createdAt: c.createdAt
-      })),
+      clues: game.clues
+        .filter(c => c.roundNumber <= game.roundNumber)
+        .map(c => ({
+          id: c.id,
+          playerId: c.playerId,
+          type: c.type,
+          text: c.text,
+          roundNumber: c.roundNumber,
+          createdAt: c.createdAt
+        })),
       currentTurnPlayerId: currentTurnPlayer?.id ?? null,
       roundNumber: game.roundNumber,
       tensionLevel: game.tensionLevel,
@@ -364,7 +361,7 @@ export class GameEngine {
       const character = game.characters.find((c) => c.id === player.characterId);
       return {
         id: player.id,
-        publicCharacter: character ? character.description : 'Sospitós'
+        publicCharacter: character ? character.name : 'Sospitós'
       };
     });
   }
@@ -431,32 +428,6 @@ export class GameEngine {
     return game;
   }
 
-  private generateMurder(game: Game): NonNullable<Game['murder']> {
-    if (!game.assassinCharacterId) {
-      throw new HttpError(500, 'No hi ha assassí assignat');
-    }
-
-    const killerPlayer = game.players.find((p) => p.characterId === game.assassinCharacterId);
-    if (!killerPlayer) {
-      throw new HttpError(500, 'No s\'ha trobat el jugador assassí');
-    }
-
-    const weapon = WEAPONS[Math.floor(Math.random() * WEAPONS.length)];
-    const location = LOCATIONS[Math.floor(Math.random() * LOCATIONS.length)];
-    const victim = VICTIMS[Math.floor(Math.random() * VICTIMS.length)];
-
-    if (!weapon || !location || !victim) {
-      throw new HttpError(500, 'No s’han pogut generar els detalls del crim');
-    }
-
-    return {
-      killerPlayerId: killerPlayer.id,
-      weapon,
-      location,
-      victim
-    };
-  }
-
   private async nextTurn(game: Game): Promise<void> {
     const allPlayersActed = game.players.every((p) => p.askedThisRound || p.accusedThisRound || p.isEliminated);
 
@@ -468,7 +439,7 @@ export class GameEngine {
       this.recordTimelineEvent(game, {
         type: 'ROUND_START',
         roundNumber: game.roundNumber,
-        description: `Round ${game.roundNumber} started`
+        description: `Ronda ${game.roundNumber} iniciada`
       });
 
       game.players.forEach((p) => {
@@ -478,72 +449,23 @@ export class GameEngine {
           p.accusationCooldown -= 1;
         }
       });
-
-      await this.generateCluesForRound(game);
       game.currentTurnIndex = 0;
     } else {
       let nextIndex = game.currentTurnIndex;
+      let count = 0;
       do {
         nextIndex = (nextIndex + 1) % game.players.length;
+        count++;
       } while (
-        game.players[nextIndex]?.isEliminated ||
+        (game.players[nextIndex]?.isEliminated ||
         game.players[nextIndex]?.askedThisRound ||
-        game.players[nextIndex]?.accusedThisRound
+        game.players[nextIndex]?.accusedThisRound) &&
+        count < game.players.length
       );
       game.currentTurnIndex = nextIndex;
     }
 
     game.updatedAt = nowIso();
-  }
-
-  private async generateCluesForRound(game: Game): Promise<void> {
-    const murder = game.murder;
-    if (!murder) return;
-
-    console.log("Clues generated for round:", game.roundNumber);
-
-    for (const player of game.players) {
-      const isTrue = Math.random() < 0.7;
-      let text = '';
-
-      if (isTrue) {
-        const types = ['weapon', 'location', 'killer'];
-        const type = types[Math.floor(Math.random() * types.length)];
-        if (type === 'weapon') text = `Sembla que l'arma utilitzada va ser ${murder.weapon}.`;
-        else if (type === 'location') text = `Hi ha indicis que el crim va ocórrer a ${murder.location}.`;
-        else text = `S'ha vist a algú amb aspecte de ${player.characterId === game.assassinCharacterId ? 'l\'assassí' : 'sospitós'} a prop.`;
-      } else {
-        const fakeWeapon = WEAPONS.find((w) => w !== murder.weapon) || WEAPONS[0];
-        const fakeLocation = LOCATIONS.find((l) => l !== murder.location) || LOCATIONS[0];
-        const fakeKillerCharacter = game.characters.find((c) => c.id !== game.assassinCharacterId);
-        const fakeKillerName = fakeKillerCharacter ? fakeKillerCharacter.name : 'algú';
-
-        const types = ['weapon', 'location', 'killer'];
-        const type = types[Math.floor(Math.random() * types.length)];
-        if (type === 'weapon') text = `Diuen que l'arma podria ser ${fakeWeapon}.`;
-        else if (type === 'location') text = `Alguns testimonis parlen de ${fakeLocation}.`;
-        else text = `Es comenta que ${fakeKillerName} té un comportament estrany.`;
-      }
-
-      const clue: Clue = {
-        id: generateId(),
-        playerId: player.id,
-        text,
-        isTrue,
-        roundNumber: game.roundNumber,
-        createdAt: nowIso()
-      };
-      game.clues.push(clue);
-
-      this.recordTimelineEvent(game, {
-        type: 'CLUE',
-        playerId: player.id,
-        text,
-        isTrue,
-        roundNumber: game.roundNumber,
-        description: `Clue generated for ${player.nickname}: ${text}`
-      });
-    }
   }
 
   private shuffle<T>(array: T[]): T[] {

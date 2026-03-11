@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { openaiClient } from '../config/openai.js';
 import { errorLogger } from '../utils/error-logger.js';
+import { FullCase } from '../types/game.types.js';
 
 const resolveContextPath = (fileName: string): string => {
   const candidatePaths = [
@@ -30,8 +31,6 @@ const GAME_INSTRUCTIONS = readContextFile(INSTRUCTIONS_CONTEXT_PATH);
 
 const SYSTEM_PROMPT = `Ets el Mestre del Joc d'un Cluedo narratiu.
 - Només generes narrativa i ambientació.
-- Mai decideixes qui és l'assassí.
-- Mai reveles informació confidencial sense autorització.
 - Sempre respon exclusivament en català.
 - Considera el context del poble i les instruccions del joc.
 - Mantingues coherència narrativa i dramàtica.`;
@@ -49,164 +48,117 @@ export class AIService {
     return GAME_INSTRUCTIONS;
   }
 
-  public async generateUniqueCharacter(): Promise<{
-    name: string;
-    description: string;
-    personality: string;
-    possibleMotive: string;
-    secret: string;
-    alibi: string;
-    rumor: string;
-    relationships: string;
-  }> {
-    const response = await this.generateNarrative(
-      {
-        instruction: `Respon sempre en català.
+  public async generateFullCase(playerCount: number): Promise<FullCase> {
+    const instruction = `Respon sempre en català.
 
-Estàs creant un personatge per a un joc de misteri d'assassinat tipus Cluedo.
-La història té lloc en aquest entorn:
+Estàs creant la història completa d'un joc de misteri d'assassinat tipus Cluedo.
+
+El joc té lloc en aquest entorn:
 ${VILLAGE_CONTEXT}
 
-Crea un personatge únic per a aquesta història.
-El personatge ha de tenir identitat pròpia, història i possibles secrets.
+Crea un cas complet d'assassinat amb exactament ${Math.max(playerCount, 4)} personatges sospitosos.
 
-Inclou els següents camps:
-- name → nom complet del personatge
-- description → descripció del personatge
-- personality → trets de personalitat
-- possibleMotive → possible motiu per cometre el crim
-- secret → alguna cosa que el personatge amaga
-- alibi → on diu que era durant el crim
-- rumor → algun rumor que circula sobre aquest personatge
-- relationships → relacions amb altres personatges o amb la víctima
+El resultat ha de ser coherent i narrativament interessant.
 
-Important:
-El personatge no ha de ser un "habitant genèric".
-Ha de semblar una persona real amb història, conflictes i secrets.
+Crea:
+1️⃣ Personatges sospitosos
+2️⃣ Una víctima
+3️⃣ Un assassí (ha de ser un dels personatges)
+4️⃣ Una arma del crim
+5️⃣ Un lloc on ha passat el crim
+6️⃣ Una introducció narrativa
+7️⃣ Una narrativa final que revela la veritat
+8️⃣ Un conjunt de 10-15 pistes que ajudin a descobrir el cas
 
-Retorna el resultat en JSON:
+Regles importants:
+- Cada personatge ha de ser únic
+- Els noms han de ser ficticis
+- Les professions han de ser diferentes
+- Cada personatge ha de tenir motius possibles
+- L'assassí ha de tenir un motiu clar
+- Les pistes han de relacionar-se amb la solució i poden ser de tipus: "rumor", "witness", "contradiction" o "evidence".
+
+Cada personatge ha d'incloure:
+- name
+- profession
+- description
+- personality
+- possibleMotive
+- secret
+- coartada
+- rumor
+- relationships
+
+Retorna el resultat en JSON amb aquesta estructura:
 {
- "name": "",
- "description": "",
- "personality": "",
- "possibleMotive": "",
- "secret": "",
- "alibi": "",
- "rumor": "",
- "relationships": ""
-}`
-      },
-      800
-    );
+ "victim": "",
+ "weapon": "",
+ "location": "",
+ "assassin": "",
+ "characters": [
+    {
+      "name": "",
+      "profession": "",
+      "description": "",
+      "personality": "",
+      "possibleMotive": "",
+      "secret": "",
+      "coartada": "",
+      "rumor": "",
+      "relationships": ""
+    }
+ ],
+ "introductionNarrative": "",
+ "solutionNarrative": "",
+ "clues": [
+    {
+      "type": "rumor | witness | contradiction | evidence",
+      "text": ""
+    }
+ ]
+}`;
 
     try {
-      return JSON.parse(response);
-    } catch (error) {
-      errorLogger.push("OPENAI_JSON_PARSE", error);
-      return {
-        name: 'Personatge Misteriós',
-        description: 'Un habitant reservat del poble.',
-        personality: 'Misteriós i callat',
-        possibleMotive: 'Tenia deutes pendents',
-        secret: 'Amaga la seva identitat real',
-        alibi: 'Diu que estava sol a casa',
-        rumor: 'Es diu que rep visites estranyes de nit',
-        relationships: 'No es relaciona amb ningú'
-      };
+      console.log("[OPENAI] Sending request for full case");
+
+      const completion = await openaiClient.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: instruction }
+        ],
+        response_format: { type: "json_object" }
+      });
+
+      const responseText = completion.choices[0]?.message.content;
+      if (!responseText) {
+        throw new Error('Resposta buida del model');
+      }
+
+      return JSON.parse(responseText) as FullCase;
+    } catch (error: any) {
+      console.error("[OPENAI ERROR]", error.message || error);
+      errorLogger.push("OPENAI", error);
+      throw new Error('Error en generar el cas. Servei narratiu no disponible temporalment.');
     }
   }
 
-  public async generateIntroNarration(charactersList: string): Promise<string> {
-    return this.generateNarrative(
-      {
-        instruction: `Respon sempre en català.
-
-Estàs escrivint la introducció d'un joc de misteri d'assassinat.
-La història té lloc en el següent poble:
-${VILLAGE_CONTEXT}
-
-Els habitants implicats en la història són:
-${charactersList}
-
-Escriu una introducció immersiva per als jugadors.
-La introducció ha d'incloure:
-1. Una descripció del poble i la seva atmosfera
-2. La presentació de la víctima
-3. El moment en què es descobreix l'assassinat
-4. Les sospites sobre els habitants del poble
-5. Un ambient de misteri i tensió
-
-Estil: narratiu, cinematogràfic, misteriós, amb tensió narrativa.
-Longitud: entre 200 i 400 paraules.`
-      },
-      600
-    );
-  }
-
   public async respondToQuestion(publicGameState: string, question: string): Promise<string> {
-    return this.generateNarrative(
-      {
-        instruction: 'Respon la pregunta del jugador amb to narratiu sense revelar cap secret no autoritzat. Respon sempre en català.',
-        publicGameState,
-        question
-      },
-      300
-    );
+    const instruction = 'Respon la pregunta del jugador amb to narratiu sense revelar cap secret no autoritzat. Respon sempre en català.';
+    return this.generateNarrative({ instruction, publicGameState, question }, 300);
   }
 
   public async generateClueNarration(publicGameState: string, clueDescription: string): Promise<string> {
-    return this.generateNarrative(
-      {
-        instruction: 'Narra la descoberta de la pista amb misteri, ritme i coherència amb la història. Respon sempre en català.',
-        publicGameState,
-        clueDescription
-      },
-      240
-    );
+    const instruction = 'Narra la descoberta de la pista amb misteri, ritme i coherència amb la història. Respon sempre en català.';
+    return this.generateNarrative({ instruction, publicGameState, clueDescription }, 240);
   }
 
   public async generatePrivateMessage(privateContext: string): Promise<string> {
-    return this.generateNarrative(
-      {
-        instruction: 'Redacta un missatge privat i segur, alineat amb la partida i sense revelar informació aliena. Respon sempre en català.',
-        privateContext
-      },
-      220
-    );
+    const instruction = 'Redacta un missatge privat i segur, alineat amb la partida i sense revelar informació aliena. Respon sempre en català.';
+    return this.generateNarrative({ instruction, privateContext }, 220);
   }
 
-  public async generateCaseSolution(murderJson: string): Promise<string> {
-    const data = JSON.parse(murderJson);
-    return this.generateNarrative(
-      {
-        instruction: `Respon sempre en català.
-
-Estàs escrivint la revelació final d'un misteri d'assassinat.
-La història té lloc en el següent poble:
-${VILLAGE_CONTEXT}
-
-La veritat del cas és la següent:
-Assassí: ${data.killer}
-Arma: ${data.weapon}
-Lloc del crim: ${data.location}
-Víctima: ${data.victim}
-
-Escriu la narrativa final que explica què va passar realment.
-La narrativa ha d'incloure:
-- els esdeveniments previs a l'assassinat
-- el motiu de l'assassí
-- com es va cometre el crim
-- com les pistes conduïen a la veritat
-- una revelació final dramàtica
-
-To narratiu: misteriós, dramàtic, estil revelació de detectiu.
-Longitud: entre 200 i 400 paraules.`
-      },
-      600
-    );
-  }
-
-  private async generateNarrative(payload: OpenAICallInput, maxOutputTokens: number): Promise<string> {
+  private async generateNarrative(payload: OpenAICallInput, maxTokens: number): Promise<string> {
     if (!process.env.OPENAI_API_KEY) {
       const error = new Error("OPENAI_API_KEY not configured");
       errorLogger.push("OPENAI", error);
@@ -226,21 +178,18 @@ Longitud: entre 200 i 400 paraules.`
       .join('\n\n');
 
     try {
-      console.log("[OPENAI] Sending request");
-      console.log("[OPENAI] Prompt length:", userContent.length);
+      console.log("[OPENAI] Sending narrative request");
 
-      const response = await openaiClient.responses.create({
+      const completion = await openaiClient.chat.completions.create({
         model: 'gpt-4o-mini',
-        max_output_tokens: maxOutputTokens,
-        input: [
+        max_tokens: maxTokens,
+        messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userContent }
         ]
       });
 
-      console.log("[OPENAI] Response received");
-
-      const outputText = response.output_text?.trim();
+      const outputText = completion.choices[0]?.message.content?.trim();
       if (!outputText) {
         throw new Error('Resposta buida del model');
       }

@@ -10,8 +10,9 @@ export interface PublicCharacterView {
   description: string;
   personality: string;
   possibleMotive: string;
+  profession: string;
   secret: string;
-  alibi: string;
+  coartada: string;
   rumor: string;
   relationships: string;
 }
