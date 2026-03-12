@@ -1,17 +1,22 @@
 import { Router } from 'express';
 import { GameController } from '../controllers/game.controller.js';
-import { asyncHandler } from '../middleware/error-handler.js';
 
+const gameRouter = Router();
 const controller = new GameController();
 
-export const gameRouter = Router();
+/**
+ * Encapsula la gestió d'errors per a les rutes asíncrones.
+ */
+const asyncHandler = (fn: (req: any, res: any, next: any) => Promise<any>) => (req: any, res: any, next: any) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
 
 /**
  * @openapi
  * /game:
  *   post:
  *     summary: Crear una nova partida
- *     description: Inicialitza una nova partida de Cluedo i en retorna l'estat inicial.
+ *     description: Inicialitza una nova partida en estat LOBBY.
  *     responses:
  *       200:
  *         description: Partida creada correctament.
@@ -23,7 +28,7 @@ gameRouter.post('/', asyncHandler((req, res) => controller.createGame(req, res))
  * /game/{id}/join:
  *   post:
  *     summary: Unir-se a una partida
- *     description: Permet a un jugador unir-se a una partida existent mitjançant el seu nom.
+ *     description: Permet a un nou jugador entrar a la sala d'espera.
  *     parameters:
  *       - in: path
  *         name: id
@@ -51,8 +56,8 @@ gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req,
  * @openapi
  * /game/{id}/start:
  *   post:
- *     summary: Iniciar la partida
- *     description: Genera el cas, la narrativa i posa la partida en estat READY.
+ *     summary: Generar cas i començar preparatius
+ *     description: Genera el cas mitjançant IA i posa la partida en estat READY.
  *     parameters:
  *       - in: path
  *         name: id
@@ -238,6 +243,85 @@ gameRouter.get('/:id/intro', asyncHandler((req, res) => controller.getIntro(req,
 
 /**
  * @openapi
+ * /game/{id}/clues/round/{roundNumber}:
+ *   get:
+ *     summary: Obtenir pistes per ronda
+ *     description: Retorna les pistes generades per a una ronda específica.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: path
+ *         name: roundNumber
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Llista de pistes de la ronda.
+ */
+gameRouter.get('/:id/clues/round/:roundNumber', asyncHandler((req, res) => controller.getCluesByRound(req, res)));
+
+/**
+ * @openapi
+ * /game/{id}/players/{playerId}/secret:
+ *   get:
+ *     summary: Obtenir secret del jugador
+ *     description: Retorna la informació secreta assignada a un jugador.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: path
+ *         name: playerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Secret del jugador.
+ */
+gameRouter.get('/:id/players/:playerId/secret', asyncHandler((req, res) => controller.getPlayerSecret(req, res)));
+
+/**
+ * @openapi
+ * /game/{id}/timeline/log:
+ *   post:
+ *     summary: Registrar esdeveniment al timeline
+ *     description: Permet a la UI registrar esdeveniments personalitzats com TTS_PLAYED.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               type:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Event registrat correctament.
+ */
+gameRouter.post('/:id/timeline/log', asyncHandler((req, res) => controller.logTimelineEvent(req, res)));
+
+/**
+ * @openapi
  * /game/{id}/debug:
  *   get:
  *     summary: Obtenir dades de depuració
@@ -417,3 +501,5 @@ gameRouter.get('/:id/users', asyncHandler((req, res) => controller.getUsers(req,
  *         description: Jugador eliminat correctament.
  */
 gameRouter.delete('/:id/users/:userId', asyncHandler((req, res) => controller.deleteUser(req, res)));
+
+export { gameRouter };

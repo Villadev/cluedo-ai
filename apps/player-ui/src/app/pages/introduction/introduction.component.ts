@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
@@ -12,7 +12,7 @@ import { GameService } from '../../services/game.service';
   styleUrl: './introduction.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class IntroductionComponent implements OnInit {
+export class IntroductionComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly gameService = inject(GameService);
@@ -20,8 +20,10 @@ export class IntroductionComponent implements OnInit {
   protected readonly loading = signal(true);
   protected readonly introductionText = signal('');
   protected readonly error = signal('');
+  protected readonly isPlaying = signal(false);
 
   private gameId = '';
+  private utterance: SpeechSynthesisUtterance | null = null;
 
   ngOnInit(): void {
     this.gameId = this.route.snapshot.paramMap.get('gameId') ?? '';
@@ -49,7 +51,46 @@ export class IntroductionComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    this.stopIntroduction();
+  }
+
+  protected playIntroduction(): void {
+    if (this.isPlaying()) {
+      this.stopIntroduction();
+    }
+
+    const text = this.introductionText();
+    if (!text) return;
+
+    this.utterance = new SpeechSynthesisUtterance(text);
+    this.utterance.lang = 'ca-ES';
+    this.utterance.rate = 1;
+    this.utterance.pitch = 1;
+
+    this.utterance.onstart = () => {
+      this.isPlaying.set(true);
+      this.gameService.logTimelineEvent(this.gameId, 'TTS_PLAYED', 'S\'ha reproduït la narració de la introducció.').subscribe();
+    };
+
+    this.utterance.onend = () => {
+      this.isPlaying.set(false);
+    };
+
+    this.utterance.onerror = () => {
+      this.isPlaying.set(false);
+    };
+
+    window.speechSynthesis.speak(this.utterance);
+  }
+
+  protected stopIntroduction(): void {
+    window.speechSynthesis.cancel();
+    this.isPlaying.set(false);
+  }
+
   protected continueToGame(): void {
+    this.stopIntroduction();
     void this.router.navigate(['/game', this.gameId]);
   }
 }

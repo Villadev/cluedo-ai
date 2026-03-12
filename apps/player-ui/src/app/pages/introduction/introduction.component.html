@@ -1,19 +1,44 @@
-<section class="introduction-page">
-  <p-card header="Introducció">
-    @if (loading()) {
-      <div class="loading-wrapper">
-        <p-progressSpinner ariaLabel="Carregant introducció"></p-progressSpinner>
-      </div>
-    } @else if (error()) {
-      <p class="error-message">{{ error() }}</p>
-    } @else {
-      <div class="introduction-text">
-        {{ introductionText() }}
-      </div>
-    }
+<div class="flex flex-column align-items-center justify-content-center min-h-screen p-4">
+    <p-card header="Introducció del cas" [style]="{ width: '100%', maxWidth: '600px' }">
+        @if (loading()) {
+            <div class="flex justify-content-center p-5">
+                <p-progressSpinner ariaLabel="Carregant..."></p-progressSpinner>
+            </div>
+        } @else if (error()) {
+            <div class="p-3 mb-4 border-round bg-red-100 text-red-700">
+                {{ error() }}
+            </div>
+            <div class="flex justify-content-center">
+                <p-button label="Torna" icon="pi pi-arrow-left" (click)="continueToGame()"></p-button>
+            </div>
+        } @else {
+            <div class="introduction-content mb-4 line-height-3 text-justify">
+                {{ introductionText() }}
+            </div>
 
-    <ng-template pTemplate="footer">
-      <button pButton type="button" label="Començar investigació" icon="pi pi-arrow-right" (click)="continueToGame()"></button>
-    </ng-template>
-  </p-card>
-</section>
+            <div class="flex flex-column sm:flex-row gap-3 justify-content-center mt-4">
+                @if (!isPlaying()) {
+                    <p-button
+                        label="Escoltar introducció"
+                        icon="pi pi-volume-up"
+                        severity="secondary"
+                        (click)="playIntroduction()">
+                    </p-button>
+                } @else {
+                    <p-button
+                        label="Aturar narració"
+                        icon="pi pi-stop"
+                        severity="danger"
+                        (click)="stopIntroduction()">
+                    </p-button>
+                }
+
+                <p-button
+                    label="Començar a investigar"
+                    icon="pi pi-search"
+                    (click)="continueToGame()">
+                </p-button>
+            </div>
+        }
+    </p-card>
+</div>

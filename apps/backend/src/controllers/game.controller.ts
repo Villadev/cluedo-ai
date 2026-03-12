@@ -7,10 +7,6 @@ const joinSchema = z.object({
   name: z.string().trim().min(2).max(50)
 });
 
-const readySchema = z.object({
-  playerId: z.string().uuid()
-});
-
 const askSchema = z.object({
   playerId: z.string().uuid(),
   question: z.string().trim().min(3).max(500)
@@ -34,6 +30,21 @@ const userParamsSchema = z.object({
 
 const paramsSchema = z.object({
   id: z.string().uuid()
+});
+
+const roundParamsSchema = z.object({
+  id: z.string().uuid(),
+  roundNumber: z.string().transform(val => parseInt(val, 10))
+});
+
+const playerSecretParamsSchema = z.object({
+  id: z.string().uuid(),
+  playerId: z.string().uuid()
+});
+
+const logEventSchema = z.object({
+  type: z.enum(['PLAYER_JOIN', 'CHARACTER_ASSIGNED', 'ROUND_START', 'QUESTION', 'CLUE', 'ACCUSATION', 'GAME_END', 'STATE_CHANGE', 'TTS_PLAYED', 'CLUE_ROUND_REVEALED', 'PLAYER_SECRET_ASSIGNED']),
+  description: z.string().min(1)
 });
 
 export class GameController {
@@ -154,6 +165,34 @@ export class GameController {
   public async getIntro(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     res.status(200).json(successResponse({ intro: gameEngine.getIntro(gameId) }));
+  }
+
+  /**
+   * Retorna la llista de pistes per a una ronda específica.
+   */
+  public async getCluesByRound(req: Request, res: Response): Promise<void> {
+    const { id: gameId, roundNumber } = roundParamsSchema.parse(req.params);
+    const clues = gameEngine.getCluesForRound(gameId, roundNumber);
+    res.status(200).json(successResponse({ round: roundNumber, clues }));
+  }
+
+  /**
+   * Retorna la informació secreta d'un jugador.
+   */
+  public async getPlayerSecret(req: Request, res: Response): Promise<void> {
+    const { id: gameId, playerId } = playerSecretParamsSchema.parse(req.params);
+    const secret = gameEngine.getPlayerSecret(gameId, playerId);
+    res.status(200).json(successResponse({ secret }));
+  }
+
+  /**
+   * Registra un esdeveniment personalitzat al timeline.
+   */
+  public async logTimelineEvent(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    const { type, description } = logEventSchema.parse(req.body);
+    gameEngine.logTimelineEvent(gameId, type, description);
+    res.status(200).json(successResponse({ message: 'Event registrat' }));
   }
 
   /**

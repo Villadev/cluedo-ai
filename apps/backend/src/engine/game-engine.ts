@@ -12,7 +12,8 @@ import type {
   TimelineEvent,
   PublicGameView,
   PublicParticipant,
-  PublicCharacterView
+  PublicCharacterView,
+  AIServiceClue
 } from '../types/game.types.js';
 import { GameStates } from '../types/game.types.js';
 import { HttpError } from '../utils/http-error.js';
@@ -152,6 +153,7 @@ export class GameEngine {
         personality: c.personality,
         possibleMotive: c.possibleMotive,
         secret: c.secret,
+        secretKnowledge: c.secretKnowledge,
         coartada: c.coartada,
         rumor: c.rumor,
         relationships: c.relationships,
@@ -178,6 +180,13 @@ export class GameEngine {
           characterId: assignedChar.id,
           description: `A ${player.nickname} se li ha assignat el personatge: ${assignedChar.name}`
         });
+
+        // Record secret knowledge assignment
+        this.recordTimelineEvent(game, {
+          type: 'PLAYER_SECRET_ASSIGNED',
+          playerId: player.id,
+          description: `A ${player.nickname} se li ha assignat informació secreta.`
+        });
       });
 
       // Configurar el crim
@@ -199,15 +208,27 @@ export class GameEngine {
         finalNarrative: fullCase.solutionNarrative
       };
 
-      // Pistes
-      game.clues = fullCase.clues.map((c, index) => ({
-        id: generateId(),
-        type: c.type,
-        text: c.text,
-        isTrue: true,
-        roundNumber: Math.floor(index / game.players.length) + 1,
-        createdAt: nowIso()
-      }));
+      // Pistes estructurades per rondes
+      const processedClues: Clue[] = [];
+      const addCluesForRound = (roundClues: AIServiceClue[], roundNumber: number) => {
+        roundClues.forEach(c => {
+          processedClues.push({
+            id: generateId(),
+            type: c.type,
+            text: c.text,
+            isTrue: true,
+            roundNumber,
+            createdAt: nowIso()
+          });
+        });
+      };
+
+      addCluesForRound(fullCase.clues.round1, 1);
+      addCluesForRound(fullCase.clues.round2, 2);
+      addCluesForRound(fullCase.clues.round3, 3);
+      addCluesForRound(fullCase.clues.round4, 4);
+
+      game.clues = processedClues;
 
       this.recordTimelineEvent(game, {
         type: 'STATE_CHANGE',
@@ -249,7 +270,12 @@ export class GameEngine {
       description: 'Ronda 1 iniciada'
     });
 
-    game.updatedAt = nowIso();
+    this.recordTimelineEvent(game, {
+      type: 'CLUE_ROUND_REVEALED',
+      roundNumber: 1,
+      description: 'S\'han revelat els rumors de la Ronda 1.'
+    });
+
     this.store.save(game);
     return game;
   }
@@ -267,10 +293,11 @@ export class GameEngine {
       throw new HttpError(409, 'Ja has realitzat la teva acció en aquesta ronda');
     }
 
-    const publicState = JSON.stringify(this.getPublicState(game.id));
-    const response = await this.aiService.respondToQuestion(publicState, input.question);
+    const response = await this.aiService.respondToQuestion(
+      JSON.stringify(this.getPublicState(game.id, player.id)),
+      input.question
+    );
 
-    player.askedThisRound = true;
     game.turns.push({
       id: generateId(),
       playerId: player.id,
@@ -279,11 +306,13 @@ export class GameEngine {
       createdAt: nowIso()
     });
 
+    player.askedThisRound = true;
+
     this.recordTimelineEvent(game, {
       type: 'QUESTION',
       playerId: player.id,
       text: input.question,
-      description: `${player.nickname} ha preguntat: ${input.question}`
+      description: `${player.nickname} ha fet una pregunta.`
     });
 
     await this.nextTurn(game);
@@ -369,6 +398,7 @@ export class GameEngine {
           personality: character.personality,
           possibleMotive: character.possibleMotive,
           secret: canSeePrivateInfo ? character.secret : '???',
+          secretKnowledge: canSeePrivateInfo ? character.secretKnowledge : '???',
           coartada: canSeePrivateInfo ? character.coartada : '???',
           rumor: character.rumor,
           relationships: character.relationships,
@@ -438,6 +468,35 @@ export class GameEngine {
     return game.solution;
   }
 
+  public getCluesForRound(gameId: string, roundNumber: number): AIServiceClue[] {
+    const game = this.getGameOrThrow(gameId);
+    return game.clues
+      .filter(c => c.roundNumber === roundNumber)
+      .map(c => ({
+        type: c.type,
+        text: c.text
+      }));
+  }
+
+  public getPlayerSecret(gameId: string, playerId: string): string {
+    const game = this.getGameOrThrow(gameId);
+    const player = this.getPlayerOrThrow(game, playerId);
+    const character = game.characters.find(c => c.id === player.characterId);
+    if (!character) {
+      throw new HttpError(404, 'Personatge no trobat per a aquest jugador');
+    }
+    return character.secretKnowledge;
+  }
+
+  public logTimelineEvent(gameId: string, type: TimelineEvent['type'], description: string): void {
+    const game = this.getGameOrThrow(gameId);
+    this.recordTimelineEvent(game, {
+      type,
+      description
+    });
+    this.store.save(game);
+  }
+
   public endGame(gameId: string, winnerPlayerId?: string): Game {
     const game = this.getGameOrThrow(gameId);
     this.validateGameStateTransition(game.state, GameStates.FINISHED);
@@ -492,6 +551,21 @@ export class GameEngine {
         roundNumber: game.roundNumber,
         description: `Ronda ${game.roundNumber} iniciada`
       });
+
+      // Reveal clues for the new round
+      const cluesMapping: Record<number, string> = {
+        2: 'testimonis',
+        3: 'evidències físiques',
+        4: 'contradiccions'
+      };
+      const theme = cluesMapping[game.roundNumber];
+      if (theme) {
+        this.recordTimelineEvent(game, {
+          type: 'CLUE_ROUND_REVEALED',
+          roundNumber: game.roundNumber,
+          description: `S'han revelat els ${theme} de la Ronda ${game.roundNumber}.`
+        });
+      }
 
       game.players.forEach((p) => {
         p.askedThisRound = false;

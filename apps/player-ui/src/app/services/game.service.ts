@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { BehaviorSubject, map, Observable, of } from 'rxjs';
+import { BehaviorSubject, map, Observable } from 'rxjs';
 import { PublicGameView, PublicPlayerView, GameStateInfo } from '../models/player.model';
 import { SessionService } from './session.service';
 
@@ -28,6 +28,15 @@ export interface AccusationPayload {
   accusedPlayerId: string;
   weapon: string;
   location: string;
+}
+
+export interface ClueResponse {
+  round: number;
+  clues: Array<{ type: string; text: string }>;
+}
+
+export interface SecretResponse {
+  secret: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -64,6 +73,18 @@ export class GameService {
 
   getIntroduction(gameId: string): Observable<ApiResponse<IntroductionResponse>> {
     return this.http.get<ApiResponse<IntroductionResponse>>(`${this.baseUrl}/game/${gameId}/intro`);
+  }
+
+  getCluesByRound(gameId: string, roundNumber: number): Observable<ApiResponse<ClueResponse>> {
+    return this.http.get<ApiResponse<ClueResponse>>(`${this.baseUrl}/game/${gameId}/clues/round/${roundNumber}`);
+  }
+
+  getPlayerSecret(gameId: string, playerId: string): Observable<ApiResponse<SecretResponse>> {
+    return this.http.get<ApiResponse<SecretResponse>>(`${this.baseUrl}/game/${gameId}/players/${playerId}/secret`);
+  }
+
+  logTimelineEvent(gameId: string, type: string, description: string): Observable<ApiResponse<unknown>> {
+    return this.http.post<ApiResponse<unknown>>(`${this.baseUrl}/game/${gameId}/timeline/log`, { type, description });
   }
 
   getParticipants(gameId: string): Observable<ApiResponse<PublicPlayerView[]>> {
