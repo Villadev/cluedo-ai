@@ -32,6 +32,8 @@ export interface PublicPlayerView {
   askedThisRound: boolean;
   accusedThisRound: boolean;
   accusationCooldown: number;
+  isNpc?: boolean;
+  type?: 'player' | 'npc';
 }
 
 export interface PublicGameView {

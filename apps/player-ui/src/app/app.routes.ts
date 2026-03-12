@@ -22,6 +22,11 @@ export const appRoutes: Routes = [
     loadComponent: () => import('./pages/participants/participants.component').then((m) => m.ParticipantsComponent)
   },
   {
+    path: 'game/:gameId/notebook',
+    canActivate: [playerSessionGuard],
+    loadComponent: () => import('./pages/detective-notebook/detective-notebook.component').then((m) => m.DetectiveNotebookComponent)
+  },
+  {
     path: 'game/:gameId/accusation',
     canActivate: [playerSessionGuard],
     loadComponent: () => import('./pages/accusation/accusation.component').then((m) => m.AccusationComponent)

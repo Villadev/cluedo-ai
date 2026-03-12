@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageModule } from 'primeng/message';
+import { TagModule } from 'primeng/tag';
 import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
 import { PublicPlayerView } from '../../models/player.model';
@@ -11,7 +12,7 @@ import { PublicPlayerView } from '../../models/player.model';
 @Component({
   selector: 'app-participants',
   standalone: true,
-  imports: [CommonModule, CardModule, ProgressSpinnerModule, MessageModule],
+  imports: [CommonModule, CardModule, ProgressSpinnerModule, MessageModule, TagModule],
   templateUrl: './participants.component.html',
   styleUrl: './participants.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -49,5 +50,9 @@ export class ParticipantsComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  protected isCurrentPlayer(playerId: string): boolean {
+    return this.gameService.isCurrentPlayer(playerId);
   }
 }

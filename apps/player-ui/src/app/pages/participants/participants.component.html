@@ -10,7 +10,21 @@
   <div class="grid">
     @for (player of participants(); track player.id) {
       <div class="col-12 md:col-6 lg:col-4 mb-4">
-        <p-card [header]="player.nickname" styleClass="h-full">
+        <p-card [styleClass]="isCurrentPlayer(player.id) ? 'h-full border-primary border-2' : 'h-full'">
+          <ng-template pTemplate="header">
+             <div class="p-3 flex justify-content-between align-items-center">
+                <span class="text-xl font-bold">{{ player.nickname }}</span>
+                <div class="flex gap-2">
+                   @if (isCurrentPlayer(player.id)) {
+                     <p-tag value="TU" severity="success"></p-tag>
+                   }
+                   @if (player.isNpc || player.type === 'npc') {
+                     <p-tag value="NPC" severity="info"></p-tag>
+                   }
+                </div>
+             </div>
+          </ng-template>
+
           <div class="flex flex-column gap-3">
             @if (player.character) {
               <div>
@@ -23,30 +37,46 @@
                 <p>{{ player.character.profession }}</p>
               </div>
 
-              <div>
-                <span class="font-bold italic">Descripció:</span>
-                <p>{{ player.character.description }}</p>
-              </div>
-
-              @if (player.character.personality) {
+              @if (isCurrentPlayer(player.id)) {
                 <div>
-                  <span class="font-bold italic">Personalitat:</span>
-                  <p>{{ player.character.personality }}</p>
+                  <span class="font-bold italic">Descripció:</span>
+                  <p>{{ player.character.description }}</p>
                 </div>
-              }
 
-              @if (player.character.possibleMotive) {
-                <div>
-                  <span class="font-bold italic text-red-600">Possible motiu:</span>
-                  <p>{{ player.character.possibleMotive }}</p>
-                </div>
-              }
+                @if (player.character.personality) {
+                  <div>
+                    <span class="font-bold italic">Personalitat:</span>
+                    <p>{{ player.character.personality }}</p>
+                  </div>
+                }
 
-              @if (player.character.rumor) {
-                <div>
-                  <span class="font-bold italic text-purple-600">Rumor:</span>
-                  <p>{{ player.character.rumor }}</p>
-                </div>
+                @if (player.character.possibleMotive) {
+                  <div>
+                    <span class="font-bold italic text-red-600">Possible motiu:</span>
+                    <p>{{ player.character.possibleMotive }}</p>
+                  </div>
+                }
+
+                @if (player.character.rumor) {
+                  <div>
+                    <span class="font-bold italic text-purple-600">Rumor:</span>
+                    <p>{{ player.character.rumor }}</p>
+                  </div>
+                }
+
+                @if (player.character.secret) {
+                  <div>
+                    <span class="font-bold italic text-orange-600">Secret:</span>
+                    <p>{{ player.character.secret }}</p>
+                  </div>
+                }
+
+                @if (player.character.coartada) {
+                  <div>
+                    <span class="font-bold italic text-blue-600">Coartada:</span>
+                    <p>{{ player.character.coartada }}</p>
+                  </div>
+                }
               }
             } @else {
               <p-message severity="info" text="Esperant assignació de personatge..."></p-message>

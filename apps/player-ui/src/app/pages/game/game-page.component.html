@@ -4,7 +4,7 @@
       <div class="chat-list mb-3">
         @for (message of (chatMessages$ | async); track message.id) {
           <article class="chat-message" [class]="'chat-' + message.type">
-            <p class="m-0">{{ message.content }}</p>
+            <p class="m-0 white-space-pre-wrap">{{ message.content }}</p>
             <small>{{ message.createdAt | date: 'shortTime' }}</small>
           </article>
         } @empty {
@@ -12,14 +12,28 @@
         }
       </div>
 
-      <form class="chat-input" [formGroup]="questionForm" (ngSubmit)="onSendQuestion()">
-        <input pInputText formControlName="question" placeholder="Escriu la teva pregunta" class="w-full" [disabled]="askedThisRound" />
-        <button pButton type="submit" icon="pi pi-send" label="Enviar" [disabled]="askedThisRound || questionForm.invalid"></button>
-      </form>
+      <form class="chat-input flex flex-column gap-2" [formGroup]="questionForm" (ngSubmit)="onSendQuestion()">
+        <textarea
+          pInputTextarea
+          formControlName="question"
+          placeholder="Escriu la teva pregunta d'investigació..."
+          class="w-full"
+          [rows]="3"
+          [autoResize]="true"
+          [disabled]="askedThisRound"></textarea>
 
-      @if (askedThisRound) {
-        <p class="mt-2 text-orange-500">Ja has enviat una pregunta en aquesta ronda.</p>
-      }
+        <div class="flex justify-content-end align-items-center gap-3">
+          @if (askedThisRound) {
+            <span class="text-orange-500 font-medium">Ja has enviat una pregunta en aquesta ronda.</span>
+          }
+          <button
+            pButton
+            type="submit"
+            icon="pi pi-send"
+            label="Enviar Pregunta"
+            [disabled]="askedThisRound || questionForm.invalid"></button>
+        </div>
+      </form>
     </p-card>
   </div>
 

@@ -5,7 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
-import { InputTextModule } from 'primeng/inputtext';
+import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ChatMessage, SocketGameEvent } from '../../models/chat.models';
 import { ChatService } from '../../services/chat.service';
 import { GameService } from '../../services/game.service';
@@ -15,7 +15,16 @@ import { GameStatusIndicatorComponent } from '../../components/game-status-indic
 
 @Component({
   selector: 'app-game-page',
-  imports: [ReactiveFormsModule, AsyncPipe, DatePipe, CardModule, InputTextModule, ButtonModule, GameStatusIndicatorComponent],
+  standalone: true,
+  imports: [
+    ReactiveFormsModule,
+    AsyncPipe,
+    DatePipe,
+    CardModule,
+    InputTextareaModule,
+    ButtonModule,
+    GameStatusIndicatorComponent
+  ],
   templateUrl: './game-page.component.html',
   styleUrl: './game-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -37,7 +46,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
   protected askedThisRound = false;
 
   protected readonly questionForm = this.formBuilder.nonNullable.group({
-    question: ['', [Validators.required, Validators.maxLength(400)]]
+    question: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(1000)]]
   });
 
   ngOnInit(): void {
@@ -57,7 +66,9 @@ export class GamePageComponent implements OnInit, OnDestroy {
       });
 
       this.chatService.clear();
-      this.gameService.resetRoundQuestion();
+      // Initialize state from server
+      this.refreshGameState();
+
       this.websocketService.connect(this.gameId, this.playerId || undefined);
 
       this.subscriptions.add(
@@ -95,6 +106,19 @@ export class GamePageComponent implements OnInit, OnDestroy {
     this.questionForm.reset();
   }
 
+  private refreshGameState(): void {
+    if (!this.gameId || !this.playerId) return;
+
+    this.gameService.getGame(this.gameId, this.playerId).subscribe(response => {
+      if (response.success && response.data) {
+        const currentPlayer = response.data.players.find(p => p.id === this.playerId);
+        if (currentPlayer) {
+          this.gameService.setAskedThisRound(currentPlayer.askedThisRound || currentPlayer.accusedThisRound);
+        }
+      }
+    });
+  }
+
   private handleSocketEvent(event: SocketGameEvent): void {
     switch (event.event) {
       case 'connected':
@@ -102,7 +126,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
         break;
       case 'game_state':
       case 'game_state_updated':
-        // Silenced or handled differently as we now have info pages and a status indicator
+        this.refreshGameState();
         break;
       case 'clue':
         this.chatService.addMessage(this.createMessage('clue', this.extractText(event.payload, 'Nova pista rebuda.')));
@@ -112,7 +136,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
         break;
       case 'round_start':
         this.gameService.resetRoundQuestion();
-        this.chatService.addMessage(this.createMessage('system', 'Comença una nova ronda d\'investigació.'));
+        this.chatService.addMessage(this.createMessage('system', 'Comença una nova ronda d\'investigació. Pots fer una pregunta.'));
         break;
       case 'round_end':
         this.chatService.addMessage(this.createMessage('system', 'La ronda ha finalitzat. Revisa les pistes.'));
