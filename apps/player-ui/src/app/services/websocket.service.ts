@@ -22,7 +22,6 @@ export class WebSocketService {
 
     console.log("WS_CONNECTING");
     this.socket = io(this.baseUrl, {
-      transports: ['websocket'],
       query: {
         gameId,
         playerId: playerId ?? ''
