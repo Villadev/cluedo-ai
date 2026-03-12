@@ -1,7 +1,8 @@
 
 > @cluedo/player-ui@0.1.0 start /app/apps/player-ui
-> ng serve player-ui --host 0.0.0.0 --port 4200
+> ng serve player-ui --host 0.0.0.0 --port 4200 "--port" "4200"
 
+Option 'port' has been specified multiple times. The value '4200' will be used.
 
 Warning: This is a simple server for use in testing or debugging Angular applications
 locally. It hasn't been reviewed for security issues.
@@ -23,19 +24,27 @@ runtime.js            | runtime                                               | 
                       | Initial total                                         |   3.79 MB
 
 Lazy chunk files      | Names                                                 |  Raw size
-569.js                | pages-detective-notebook-detective-notebook-component |   1.09 MB |
-360.js                | pages-join-game-join-game-page-component              | 172.62 kB |
+569.js                | pages-detective-notebook-detective-notebook-component |   1.10 MB |
+648.js                | pages-join-game-join-game-page-component              | 159.92 kB |
 199.js                | pages-accusation-accusation-component                 | 130.43 kB |
-361.js                | pages-game-info-game-info-component                   |  67.87 kB |
-279.js                | pages-join-game-join-game-page-component              |  54.55 kB |
-669.js                | pages-game-game-page-component                        |  46.83 kB |
-307.js                | pages-participants-participants-component             |  45.94 kB |
-206.js                | pages-participants-participants-component             |  37.39 kB |
-583.js                | pages-introduction-introduction-component             |  32.58 kB |
+279.js                | pages-join-game-join-game-page-component              |  69.77 kB |
+361.js                | pages-game-info-game-info-component                   |  52.79 kB |
+669.js                | pages-game-game-page-component                        |  50.75 kB |
+307.js                | pages-participants-participants-component             |  33.25 kB |
+320.js                | pages-participants-participants-component             |  31.05 kB |
 332.js                | pages-detective-notebook-detective-notebook-component |  28.76 kB |
+557.js                | pages-introduction-introduction-component             |  19.17 kB |
+583.js                | pages-introduction-introduction-component             |  13.60 kB |
 common.js             | common                                                |  10.58 kB |
+401.js                | pages-instructions-instructions-component             |   9.84 kB |
 
-Build at: 2026-03-12T12:32:47.690Z - Hash: ccb35a7f366adacd - Time: 30014ms
+Build at: 2026-03-12T15:52:12.819Z - Hash: 88fcdc6c6c68de3c - Time: 33992ms
+
+Warning: [96msrc/app/pages/game/game-page.component.ts[0m:[93m24[0m:[93m5[0m - [93mwarning[0m[90m NG8113: [0mNgIf is not used within the template of GamePageComponent
+
+[7m24[0m     NgIf,
+[7m  [0m [93m    ~~~~[0m
+
 
 Warning: /app/node_modules/.pnpm/socket.io-parser@4.2.5/node_modules/socket.io-parser/build/esm-debug/index.js depends on 'debug'. CommonJS or AMD dependencies can cause optimization bailouts.
 For more info see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
@@ -46,99 +55,25 @@ For more info see: https://angular.dev/tools/cli/build#configuring-commonjs-depe
 
 
 ✔ Compiled successfully.
-/app/apps/player-ui:
- ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @cluedo/player-ui@0.1.0 start: `ng serve player-ui --host 0.0.0.0 --port 4200`
-Command failed with signal "SIGTERM"
 [32m✔[39m Browser application bundle generation complete.
 
-Initial chunk files | Names                                                 |  Raw size
-main.js             | main                                                  |   2.73 MB |
-runtime.js          | runtime                                               |  13.16 kB |
+Initial chunk files | Names                          | Raw size
+main.js             | main                           |  2.73 MB |
+runtime.js          | runtime                        | 13.16 kB |
 
-Lazy chunk files    | Names                                                 |  Raw size
-360.js              | pages-join-game-join-game-page-component              | 159.92 kB |
-580.js              | pages-accusation-accusation-component                 | 130.43 kB |
-279.js              | pages-join-game-join-game-page-component              |  67.25 kB |
-742.js              | pages-game-info-game-info-component                   |  48.83 kB |
-332.js              | pages-detective-notebook-detective-notebook-component |  41.46 kB |
-688.js              | pages-participants-participants-component             |  33.25 kB |
-307.js              | pages-participants-participants-component             |  31.05 kB |
-583.js              | pages-introduction-introduction-component             |  19.17 kB |
-964.js              | pages-introduction-introduction-component             |  13.55 kB |
-401.js              | pages-instructions-instructions-component             |   7.12 kB |
+Lazy chunk files    | Names                          | Raw size
+669.js              | pages-game-game-page-component | 50.75 kB |
 
-5 unchanged chunks
+14 unchanged chunks
 
-Build at: 2026-03-12T13:09:15.391Z - Hash: 6606140786b6d9c3 - Time: 11668ms
+Build at: 2026-03-12T15:52:55.298Z - Hash: 764850be50f7d0d6 - Time: 2062ms
 
-Error: [96msrc/app/pages/instructions/instructions.component.ts[0m:[93m35[0m:[93m22[0m - [91merror[0m[90m TS2551: [0mProperty 'getInstructions' does not exist on type 'GameService'. Did you mean 'getIntroduction'?
+Warning: [96msrc/app/pages/game/game-page.component.ts[0m:[93m24[0m:[93m5[0m - [93mwarning[0m[90m NG8113: [0mNgIf is not used within the template of GamePageComponent
 
-[7m35[0m     this.gameService.getInstructions(gameId).subscribe({
-[7m  [0m [91m                     ~~~~~~~~~~~~~~~[0m
-
-  [96msrc/app/services/game.service.ts[0m:[93m74[0m:[93m3[0m
-    [7m74[0m   getIntroduction(gameId: string): Observable<ApiResponse<IntroductionResponse>> {
-    [7m  [0m [96m  ~~~~~~~~~~~~~~~[0m
-    'getIntroduction' is declared here.
-
-
-Error: [96msrc/app/pages/instructions/instructions.component.ts[0m:[93m36[0m:[93m14[0m - [91merror[0m[90m TS7006: [0mParameter 'response' implicitly has an 'any' type.
-
-[7m36[0m       next: (response) => {
-[7m  [0m [91m             ~~~~~~~~[0m
+[7m24[0m     NgIf,
+[7m  [0m [93m    ~~~~[0m
 
 
 
-
-✖ Failed to compile.
-[32m✔[39m Browser application bundle generation complete.
-
-Initial chunk files | Names   | Raw size
-main.js             | main    |  2.73 MB |
-runtime.js          | runtime | 13.16 kB |
-
-15 unchanged chunks
-
-Build at: 2026-03-12T13:09:23.858Z - Hash: 8fbff8bb7c5d2c74 - Time: 5896ms
-
-Error: [96msrc/app/pages/instructions/instructions.component.ts[0m:[93m35[0m:[93m22[0m - [91merror[0m[90m TS2551: [0mProperty 'getInstructions' does not exist on type 'GameService'. Did you mean 'getIntroduction'?
-
-[7m35[0m     this.gameService.getInstructions(gameId).subscribe({
-[7m  [0m [91m                     ~~~~~~~~~~~~~~~[0m
-
-  [96msrc/app/services/game.service.ts[0m:[93m74[0m:[93m3[0m
-    [7m74[0m   getIntroduction(gameId: string): Observable<ApiResponse<IntroductionResponse>> {
-    [7m  [0m [96m  ~~~~~~~~~~~~~~~[0m
-    'getIntroduction' is declared here.
-
-
-Error: [96msrc/app/pages/instructions/instructions.component.ts[0m:[93m36[0m:[93m14[0m - [91merror[0m[90m TS7006: [0mParameter 'response' implicitly has an 'any' type.
-
-[7m36[0m       next: (response) => {
-[7m  [0m [91m             ~~~~~~~~[0m
-
-
-
-
-✖ Failed to compile.
-[32m✔[39m Browser application bundle generation complete.
-
-Initial chunk files | Names                                                 |  Raw size
-main.js             | main                                                  |   2.73 MB |
-runtime.js          | runtime                                               |  13.16 kB |
-
-Lazy chunk files    | Names                                                 |  Raw size
-569.js              | pages-detective-notebook-detective-notebook-component |   1.09 MB |
-580.js              | pages-accusation-accusation-component                 | 130.43 kB |
-279.js              | pages-join-game-join-game-page-component              |  67.25 kB |
-742.js              | pages-game-info-game-info-component                   |  48.83 kB |
-669.js              | pages-game-game-page-component                        |  46.83 kB |
-688.js              | pages-participants-participants-component             |  33.25 kB |
-964.js              | pages-introduction-introduction-component             |  13.55 kB |
-401.js              | pages-instructions-instructions-component             |   7.12 kB |
-
-7 unchanged chunks
-
-Build at: 2026-03-12T13:09:36.514Z - Hash: bf722086e73c2765 - Time: 2843ms
 
 ✔ Compiled successfully.

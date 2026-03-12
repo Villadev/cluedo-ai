@@ -30,6 +30,3 @@ Error: Variables d'entorn invàlides: [
     at require (node:internal/modules/helpers:147:16)
 
 Node.js v22.22.1
-/app/apps/backend:
- ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @cluedo/backend@0.1.0 dev: `tsx watch src/main.ts`
-Command failed with signal "SIGTERM"

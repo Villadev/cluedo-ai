@@ -91,6 +91,7 @@ export class IntroductionComponent implements OnInit, OnDestroy {
 
   protected continueToGame(): void {
     this.stopIntroduction();
+    sessionStorage.setItem(`intro_seen_${this.gameId}`, 'true');
     void this.router.navigate(['/game', this.gameId]);
   }
 }

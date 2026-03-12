@@ -1,5 +1,26 @@
 <div class="p-4">
-  <h1 class="text-3xl font-bold mb-4">Solució de la Partida</h1>
+  <div class="flex justify-content-between align-items-center mb-4">
+    <h1 class="text-3xl font-bold m-0">Solució de la Partida</h1>
+    @if (solution()) {
+      <div class="flex gap-2">
+        @if (!isPlaying()) {
+          <p-button
+            label="Escoltar narració"
+            icon="pi pi-volume-up"
+            severity="secondary"
+            (click)="playNarrative()">
+          </p-button>
+        } @else {
+          <p-button
+            label="Aturar narració"
+            icon="pi pi-stop"
+            severity="danger"
+            (click)="stopNarrative()">
+          </p-button>
+        }
+      </div>
+    }
+  </div>
 
   @if (error()) {
     <div class="mb-4">
