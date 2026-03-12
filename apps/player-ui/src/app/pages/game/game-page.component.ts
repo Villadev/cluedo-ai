@@ -6,7 +6,6 @@ import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextareaModule } from 'primeng/inputtextarea';
-import { ChatMessage, SocketGameEvent } from '../../models/chat.models';
 import { ChatService } from '../../services/chat.service';
 import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
@@ -40,10 +39,10 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
   protected readonly chatMessages$ = this.chatService.messages$;
   protected readonly connected$ = this.websocketService.connected$;
+  protected readonly canAskQuestion$ = this.chatService.canAskQuestion$;
 
   protected gameId = '';
   protected playerId = '';
-  protected askedThisRound = false;
 
   protected readonly questionForm = this.formBuilder.nonNullable.group({
     question: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(1000)]]
@@ -51,7 +50,6 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const routeGameId = this.route.snapshot.paramMap.get('gameId') ?? '';
-
     const storedGameId = this.sessionService.getGameId();
     const storedPlayerId = this.sessionService.getPlayerId();
 
@@ -66,22 +64,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
       });
 
       this.chatService.clear();
-      // Initialize state from server
-      this.refreshGameState();
-
       this.websocketService.connect(this.gameId, this.playerId || undefined);
-
-      this.subscriptions.add(
-        this.websocketService.events$.subscribe((event: SocketGameEvent) => {
-          this.handleSocketEvent(event);
-        })
-      );
-
-      this.subscriptions.add(
-        this.gameService.askedThisRound$.subscribe((value: boolean) => {
-          this.askedThisRound = value;
-        })
-      );
     }
   }
 
@@ -91,7 +74,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
   }
 
   protected onSendQuestion(): void {
-    if (this.askedThisRound || this.questionForm.invalid) {
+    if (this.questionForm.invalid) {
       return;
     }
 
@@ -100,76 +83,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.websocketService.sendQuestion(question);
-    this.chatService.addMessage(this.createMessage('player', question));
-    this.gameService.setAskedThisRound(true);
+    this.chatService.sendQuestion(this.gameId, this.playerId, question);
     this.questionForm.reset();
-  }
-
-  private refreshGameState(): void {
-    if (!this.gameId || !this.playerId) return;
-
-    this.gameService.getGame(this.gameId, this.playerId).subscribe(response => {
-      if (response.success && response.data) {
-        const currentPlayer = response.data.players.find(p => p.id === this.playerId);
-        if (currentPlayer) {
-          this.gameService.setAskedThisRound(currentPlayer.askedThisRound || currentPlayer.accusedThisRound);
-        }
-      }
-    });
-  }
-
-  private handleSocketEvent(event: SocketGameEvent): void {
-    switch (event.event) {
-      case 'connected':
-        this.chatService.addMessage(this.createMessage('system', 'Connexió d\'investigació establerta.'));
-        break;
-      case 'game_state':
-      case 'game_state_updated':
-        this.refreshGameState();
-        break;
-      case 'clue':
-        this.chatService.addMessage(this.createMessage('clue', this.extractText(event.payload, 'Nova pista rebuda.')));
-        break;
-      case 'system_message':
-        this.chatService.addMessage(this.createMessage('system', this.extractText(event.payload, 'Missatge del sistema.')));
-        break;
-      case 'round_start':
-        this.gameService.resetRoundQuestion();
-        this.chatService.addMessage(this.createMessage('system', 'Comença una nova ronda d\'investigació. Pots fer una pregunta.'));
-        break;
-      case 'round_end':
-        this.chatService.addMessage(this.createMessage('system', 'La ronda ha finalitzat. Revisa les pistes.'));
-        break;
-      case 'error':
-        this.chatService.addMessage(this.createMessage('system', "S'ha rebut un error del servidor."));
-        break;
-      default:
-        break;
-    }
-  }
-
-  private extractText(payload: unknown, fallback: string): string {
-    if (typeof payload === 'string') {
-      return payload;
-    }
-
-    if (payload && typeof payload === 'object' && 'message' in payload) {
-      const messageValue = (payload as { message?: unknown }).message;
-      if (typeof messageValue === 'string') {
-        return messageValue;
-      }
-    }
-
-    return fallback;
-  }
-
-  private createMessage(type: ChatMessage['type'], content: string): ChatMessage {
-    return {
-      id: crypto.randomUUID(),
-      type,
-      content,
-      createdAt: new Date().toISOString()
-    };
   }
 }
