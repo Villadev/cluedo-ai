@@ -19,9 +19,10 @@ export class AppComponent implements OnInit {
   private readonly sessionService = inject(SessionService);
   private readonly websocketService = inject(WebSocketService);
 
-  protected readonly menuItems: MenuItem[] = [
-    { label: 'Inici', icon: 'pi pi-home', routerLink: '/' },
-    { label: 'Introducció', icon: 'pi pi-book', command: () => this.navigateToGameSection('introduction') },
+  protected menuItems: MenuItem[] = [
+    { label: 'Xat', icon: 'pi pi-comments', command: () => this.navigateToGameSection('') },
+    { label: 'Informació de partida', icon: 'pi pi-info-circle', command: () => this.navigateToGameSection('info') },
+    { label: 'Participants', icon: 'pi pi-users', command: () => this.navigateToGameSection('participants') },
     { label: 'Acusació', icon: 'pi pi-megaphone', command: () => this.navigateToGameSection('accusation') },
     { label: 'Sortir de la partida', icon: 'pi pi-sign-out', command: () => this.leaveGame() }
   ];
@@ -30,21 +31,29 @@ export class AppComponent implements OnInit {
     const gameId = this.sessionService.getGameId();
     const playerId = this.sessionService.getPlayerId();
 
-    if (gameId && playerId && this.router.url === '/') {
-      void this.router.navigate(['/game', gameId], {
-        queryParams: { playerId }
-      });
+    if (gameId && playerId) {
+      // Restore session in GameService
+      this.gameService.setSession({ gameId, playerId });
+
+      // If we are at the root, redirect to the game chat
+      if (this.router.url === '/' || this.router.url === '') {
+        void this.router.navigate(['/game', gameId]);
+      }
     }
   }
 
-  private navigateToGameSection(section: 'introduction' | 'accusation'): void {
+  private navigateToGameSection(section: string): void {
     const gameId = this.sessionService.getGameId();
     if (!gameId) {
       void this.router.navigate(['/']);
       return;
     }
 
-    void this.router.navigate(['/game', gameId, section]);
+    if (section === '') {
+      void this.router.navigate(['/game', gameId]);
+    } else {
+      void this.router.navigate(['/game', gameId, section]);
+    }
   }
 
   private leaveGame(): void {

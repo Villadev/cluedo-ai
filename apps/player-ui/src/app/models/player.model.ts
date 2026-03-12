@@ -1,18 +1,55 @@
-export interface Player {
+export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
+
+export interface PublicCharacterView {
   id: string;
-  nickname: string;
-  name?: string;
-  description?: string;
+  name: string;
+  description: string;
+  personality: string;
+  possibleMotive: string;
+  profession: string;
+  secret: string;
+  coartada: string;
+  rumor: string;
+  relationships: string;
+  tensions: string;
 }
 
-export interface PublicPlayerState extends Player {
+export interface PublicClueView {
+  id: string;
+  playerId: string;
+  text: string;
+  roundNumber: number;
+  createdAt: string;
+}
+
+export interface PublicPlayerView {
+  id: string;
+  nickname: string;
+  character?: PublicCharacterView;
+  isReady: boolean;
+  isEliminated: boolean;
+  hasAccused: boolean;
   askedThisRound: boolean;
   accusedThisRound: boolean;
   accusationCooldown: number;
-  isEliminated: boolean;
 }
 
-export interface PublicGameState {
+export interface PublicGameView {
   id: string;
-  players: PublicPlayerState[];
+  state: GameState;
+  players: PublicPlayerView[];
+  clues: PublicClueView[];
+  currentTurnPlayerId: string | null;
+  roundNumber: number;
+  tensionLevel: number;
+  winnerPlayerId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GameStateInfo {
+  state: GameState;
+  playersCount: number;
+  charactersCount: number;
+  roundNumber: number;
 }

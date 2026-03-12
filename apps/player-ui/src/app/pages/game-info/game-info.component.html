@@ -1,0 +1,88 @@
+<div class="p-4">
+  <h1 class="text-3xl font-bold mb-4">Informació de la Partida</h1>
+
+  @if (loading()) {
+    <div class="flex justify-content-center p-4">
+      <p-progressSpinner ariaLabel="Carregant informació"></p-progressSpinner>
+    </div>
+  } @else if (error()) {
+    <div class="p-4 bg-red-100 text-red-700 border-round">
+      {{ error() }}
+    </div>
+  } @else if (game(); as g) {
+    <div class="grid">
+      <div class="col-12 md:col-6">
+        <p-card header="Estat General" styleClass="h-full">
+          <ul class="list-none p-0 m-0">
+            <li class="mb-3">
+              <span class="font-bold">ID de Partida:</span>
+              <span class="ml-2">{{ g.id }}</span>
+            </li>
+            <li class="mb-3">
+              <span class="font-bold">Estat:</span>
+              <span class="ml-2">{{ g.state }}</span>
+            </li>
+            <li class="mb-3">
+              <span class="font-bold">Ronda Actual:</span>
+              <span class="ml-2">{{ g.roundNumber }}</span>
+            </li>
+            <li class="mb-3">
+              <span class="font-bold">Nivell de Tensió:</span>
+              <span class="ml-2">{{ g.tensionLevel }}</span>
+            </li>
+          </ul>
+        </p-card>
+      </div>
+
+      <div class="col-12 md:col-6">
+        <p-card header="El Teu Jugador" styleClass="h-full">
+          @if (currentPlayer(); as p) {
+            <ul class="list-none p-0 m-0">
+              <li class="mb-3">
+                <span class="font-bold">Nom:</span>
+                <span class="ml-2">{{ p.nickname }}</span>
+              </li>
+              @if (p.character) {
+                <li class="mb-3">
+                  <span class="font-bold">Personatge:</span>
+                  <span class="ml-2">{{ p.character.name }}</span>
+                </li>
+                <li class="mb-3">
+                  <span class="font-bold">Professió:</span>
+                  <span class="ml-2">{{ p.character.profession }}</span>
+                </li>
+              }
+              <li class="mb-3">
+                <span class="font-bold">Eliminat:</span>
+                <span class="ml-2">{{ p.isEliminated ? 'Sí' : 'No' }}</span>
+              </li>
+            </ul>
+          } @else {
+            <p>No s'ha pogut trobar la teva informació de jugador.</p>
+          }
+        </p-card>
+      </div>
+
+      <div class="col-12">
+        <p-panel header="Pistes Trobades" [toggleable]="true" styleClass="mt-4">
+          <div class="grid">
+            @for (clue of g.clues; track clue.id) {
+              <div class="col-12 md:col-6 lg:col-4">
+                <p-card styleClass="mb-3 h-full">
+                  <p class="m-0">{{ clue.text }}</p>
+                  <ng-template pTemplate="footer">
+                    <small class="text-500">Ronda {{ clue.roundNumber }}</small>
+                  </ng-template>
+                </p-card>
+              </div>
+            } @empty {
+              <div class="col-12">
+                <p class="text-500">Encara no s'han trobat pistes.</p>
+              </div>
+            }
+          </div>
+        </p-panel>
+      </div>
+    </div>
+  }
+</div>

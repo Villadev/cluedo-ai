@@ -1,0 +1,7 @@
+<div class="status-indicator-container" [pTooltip]="statusText()" tooltipPosition="left">
+  <div class="traffic-light" [class]="statusColor()">
+    <div class="light red" [class.active]="statusColor() === 'red'"></div>
+    <div class="light orange" [class.active]="statusColor() === 'orange'"></div>
+    <div class="light green" [class.active]="statusColor() === 'green'"></div>
+  </div>
+</div>

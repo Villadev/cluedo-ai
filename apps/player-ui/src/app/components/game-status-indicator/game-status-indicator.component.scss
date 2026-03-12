@@ -1,0 +1,40 @@
+.status-indicator-container {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 1000;
+  cursor: help;
+}
+
+.traffic-light {
+  background-color: #333;
+  padding: 8px;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+
+  .light {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: #222;
+    transition: background-color 0.3s ease, box-shadow 0.3s ease;
+
+    &.red.active {
+      background-color: #ff4d4d;
+      box-shadow: 0 0 10px #ff4d4d;
+    }
+
+    &.orange.active {
+      background-color: #ffa500;
+      box-shadow: 0 0 10px #ffa500;
+    }
+
+    &.green.active {
+      background-color: #4caf50;
+      box-shadow: 0 0 10px #4caf50;
+    }
+  }
+}

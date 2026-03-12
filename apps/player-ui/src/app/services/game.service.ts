@@ -1,8 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { BehaviorSubject, map, Observable } from 'rxjs';
-import { Participant } from '../models/participant.model';
-import { PublicGameState, PublicPlayerState } from '../models/player.model';
+import { PublicGameView, PublicPlayerView, GameStateInfo } from '../models/player.model';
 
 export interface GameSession {
   gameId: string;
@@ -26,6 +25,8 @@ export interface PlayerJoinResponse {
 export interface AccusationPayload {
   playerId: string;
   accusedPlayerId: string;
+  weapon: string;
+  location: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -59,25 +60,33 @@ export class GameService {
     return this.http.get<ApiResponse<IntroductionResponse>>(`${this.baseUrl}/game/${gameId}/intro`);
   }
 
-  getParticipants(gameId: string): Observable<ApiResponse<Participant[]>> {
-    return this.http.get<ApiResponse<Participant[]>>(`${this.baseUrl}/game/${gameId}/players`);
+  getParticipants(gameId: string): Observable<ApiResponse<PublicPlayerView[]>> {
+    // We use the full game state to get rich player/character information
+    return this.http.get<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}`).pipe(
+      map(response => ({
+        success: response.success,
+        data: response.data?.players,
+        error: response.error
+      }))
+    );
   }
 
-  getGame(gameId: string): Observable<ApiResponse<PublicGameState>> {
-    return this.http.get<ApiResponse<PublicGameState>>(`${this.baseUrl}/game/${gameId}`);
+  getGame(gameId: string, playerId?: string): Observable<ApiResponse<PublicGameView>> {
+    const url = playerId ? `${this.baseUrl}/game/${gameId}?playerId=${playerId}` : `${this.baseUrl}/game/${gameId}`;
+    return this.http.get<ApiResponse<PublicGameView>>(url);
+  }
+
+  getGameState(gameId: string): Observable<ApiResponse<GameStateInfo>> {
+    return this.http.get<ApiResponse<GameStateInfo>>(`${this.baseUrl}/game/${gameId}/state`);
   }
 
   joinGame(gameId: string, name: string): Observable<PlayerJoinResponse> {
     return this.http
-      .post<ApiResponse<PublicGameState> | PlayerJoinResponse>(`${this.baseUrl}/game/${gameId}/join`, { name })
+      .post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/join`, { name })
       .pipe(
-        map((response: ApiResponse<PublicGameState> | PlayerJoinResponse) => {
-          if ('playerId' in response && typeof response.playerId === 'string') {
-            return { playerId: response.playerId };
-          }
-
-          const players: PublicPlayerState[] = (response as ApiResponse<PublicGameState>).data?.players ?? [];
-          const joinedPlayer = players.find((player: PublicPlayerState) => player.nickname === name);
+        map((response: ApiResponse<PublicGameView>) => {
+          const players = response.data?.players ?? [];
+          const joinedPlayer = players.find((player: PublicPlayerView) => player.nickname === name);
           if (!joinedPlayer?.id) {
             throw new Error("No s'ha pogut recuperar l'ID del jugador.");
           }
@@ -87,10 +96,12 @@ export class GameService {
       );
   }
 
-  accuse(gameId: string, playerId: string, accusedId: string): Observable<ApiResponse<unknown>> {
+  accuse(gameId: string, playerId: string, accusedId: string, weapon: string, location: string): Observable<ApiResponse<unknown>> {
     const payload: AccusationPayload = {
       playerId,
-      accusedPlayerId: accusedId
+      accusedPlayerId: accusedId,
+      weapon,
+      location
     };
     return this.http.post<ApiResponse<unknown>>(`${this.baseUrl}/game/${gameId}/accuse`, payload);
   }
