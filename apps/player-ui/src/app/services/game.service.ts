@@ -1,8 +1,10 @@
 import { HttpClient } from '@angular/common/http';
-import { inject, Injectable } from '@angular/core';
-import { BehaviorSubject, map, Observable } from 'rxjs';
-import { PublicGameView, PublicPlayerView, GameStateInfo } from '../models/player.model';
+import { inject, Injectable, OnDestroy } from '@angular/core';
+import { BehaviorSubject, map, Observable, Subscription } from 'rxjs';
+import { PublicGameView, PublicPlayerView, GameStateInfo, GameState } from '../models/player.model';
 import { SessionService } from './session.service';
+import { WebSocketService } from './websocket.service';
+import { SocketGameEvent } from '../models/chat.models';
 
 export interface GameSession {
   gameId: string;
@@ -40,27 +42,37 @@ export interface SecretResponse {
 }
 
 @Injectable({ providedIn: 'root' })
-export class GameService {
+export class GameService implements OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly sessionService = inject(SessionService);
+  private readonly websocketService = inject(WebSocketService);
   private readonly baseUrl = 'https://backend-veq8.onrender.com';
+  private readonly subscriptions = new Subscription();
 
   private readonly sessionSubject = new BehaviorSubject<GameSession | null>(null);
   readonly session$ = this.sessionSubject.asObservable();
 
-  private readonly askedThisRoundSubject = new BehaviorSubject<boolean>(false);
-  readonly askedThisRound$ = this.askedThisRoundSubject.asObservable();
+  private readonly gameStateSubject = new BehaviorSubject<GameState | 'NONE'>('NONE');
+  readonly gameState$ = this.gameStateSubject.asObservable();
+
+  constructor() {
+    this.subscriptions.add(
+      this.websocketService.events$.subscribe((event: SocketGameEvent) => {
+        if (event.event === 'game_state' || event.event === 'game_state_updated') {
+          if (event.payload && typeof event.payload === 'object' && 'state' in event.payload) {
+            this.gameStateSubject.next(event.payload.state as GameState);
+          }
+        }
+      })
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+  }
 
   setSession(session: GameSession): void {
     this.sessionSubject.next(session);
-  }
-
-  setAskedThisRound(value: boolean): void {
-    this.askedThisRoundSubject.next(value);
-  }
-
-  resetRoundQuestion(): void {
-    this.askedThisRoundSubject.next(false);
   }
 
   isCurrentPlayer(playerId: string): boolean {

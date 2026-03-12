@@ -37,22 +37,25 @@ export class WebSocketService {
       'connected',
       'game_state',
       'clue',
+      'system_event',
+      'chat_message',
+      'round_state',
+      'error',
+      'game_state_updated',
       'system_message',
       'round_start',
-      'round_end',
-      'game_state_updated',
-      'error'
+      'round_end'
     ];
 
     for (const eventName of listenableEvents) {
-      this.socket.on(eventName, (payload: unknown) => {
+      this.socket.on(eventName, (payload: any) => {
         this.eventsSubject.next({ event: eventName, payload });
       });
     }
   }
 
-  sendQuestion(question: string): void {
-    this.socket?.emit('player_question', { question });
+  sendQuestion(gameId: string, playerId: string, message: string): void {
+    this.socket?.emit('question', { gameId, playerId, message });
   }
 
   disconnect(): void {
