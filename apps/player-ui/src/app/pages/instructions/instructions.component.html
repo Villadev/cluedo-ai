@@ -1,0 +1,19 @@
+<div class="p-4">
+  <h1 class="text-3xl font-bold mb-4">Instruccions del Joc</h1>
+
+  @if (loading()) {
+    <div class="flex justify-content-center p-4">
+      <p-progressSpinner ariaLabel="Carregant instruccions"></p-progressSpinner>
+    </div>
+  } @else if (error()) {
+    <div class="p-4 bg-red-100 text-red-700 border-round">
+      {{ error() }}
+    </div>
+  } @else if (instructions(); as text) {
+    <p-card>
+      <div class="white-space-pre-wrap line-height-3">
+        {{ text }}
+      </div>
+    </p-card>
+  }
+</div>
