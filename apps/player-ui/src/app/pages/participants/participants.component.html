@@ -72,10 +72,7 @@
                 }
 
                 @if (player.character.coartada) {
-                  <div>
-                    <span class="font-bold italic text-blue-600">Coartada:</span>
-                    <p>{{ player.character.coartada }}</p>
-                  </div>
+                   <app-coartada [coartada]="player.character.coartada"></app-coartada>
                 }
               }
             } @else {

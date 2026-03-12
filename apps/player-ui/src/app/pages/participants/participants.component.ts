@@ -8,11 +8,12 @@ import { TagModule } from 'primeng/tag';
 import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
 import { PublicPlayerView } from '../../models/player.model';
+import { CoartadaComponent } from '../../components/coartada/coartada.component';
 
 @Component({
   selector: 'app-participants',
   standalone: true,
-  imports: [CommonModule, CardModule, ProgressSpinnerModule, MessageModule, TagModule],
+  imports: [CommonModule, CardModule, ProgressSpinnerModule, MessageModule, TagModule, CoartadaComponent],
   templateUrl: './participants.component.html',
   styleUrl: './participants.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

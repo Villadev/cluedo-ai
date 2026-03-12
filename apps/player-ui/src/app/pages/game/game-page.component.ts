@@ -1,8 +1,8 @@
-import { AsyncPipe, DatePipe, NgIf } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { AsyncPipe, DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, timer, switchMap, filter } from 'rxjs';
+import { Subscription, timer, switchMap, filter, tap } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextareaModule } from 'primeng/inputtextarea';
@@ -21,7 +21,6 @@ import { GameStatusIndicatorComponent } from '../../components/game-status-indic
     ReactiveFormsModule,
     AsyncPipe,
     DatePipe,
-    NgIf,
     CardModule,
     InputTextareaModule,
     ButtonModule,
@@ -32,7 +31,9 @@ import { GameStatusIndicatorComponent } from '../../components/game-status-indic
   styleUrl: './game-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class GamePageComponent implements OnInit, OnDestroy {
+export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
+  @ViewChild('chatList') private chatListContainer!: ElementRef;
+
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
@@ -42,13 +43,18 @@ export class GamePageComponent implements OnInit, OnDestroy {
   private readonly sessionService = inject(SessionService);
   private readonly subscriptions = new Subscription();
 
-  protected readonly chatMessages$ = this.chatService.messages$;
+  protected readonly chatMessages$ = this.chatService.messages$.pipe(
+    tap(() => this.scrollToBottomRequested = true)
+  );
   protected readonly connected$ = this.websocketService.connected$;
+  protected readonly reconnecting$ = this.websocketService.reconnecting$;
   protected readonly canAskQuestion$ = this.chatService.canAskQuestion$;
 
   protected readonly gameState = signal<GameState | 'NONE'>('NONE');
   protected gameId = '';
   protected playerId = '';
+
+  private scrollToBottomRequested = false;
 
   protected readonly questionForm = this.formBuilder.nonNullable.group({
     question: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(1000)]]
@@ -73,6 +79,13 @@ export class GamePageComponent implements OnInit, OnDestroy {
       this.websocketService.connect(this.gameId, this.playerId || undefined);
 
       this.startPolling();
+    }
+  }
+
+  ngAfterViewChecked(): void {
+    if (this.scrollToBottomRequested) {
+      this.scrollToBottom();
+      this.scrollToBottomRequested = false;
     }
   }
 
@@ -115,5 +128,15 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
     this.chatService.sendQuestion(this.gameId, this.playerId, question);
     this.questionForm.reset();
+  }
+
+  private scrollToBottom(): void {
+    try {
+      if (this.chatListContainer) {
+        this.chatListContainer.nativeElement.scrollTop = this.chatListContainer.nativeElement.scrollHeight;
+      }
+    } catch (err) {
+      console.error('Could not scroll to bottom', err);
+    }
   }
 }

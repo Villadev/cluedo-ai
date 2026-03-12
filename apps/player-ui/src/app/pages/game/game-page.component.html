@@ -12,18 +12,41 @@
         </div>
       </p-card>
     } @else {
-      <p-card header="Xat d'investigació">
-        <div class="chat-list mb-3">
+      <p-card>
+        <ng-template pTemplate="header">
+          <div class="flex justify-content-between align-items-center p-3 border-bottom-1 border-gray-200">
+            <h2 class="text-xl font-bold m-0">Xat d'investigació</h2>
+            <div class="connection-status flex align-items-center gap-2">
+              @if (connected$ | async) {
+                <span class="status-dot bg-green-500"></span>
+                <span class="text-sm font-medium text-green-700">🟢 Connectat</span>
+              } @else if (reconnecting$ | async) {
+                <span class="status-dot bg-orange-500"></span>
+                <span class="text-sm font-medium text-orange-700">🟠 Reconnectant</span>
+              } @else {
+                <span class="status-dot bg-red-500"></span>
+                <span class="text-sm font-medium text-red-700">🔴 Desconnectat</span>
+              }
+            </div>
+          </div>
+        </ng-template>
+
+        <div #chatList class="chat-list mb-3" style="max-height: 500px; overflow-y: auto;">
           @for (message of (chatMessages$ | async); track message.id) {
-            <article class="chat-message" [class]="'chat-' + message.type">
+            <article class="chat-message mb-3 p-2 border-round" [class]="'chat-' + message.type">
               @if (message.sender) {
                 <strong class="block mb-1 text-primary">{{ message.sender }}:</strong>
               }
               <p class="m-0 white-space-pre-wrap">{{ message.message }}</p>
-              <small>{{ message.timestamp | date: 'shortTime' }}</small>
+              <div class="flex justify-content-end mt-1">
+                <small class="text-500">{{ message.timestamp | date: 'shortTime' }}</small>
+              </div>
             </article>
           } @empty {
-            <p class="text-500">Encara no hi ha missatges.</p>
+            <div class="flex flex-column align-items-center justify-content-center py-5 text-500">
+              <i class="pi pi-comments text-4xl mb-2"></i>
+              <p>Encara no hi ha missatges.</p>
+            </div>
           }
         </div>
 
@@ -46,7 +69,7 @@
               type="submit"
               icon="pi pi-send"
               label="Enviar Pregunta"
-              [disabled]="(canAskQuestion$ | async) === false || questionForm.invalid"></button>
+              [disabled]="(canAskQuestion$ | async) === false || questionForm.invalid || !(connected$ | async)"></button>
           </div>
         </form>
       </p-card>
