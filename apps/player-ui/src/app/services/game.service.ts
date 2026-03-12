@@ -1,7 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { BehaviorSubject, map, Observable } from 'rxjs';
+import { BehaviorSubject, map, Observable, of } from 'rxjs';
 import { PublicGameView, PublicPlayerView, GameStateInfo } from '../models/player.model';
+import { SessionService } from './session.service';
 
 export interface GameSession {
   gameId: string;
@@ -32,6 +33,7 @@ export interface AccusationPayload {
 @Injectable({ providedIn: 'root' })
 export class GameService {
   private readonly http = inject(HttpClient);
+  private readonly sessionService = inject(SessionService);
   private readonly baseUrl = 'https://backend-veq8.onrender.com';
 
   private readonly sessionSubject = new BehaviorSubject<GameSession | null>(null);
@@ -52,6 +54,10 @@ export class GameService {
     this.askedThisRoundSubject.next(false);
   }
 
+  isCurrentPlayer(playerId: string): boolean {
+    return this.sessionService.getPlayerId() === playerId;
+  }
+
   leaveGame(gameId: string, playerId: string): Observable<ApiResponse<unknown>> {
     return this.http.delete<ApiResponse<unknown>>(`${this.baseUrl}/game/${gameId}/users/${playerId}`);
   }
@@ -61,7 +67,6 @@ export class GameService {
   }
 
   getParticipants(gameId: string): Observable<ApiResponse<PublicPlayerView[]>> {
-    // We use the full game state to get rich player/character information
     return this.http.get<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}`).pipe(
       map(response => ({
         success: response.success,
@@ -78,6 +83,25 @@ export class GameService {
 
   getGameState(gameId: string): Observable<ApiResponse<GameStateInfo>> {
     return this.http.get<ApiResponse<GameStateInfo>>(`${this.baseUrl}/game/${gameId}/state`);
+  }
+
+  getPossibleWeapons(): string[] {
+    return ['Canelobre', 'Ganivet', 'Tubería de plom', 'Revòlver', 'Corda', 'Clau anglesa', 'Verí', 'Trofeu', 'Destral'];
+  }
+
+  getPossibleLocations(): string[] {
+    return [
+      'Catalunya en Miniatura',
+      'Ajuntament de Torrelles de Llobregat',
+      'Església de Sant Martí',
+      'Penyes de Can Riera',
+      'Ateneu Torrellenc',
+      'Plaça de l’Església',
+      'Carrer Major',
+      'Bar La Plaçá',
+      'Masia de Can Coll',
+      'Font del Mas Segarra'
+    ];
   }
 
   joinGame(gameId: string, name: string): Observable<PlayerJoinResponse> {

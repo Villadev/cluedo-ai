@@ -10,6 +10,7 @@ import { WebSocketService } from './services/websocket.service';
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet, AppLayoutComponent],
+  standalone: true,
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -23,6 +24,7 @@ export class AppComponent implements OnInit {
     { label: 'Xat', icon: 'pi pi-comments', command: () => this.navigateToGameSection('') },
     { label: 'Informació de partida', icon: 'pi pi-info-circle', command: () => this.navigateToGameSection('info') },
     { label: 'Participants', icon: 'pi pi-users', command: () => this.navigateToGameSection('participants') },
+    { label: 'Llibreta de Detectiu', icon: 'pi pi-book', command: () => this.navigateToGameSection('notebook') },
     { label: 'Acusació', icon: 'pi pi-megaphone', command: () => this.navigateToGameSection('accusation') },
     { label: 'Sortir de la partida', icon: 'pi pi-sign-out', command: () => this.leaveGame() }
   ];

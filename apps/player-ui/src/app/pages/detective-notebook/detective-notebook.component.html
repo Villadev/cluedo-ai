@@ -1,0 +1,60 @@
+<div class="p-4">
+  <h1 class="text-3xl font-bold mb-4">Llibreta de Detectiu</h1>
+  <p class="mb-4 text-500">Organitza les teves deduccions. Fes clic en un element per canviar el seu estat. Aquestes notes són privades.</p>
+
+  <div class="grid">
+    <!-- Sospitosos -->
+    <div class="col-12 lg:col-4 mb-4">
+      <p-card header="Sospitosos" styleClass="h-full">
+        <p-table [value]="suspects()" styleClass="p-datatable-sm">
+          <ng-template pTemplate="body" let-suspect>
+            <tr class="cursor-pointer" (click)="cycleState('suspects', suspect)">
+              <td>{{ suspect }}</td>
+              <td class="text-right">
+                @let state = notes().suspects[suspect] || 'unknown';
+                @let info = getStateInfo(state);
+                <p-tag [value]="info.label" [severity]="info.severity" [icon]="info.icon"></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    </div>
+
+    <!-- Armes -->
+    <div class="col-12 lg:col-4 mb-4">
+      <p-card header="Armes" styleClass="h-full">
+        <p-table [value]="weapons()" styleClass="p-datatable-sm">
+          <ng-template pTemplate="body" let-weapon>
+            <tr class="cursor-pointer" (click)="cycleState('weapons', weapon)">
+              <td>{{ weapon }}</td>
+              <td class="text-right">
+                @let state = notes().weapons[weapon] || 'unknown';
+                @let info = getStateInfo(state);
+                <p-tag [value]="info.label" [severity]="info.severity" [icon]="info.icon"></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    </div>
+
+    <!-- Llocs -->
+    <div class="col-12 lg:col-4 mb-4">
+      <p-card header="Llocs" styleClass="h-full">
+        <p-table [value]="locations()" styleClass="p-datatable-sm">
+          <ng-template pTemplate="body" let-location>
+            <tr class="cursor-pointer" (click)="cycleState('locations', location)">
+              <td>{{ location }}</td>
+              <td class="text-right">
+                @let state = notes().locations[location] || 'unknown';
+                @let info = getStateInfo(state);
+                <p-tag [value]="info.label" [severity]="info.severity" [icon]="info.icon"></p-tag>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+      </p-card>
+    </div>
+  </div>
+</div>

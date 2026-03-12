@@ -10,6 +10,7 @@ import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ToastModule } from 'primeng/toast';
 import { InputTextModule } from 'primeng/inputtext';
 import { CommonModule } from '@angular/common';
+import { TagModule } from 'primeng/tag';
 import { forkJoin } from 'rxjs';
 import { Participant } from '../../models/participant.model';
 import { GameService } from '../../services/game.service';
@@ -27,7 +28,8 @@ import { SessionService } from '../../services/session.service';
     ConfirmDialogModule,
     ToastModule,
     ProgressSpinnerModule,
-    InputTextModule
+    InputTextModule,
+    TagModule
   ],
   providers: [ConfirmationService, MessageService],
   templateUrl: './accusation.component.html',
@@ -83,6 +85,7 @@ export class AccusationComponent implements OnInit {
           return;
         }
 
+        // Include everyone except the current player (NPCs included)
         this.participants.set(participantsResponse.data.filter((p) => p.id !== this.playerId));
 
         if (!gameResponse.success || !gameResponse.data) {
@@ -133,7 +136,7 @@ export class AccusationComponent implements OnInit {
     const characterName = participant.character?.name || participant.nickname;
 
     this.confirmationService.confirm({
-      message: `Segur que vols acusar a ${characterName} amb l'arma ${this.accusationForm.value.weapon} a ${this.accusationForm.value.location}?`,
+      message: `Estàs segur que vols acusar a ${characterName} amb l'arma ${this.accusationForm.value.weapon} a ${this.accusationForm.value.location}?`,
       header: 'Confirmar acusació',
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Confirmar',
