@@ -1,3 +1,7 @@
-<ui-app-layout appTitle="Cluedo Player" [menuItems]="menuItems">
-  <router-outlet></router-outlet>
-</ui-app-layout>
+@if (isLoading()) {
+  <app-splash-screen></app-splash-screen>
+} @else {
+  <ui-app-layout appTitle="Cluedo Player" [menuItems]="menuItems">
+    <router-outlet></router-outlet>
+  </ui-app-layout>
+}

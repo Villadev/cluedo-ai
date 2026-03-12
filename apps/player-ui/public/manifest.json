@@ -1,0 +1,14 @@
+{
+  "name": "RuralMind Player",
+  "short_name": "RuralMind",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "display": "standalone",
+  "icons": [
+    {
+      "src": "/assets/ruralmind-logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
