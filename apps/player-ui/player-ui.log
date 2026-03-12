@@ -1,0 +1,37 @@
+- Generating browser application bundles (phase: setup)...
+[32m✔[39m Browser application bundle generation complete.
+
+Initial chunk files   | Names                                                 |  Raw size
+main.js               | main                                                  |   2.73 MB |
+styles.css, styles.js | styles                                                | 800.00 kB |
+polyfills.js          | polyfills                                             | 247.62 kB |
+runtime.js            | runtime                                               |  13.16 kB |
+
+                      | Initial total                                         |   3.79 MB
+
+Lazy chunk files      | Names                                                 |  Raw size
+569.js                | pages-detective-notebook-detective-notebook-component |   1.09 MB |
+648.js                | pages-join-game-join-game-page-component              | 159.92 kB |
+199.js                | pages-accusation-accusation-component                 | 130.43 kB |
+279.js                | pages-join-game-join-game-page-component              |  68.06 kB |
+361.js                | pages-game-info-game-info-component                   |  52.79 kB |
+568.js                | pages-detective-notebook-detective-notebook-component |  41.46 kB |
+669.js                | pages-game-game-page-component                        |  34.94 kB |
+307.js                | pages-participants-participants-component             |  33.25 kB |
+320.js                | pages-participants-participants-component             |  31.05 kB |
+557.js                | pages-introduction-introduction-component             |  19.17 kB |
+583.js                | pages-introduction-introduction-component             |  13.55 kB |
+common.js             | common                                                |   9.78 kB |
+401.js                | pages-instructions-instructions-component             |   7.12 kB |
+
+Build at: 2026-03-12T15:18:44.684Z - Hash: 31262f2e7646e36c - Time: 27109ms
+
+Warning: /app/node_modules/.pnpm/socket.io-parser@4.2.5/node_modules/socket.io-parser/build/esm-debug/index.js depends on 'debug'. CommonJS or AMD dependencies can cause optimization bailouts.
+For more info see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+
+** Angular Live Development Server is listening on localhost:4201, open your browser on http://localhost:4201/ **
+
+
+✔ Compiled successfully.

@@ -9,7 +9,22 @@ export const GameStates: Record<GameState, GameState> = {
 
 export interface TimelineEvent {
   timestamp: string;
-  type: 'PLAYER_JOIN' | 'CHARACTER_ASSIGNED' | 'ROUND_START' | 'QUESTION' | 'CLUE' | 'ACCUSATION' | 'GAME_END' | 'STATE_CHANGE' | 'TTS_PLAYED' | 'CLUE_ROUND_REVEALED' | 'PLAYER_SECRET_ASSIGNED';
+  type:
+    | 'PLAYER_JOIN'
+    | 'CHARACTER_ASSIGNED'
+    | 'ROUND_START'
+    | 'QUESTION'
+    | 'CLUE'
+    | 'ACCUSATION'
+    | 'GAME_END'
+    | 'STATE_CHANGE'
+    | 'TTS_PLAYED'
+    | 'CLUE_ROUND_REVEALED'
+    | 'PLAYER_SECRET_ASSIGNED'
+    | 'CRIME_TIME_WINDOW_GENERATED'
+    | 'ALIBI_NETWORK_GENERATED'
+    | 'ALIBI_CONTRADICTION_CREATED'
+    | 'CHARACTER_COARTADA_ASSIGNED';
   playerId?: string;
   characterId?: string;
   roundNumber?: number;
@@ -41,11 +56,25 @@ export interface Clue {
   createdAt: string;
 }
 
+export interface CrimeWindow {
+  start: string;
+  end: string;
+}
+
 export interface Murder {
   killerPlayerId: string;
   weapon: string;
   location: string;
   victim: string;
+  crimeWindow?: CrimeWindow;
+}
+
+export interface Coartada {
+  location: string;
+  timeStart: string;
+  timeEnd: string;
+  witness: string;
+  credibility: 'alta' | 'mitjana' | 'baixa';
 }
 
 export interface Character {
@@ -57,7 +86,7 @@ export interface Character {
   possibleMotive: string;
   secret: string;
   secretKnowledge: string;
-  coartada: string;
+  coartada: Coartada;
   rumor: string;
   relationships: string;
   tensions: string;
@@ -117,7 +146,7 @@ export interface PublicCharacterView {
   possibleMotive: string;
   secret: string;
   secretKnowledge: string;
-  coartada: string;
+  coartada: Coartada;
   rumor: string;
   relationships: string;
   tensions: string;
@@ -178,7 +207,7 @@ export interface AIServiceCharacter {
   possibleMotive: string;
   secret: string;
   secretKnowledge: string;
-  coartada: string;
+  coartada: Coartada;
   rumor: string;
   relationships: string;
   tensions: string;
@@ -194,6 +223,7 @@ export interface FullCase {
   weapon: string;
   location: string;
   assassin: string;
+  crimeWindow: CrimeWindow;
   characters: AIServiceCharacter[];
   introductionNarrative: string;
   solutionNarrative: string;
