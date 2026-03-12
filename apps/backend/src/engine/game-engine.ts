@@ -13,7 +13,8 @@ import type {
   PublicGameView,
   PublicParticipant,
   PublicCharacterView,
-  AIServiceClue
+  AIServiceClue,
+  FullCase
 } from '../types/game.types.js';
 import { GameStates } from '../types/game.types.js';
 import { HttpError } from '../utils/http-error.js';
@@ -116,7 +117,7 @@ export class GameEngine {
       console.log("[AI] Case generation started");
 
       // Generar cas complet
-      let fullCase;
+      let fullCase: FullCase;
       try {
         this.recordTimelineEvent(game, {
           type: 'STATE_CHANGE',
@@ -143,6 +144,24 @@ export class GameEngine {
         });
         throw aiError;
       }
+
+      // Record specialized narrative events
+      if (fullCase.crimeWindow) {
+        this.recordTimelineEvent(game, {
+          type: 'CRIME_TIME_WINDOW_GENERATED',
+          description: `Finestra temporal del crim generada: ${fullCase.crimeWindow.start} - ${fullCase.crimeWindow.end}`
+        });
+      }
+
+      this.recordTimelineEvent(game, {
+        type: 'ALIBI_NETWORK_GENERATED',
+        description: 'Xarxa de coartades creuades generada.'
+      });
+
+      this.recordTimelineEvent(game, {
+        type: 'ALIBI_CONTRADICTION_CREATED',
+        description: 'Contradicció temporal introduïda entre coartades.'
+      });
 
       // Mapejar personatges de la IA a l'estructura del joc
       game.characters = fullCase.characters.map(c => ({
@@ -181,6 +200,13 @@ export class GameEngine {
           description: `A ${player.nickname} se li ha assignat el personatge: ${assignedChar.name}`
         });
 
+        // Record coartada assignment
+        this.recordTimelineEvent(game, {
+          type: 'CHARACTER_COARTADA_ASSIGNED',
+          playerId: player.id,
+          description: `A ${player.nickname} se li ha assignat una coartada estructurada.`
+        });
+
         // Record secret knowledge assignment
         this.recordTimelineEvent(game, {
           type: 'PLAYER_SECRET_ASSIGNED',
@@ -195,7 +221,8 @@ export class GameEngine {
         killerPlayerId: killerPlayer?.id || 'IA',
         weapon: fullCase.weapon,
         location: fullCase.location,
-        victim: fullCase.victim
+        victim: fullCase.victim,
+        crimeWindow: fullCase.crimeWindow
       };
 
       // Narrativa
@@ -399,7 +426,7 @@ export class GameEngine {
           possibleMotive: character.possibleMotive,
           secret: canSeePrivateInfo ? character.secret : '???',
           secretKnowledge: canSeePrivateInfo ? character.secretKnowledge : '???',
-          coartada: canSeePrivateInfo ? character.coartada : '???',
+          coartada: character.coartada,
           rumor: character.rumor,
           relationships: character.relationships,
           tensions: character.tensions

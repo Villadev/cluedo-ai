@@ -51,8 +51,28 @@
                   <span class="font-bold">Professió:</span>
                   <span class="ml-2">{{ p.character.profession }}</span>
                 </li>
+
+                <li class="mb-3 mt-4">
+                  <h4 class="font-bold border-bottom-1 border-gray-200 pb-2">La Teva Coartada</h4>
+                  <div class="bg-gray-50 p-3 border-round">
+                    <p class="m-0 mb-2">Dius que eres a <strong>{{ p.character.coartada.location }}</strong> entre les <strong>{{ p.character.coartada.timeStart }}</strong> i les <strong>{{ p.character.coartada.timeEnd }}</strong>.</p>
+                    <p class="m-0 mb-2">Segons tu, <strong>{{ p.character.coartada.witness }}</strong> pot confirmar-ho.</p>
+                    <p class="m-0">
+                      <span class="font-bold">Credibilitat:</span>
+                      <span class="ml-2 px-2 py-1 border-round text-sm"
+                        [class.bg-green-100]="p.character.coartada.credibility === 'alta'"
+                        [class.text-green-700]="p.character.coartada.credibility === 'alta'"
+                        [class.bg-orange-100]="p.character.coartada.credibility === 'mitjana'"
+                        [class.text-orange-700]="p.character.coartada.credibility === 'mitjana'"
+                        [class.bg-red-100]="p.character.coartada.credibility === 'baixa'"
+                        [class.text-red-700]="p.character.coartada.credibility === 'baixa'">
+                        {{ p.character.coartada.credibility }}
+                      </span>
+                    </p>
+                  </div>
+                </li>
               }
-              <li class="mb-3">
+              <li class="mb-3 mt-4">
                 <span class="font-bold">Eliminat:</span>
                 <span class="ml-2">{{ p.isEliminated ? 'Sí' : 'No' }}</span>
               </li>

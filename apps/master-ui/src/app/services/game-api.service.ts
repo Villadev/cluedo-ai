@@ -4,6 +4,14 @@ import { Observable, tap } from 'rxjs';
 
 export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
 
+export interface Coartada {
+  location: string;
+  timeStart: string;
+  timeEnd: string;
+  witness: string;
+  credibility: 'alta' | 'mitjana' | 'baixa';
+}
+
 export interface PublicCharacterView {
   id: string;
   name: string;
@@ -12,7 +20,7 @@ export interface PublicCharacterView {
   possibleMotive: string;
   profession: string;
   secret: string;
-  coartada: string;
+  coartada: Coartada;
   rumor: string;
   relationships: string;
   tensions: string;

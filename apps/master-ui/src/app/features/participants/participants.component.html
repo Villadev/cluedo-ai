@@ -43,9 +43,14 @@
                 <p>{{ player.character.secret }}</p>
               </div>
 
-              <div>
-                <span class="font-bold font-italic text-blue-600">Coartada:</span>
-                <p>{{ player.character.coartada }}</p>
+              <div class="border-1 border-blue-200 border-round p-2 bg-blue-50">
+                <span class="font-bold font-italic text-blue-600 block mb-2">Coartada:</span>
+                <div class="text-sm">
+                  <p class="mb-1"><strong>Lloc:</strong> {{ player.character.coartada.location }}</p>
+                  <p class="mb-1"><strong>Interval:</strong> {{ player.character.coartada.timeStart }} - {{ player.character.coartada.timeEnd }}</p>
+                  <p class="mb-1"><strong>Testimoni:</strong> {{ player.character.coartada.witness }}</p>
+                  <p class="m-0"><strong>Credibilitat:</strong> {{ player.character.coartada.credibility }}</p>
+                </div>
               </div>
 
               <div>

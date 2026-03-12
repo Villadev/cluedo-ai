@@ -66,6 +66,7 @@ Crea:
 - un assassí (que ha de ser un dels personatges)
 - una arma del crim
 - un lloc on ha passat el crim
+- una finestra temporal pel crim (crimeWindow) amb format HH:MM (ex: "21:30" a "23:00").
 
 Cada personatge ha de tenir:
 - nom fictici
@@ -75,10 +76,22 @@ Cada personatge ha de tenir:
 - possible motiu (possibleMotive)
 - secret
 - secretKnowledge (informació secreta que aquest personatge coneix sobre la història o altres personatges)
-- coartada
+- coartada estructurada (coartada)
 - rumor
 - relacions amb altres personatges (relationships)
 - tensions o conflictes (tensions)
+
+Regles per a la finestra temporal del crim:
+- Defineix un inici i un final (ex: 21:30 - 23:00).
+- L'assassinat ha passat en algun moment dins d'aquest interval.
+
+Regles per a la coartada (coartada):
+- Ha de ser un objecte amb: location, timeStart, timeEnd, witness, credibility ("alta", "mitjana", "baixa").
+- Cap coartada ha de cobrir totalment la finestra temporal del crim.
+- Almenys el 60% dels personatges han de referenciar un altre personatge com a testimoni (witness).
+- Almenys una coartada ha de contradir-ne una altra (ex: A diu que estava amb B, però B diu que estava sol).
+- Almenys una coartada ha de no tenir testimoni ("ningú").
+- L'assassí pot tenir una coartada falsa, incompleta o un testimoni que no la pot confirmar.
 
 Regles importants per a cada personatge:
 - cada personatge rep una secretKnowledge diferent.
@@ -88,24 +101,24 @@ Regles importants per a cada personatge:
 
 Regles per a la narrativa:
 1. una narrativa inicial (introductionNarrative) que presenti el crim, la víctima i els sospitosos (entre 200 i 300 paraules).
+   CRÍTIC: Ha de mencionar la incertesa de l'hora del crim (ex: "La mort podria haver tingut lloc en algun moment entre les nou i mitja i les onze de la nit.").
    CRÍTIC: L'introductionNarrative NO ha de revelar l'arma, ni el lloc exacte del crim, ni com va passar l'assassinat. S'ha de centrar en l'atmosfera, la víctima i les tensions.
-2. una narrativa final (solutionNarrative) que reveli què ha passat realment, explicant el motiu real, com es va cometre el crim, com s'han interpretat malament algunes pistes i una revelació dramàtica final.
+2. una narrativa final (solutionNarrative) que reveli què ha passat realment, explicant el motiu real, com es va cometre el crim (incloent l'hora exacta), com s'han interpretat malament algunes pistes i una revelació dramàtica final.
 
 Regles per a les pistes (clues):
 Has de generar pistes agrupades per rondes (entre 10 i 15 en total):
-- Round 1: rumors
-- Round 2: testimonis (witness)
-- Round 3: evidències físiques (evidence)
-- Round 4: contradiccions (contradiction)
+- Round 1: rumors (alguns sobre inconsistències temporals).
+- Round 2: testimonis (witness) (alguns sobre haver vist algú a hores concretes).
+- Round 3: evidències físiques (evidence) (poden suggerir l'hora del crim).
+- Round 4: contradiccions (contradiction) (especialment sobre coartades que no quadren temporalment).
 
-L'arma i el lloc només han de ser deduïbles a partir de les pistes de rondes posteriors.
-
-Retorna el resultat en JSON with aquesta estructura:
+Retorna el resultat en JSON amb aquesta estructura:
 {
  "victim": "",
  "weapon": "",
  "location": "",
  "assassin": "",
+ "crimeWindow": { "start": "HH:MM", "end": "HH:MM" },
  "characters": [
     {
       "name": "",
@@ -115,7 +128,13 @@ Retorna el resultat en JSON with aquesta estructura:
       "possibleMotive": "",
       "secret": "",
       "secretKnowledge": "",
-      "coartada": "",
+      "coartada": {
+        "location": "",
+        "timeStart": "HH:MM",
+        "timeEnd": "HH:MM",
+        "witness": "",
+        "credibility": "alta|mitjana|baixa"
+      },
       "rumor": "",
       "relationships": "",
       "tensions": ""
