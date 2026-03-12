@@ -75,6 +75,10 @@ export class GameService {
     return this.http.get<ApiResponse<IntroductionResponse>>(`${this.baseUrl}/game/${gameId}/intro`);
   }
 
+  getInstructions(gameId: string): Observable<ApiResponse<string>> {
+    return this.http.get<ApiResponse<string>>(`${this.baseUrl}/game/${gameId}/instructions`);
+  }
+
   getCluesByRound(gameId: string, roundNumber: number): Observable<ApiResponse<ClueResponse>> {
     return this.http.get<ApiResponse<ClueResponse>>(`${this.baseUrl}/game/${gameId}/clues/round/${roundNumber}`);
   }
