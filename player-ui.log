@@ -1,0 +1,51 @@
+
+> @cluedo/player-ui@0.1.0 start /app/apps/player-ui
+> ng serve player-ui --host 0.0.0.0 --port 4200
+
+
+Warning: This is a simple server for use in testing or debugging Angular applications
+locally. It hasn't been reviewed for security issues.
+
+Binding this server to an open connection can result in compromising your application or
+computer. Using a different host than the one passed to the "--host" flag might result in
+websocket connection issues. You might need to use "--disable-host-check" if that's the
+case.
+
+- Generating browser application bundles (phase: setup)...
+[32m✔[39m Browser application bundle generation complete.
+
+Initial chunk files   | Names                                                 |  Raw size
+main.js               | main                                                  |   2.73 MB |
+styles.css, styles.js | styles                                                | 800.00 kB |
+polyfills.js          | polyfills                                             | 247.62 kB |
+runtime.js            | runtime                                               |  13.16 kB |
+
+                      | Initial total                                         |   3.79 MB
+
+Lazy chunk files      | Names                                                 |  Raw size
+569.js                | pages-detective-notebook-detective-notebook-component |   1.09 MB |
+360.js                | pages-join-game-join-game-page-component              | 172.62 kB |
+199.js                | pages-accusation-accusation-component                 | 130.43 kB |
+361.js                | pages-game-info-game-info-component                   |  67.87 kB |
+279.js                | pages-join-game-join-game-page-component              |  54.55 kB |
+669.js                | pages-game-game-page-component                        |  46.83 kB |
+307.js                | pages-participants-participants-component             |  45.94 kB |
+206.js                | pages-participants-participants-component             |  37.39 kB |
+583.js                | pages-introduction-introduction-component             |  32.58 kB |
+332.js                | pages-detective-notebook-detective-notebook-component |  28.76 kB |
+common.js             | common                                                |  10.58 kB |
+
+Build at: 2026-03-12T12:32:47.690Z - Hash: ccb35a7f366adacd - Time: 30014ms
+
+Warning: /app/node_modules/.pnpm/socket.io-parser@4.2.5/node_modules/socket.io-parser/build/esm-debug/index.js depends on 'debug'. CommonJS or AMD dependencies can cause optimization bailouts.
+For more info see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+
+** Angular Live Development Server is listening on 0.0.0.0:4200, open your browser on http://localhost:4200/ **
+
+
+✔ Compiled successfully.
+/app/apps/player-ui:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @cluedo/player-ui@0.1.0 start: `ng serve player-ui --host 0.0.0.0 --port 4200`
+Command failed with signal "SIGTERM"

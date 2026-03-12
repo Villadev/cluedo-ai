@@ -9,7 +9,7 @@ export const GameStates: Record<GameState, GameState> = {
 
 export interface TimelineEvent {
   timestamp: string;
-  type: 'PLAYER_JOIN' | 'CHARACTER_ASSIGNED' | 'ROUND_START' | 'QUESTION' | 'CLUE' | 'ACCUSATION' | 'GAME_END' | 'STATE_CHANGE';
+  type: 'PLAYER_JOIN' | 'CHARACTER_ASSIGNED' | 'ROUND_START' | 'QUESTION' | 'CLUE' | 'ACCUSATION' | 'GAME_END' | 'STATE_CHANGE' | 'TTS_PLAYED' | 'CLUE_ROUND_REVEALED' | 'PLAYER_SECRET_ASSIGNED';
   playerId?: string;
   characterId?: string;
   roundNumber?: number;
@@ -56,6 +56,7 @@ export interface Character {
   personality: string;
   possibleMotive: string;
   secret: string;
+  secretKnowledge: string;
   coartada: string;
   rumor: string;
   relationships: string;
@@ -115,6 +116,7 @@ export interface PublicCharacterView {
   personality: string;
   possibleMotive: string;
   secret: string;
+  secretKnowledge: string;
   coartada: string;
   rumor: string;
   relationships: string;
@@ -175,6 +177,7 @@ export interface AIServiceCharacter {
   personality: string;
   possibleMotive: string;
   secret: string;
+  secretKnowledge: string;
   coartada: string;
   rumor: string;
   relationships: string;
@@ -194,5 +197,10 @@ export interface FullCase {
   characters: AIServiceCharacter[];
   introductionNarrative: string;
   solutionNarrative: string;
-  clues: AIServiceClue[];
+  clues: {
+    round1: AIServiceClue[];
+    round2: AIServiceClue[];
+    round3: AIServiceClue[];
+    round4: AIServiceClue[];
+  };
 }

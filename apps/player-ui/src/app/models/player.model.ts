@@ -8,6 +8,7 @@ export interface PublicCharacterView {
   possibleMotive: string;
   profession: string;
   secret: string;
+  secretKnowledge: string;
   coartada: string;
   rumor: string;
   relationships: string;

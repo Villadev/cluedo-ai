@@ -74,24 +74,33 @@ Cada personatge ha de tenir:
 - personalitat
 - possible motiu (possibleMotive)
 - secret
+- secretKnowledge (informació secreta que aquest personatge coneix sobre la història o altres personatges)
 - coartada
 - rumor
 - relacions amb altres personatges (relationships)
 - tensions o conflictes (tensions)
 
-Regles importants:
-- els personatges s'han de conèixer entre ells
-- diversos personatges han de tenir conflictes amb la víctima
-- les coartades poden tenir contradiccions
-- alguns rumors poden ser falsos
-- només un personatge és realment l'assassí
+Regles importants per a cada personatge:
+- cada personatge rep una secretKnowledge diferent.
+- la secretKnowledge pot revelar informació parcial però mai directament qui és l'assassí.
+- els personatges s'han de conèixer entre ells.
+- diversos personatges han de tenir conflictes amb la víctima.
 
-També has de generar:
-1. una narrativa inicial (introductionNarrative) que expliqui el crim i presenti els sospitosos (entre 200 i 300 paraules)
+Regles per a la narrativa:
+1. una narrativa inicial (introductionNarrative) que presenti el crim, la víctima i els sospitosos (entre 200 i 300 paraules).
+   CRÍTIC: L'introductionNarrative NO ha de revelar l'arma, ni el lloc exacte del crim, ni com va passar l'assassinat. S'ha de centrar en l'atmosfera, la víctima i les tensions.
 2. una narrativa final (solutionNarrative) que reveli què ha passat realment, explicant el motiu real, com es va cometre el crim, com s'han interpretat malament algunes pistes i una revelació dramàtica final.
-3. un conjunt de 10-15 pistes (clues) que ajudin a descobrir la veritat, de tipus: "rumor", "witness", "contradiction" o "evidence".
 
-Retorna el resultat en JSON amb aquesta estructura:
+Regles per a les pistes (clues):
+Has de generar pistes agrupades per rondes (entre 10 i 15 en total):
+- Round 1: rumors
+- Round 2: testimonis (witness)
+- Round 3: evidències físiques (evidence)
+- Round 4: contradiccions (contradiction)
+
+L'arma i el lloc només han de ser deduïbles a partir de les pistes de rondes posteriors.
+
+Retorna el resultat en JSON with aquesta estructura:
 {
  "victim": "",
  "weapon": "",
@@ -105,6 +114,7 @@ Retorna el resultat en JSON amb aquesta estructura:
       "personality": "",
       "possibleMotive": "",
       "secret": "",
+      "secretKnowledge": "",
       "coartada": "",
       "rumor": "",
       "relationships": "",
@@ -113,12 +123,12 @@ Retorna el resultat en JSON amb aquesta estructura:
  ],
  "introductionNarrative": "",
  "solutionNarrative": "",
- "clues": [
-    {
-      "type": "rumor | witness | contradiction | evidence",
-      "text": ""
-    }
- ]
+ "clues": {
+    "round1": [{"type": "rumor", "text": ""}],
+    "round2": [{"type": "witness", "text": ""}],
+    "round3": [{"type": "evidence", "text": ""}],
+    "round4": [{"type": "contradiction", "text": ""}]
+ }
 }`;
 
     try {
