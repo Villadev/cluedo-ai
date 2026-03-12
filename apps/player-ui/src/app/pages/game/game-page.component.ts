@@ -1,15 +1,17 @@
-import { AsyncPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { AsyncPipe, DatePipe, NgIf } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription, timer, switchMap, filter } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextareaModule } from 'primeng/inputtextarea';
+import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ChatService } from '../../services/chat.service';
 import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
 import { WebSocketService } from '../../services/websocket.service';
+import { GameState } from '../../models/player.model';
 import { GameStatusIndicatorComponent } from '../../components/game-status-indicator/game-status-indicator.component';
 
 @Component({
@@ -19,9 +21,11 @@ import { GameStatusIndicatorComponent } from '../../components/game-status-indic
     ReactiveFormsModule,
     AsyncPipe,
     DatePipe,
+    NgIf,
     CardModule,
     InputTextareaModule,
     ButtonModule,
+    ProgressSpinnerModule,
     GameStatusIndicatorComponent
   ],
   templateUrl: './game-page.component.html',
@@ -30,6 +34,7 @@ import { GameStatusIndicatorComponent } from '../../components/game-status-indic
 })
 export class GamePageComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly formBuilder = inject(FormBuilder);
   private readonly websocketService = inject(WebSocketService);
   private readonly chatService = inject(ChatService);
@@ -41,6 +46,7 @@ export class GamePageComponent implements OnInit, OnDestroy {
   protected readonly connected$ = this.websocketService.connected$;
   protected readonly canAskQuestion$ = this.chatService.canAskQuestion$;
 
+  protected readonly gameState = signal<GameState | 'NONE'>('NONE');
   protected gameId = '';
   protected playerId = '';
 
@@ -65,12 +71,36 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
       this.chatService.clear();
       this.websocketService.connect(this.gameId, this.playerId || undefined);
+
+      this.startPolling();
     }
   }
 
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
     this.websocketService.disconnect();
+  }
+
+  private startPolling(): void {
+    this.subscriptions.add(
+      timer(0, 5000)
+        .pipe(
+          switchMap(() => this.gameService.getGame(this.gameId, this.playerId)),
+          filter(response => response.success && !!response.data)
+        )
+        .subscribe(response => {
+          const newState = response.data!.state;
+          const oldState = this.gameState();
+          this.gameState.set(newState);
+
+          if (newState === 'PLAYING' && oldState !== 'PLAYING') {
+            const hasSeenIntro = sessionStorage.getItem(`intro_seen_${this.gameId}`);
+            if (!hasSeenIntro) {
+              void this.router.navigate(['/game', this.gameId, 'introduction']);
+            }
+          }
+        })
+    );
   }
 
   protected onSendQuestion(): void {

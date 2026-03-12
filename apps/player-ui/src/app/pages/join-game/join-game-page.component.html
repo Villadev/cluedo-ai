@@ -1,5 +1,5 @@
-<section class="join-wrapper flex justify-content-center align-items-center">
-  <p-card header="Unir-se a la partida" subheader="Introdueix les dades per començar la investigació" styleClass="w-full md:w-7 lg:w-5">
+<section class="join-wrapper flex flex-column align-items-center justify-content-center p-4">
+  <p-card header="Unir-se a la partida" subheader="Introdueix les dades per començar la investigació" styleClass="w-full md:w-7 lg:w-5 mb-4">
     <form class="p-fluid" [formGroup]="joinForm" (ngSubmit)="onJoin()">
       <div class="field mb-3">
         <label for="gameId" class="font-semibold mb-2 block">ID de partida</label>
@@ -24,10 +24,34 @@
       }
 
       @if (errorMessage) {
-        <small class="error-message block mb-3">{{ errorMessage }}</small>
+        <small class="error-message block mb-3 text-red-500 font-medium">{{ errorMessage }}</small>
       }
 
       <button pButton type="submit" label="Entrar" [loading]="isSubmitting" [disabled]="joinForm.invalid || isSubmitting"></button>
     </form>
+  </p-card>
+
+  <p-card header="Com jugar" styleClass="w-full md:w-7 lg:w-5">
+    <div class="text-lg line-height-3">
+      <p class="mb-3">Benvinguts a la investigació de Torrelles de Llobregat.</p>
+      <ul class="list-none p-0 m-0 flex flex-column gap-2">
+        <li class="flex align-items-start gap-2">
+          <i class="pi pi-check-circle text-primary mt-1"></i>
+          <span>Rep un personatge i informació secreta.</span>
+        </li>
+        <li class="flex align-items-start gap-2">
+          <i class="pi pi-check-circle text-primary mt-1"></i>
+          <span>Analitza pistes, rumors i coartades.</span>
+        </li>
+        <li class="flex align-items-start gap-2">
+          <i class="pi pi-check-circle text-primary mt-1"></i>
+          <span>Fes preguntes i descobreix contradiccions.</span>
+        </li>
+        <li class="flex align-items-start gap-2">
+          <i class="pi pi-check-circle text-primary mt-1"></i>
+          <span>Acusa l'assassí per resoldre el cas.</span>
+        </li>
+      </ul>
+    </div>
   </p-card>
 </section>

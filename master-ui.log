@@ -1,0 +1,31 @@
+
+> @cluedo/master-ui@0.1.0 start /app/apps/master-ui
+> ng serve master-ui --host 0.0.0.0 --port 4300 "--port" "4300"
+
+Option 'port' has been specified multiple times. The value '4300' will be used.
+
+Warning: This is a simple server for use in testing or debugging Angular applications
+locally. It hasn't been reviewed for security issues.
+
+Binding this server to an open connection can result in compromising your application or
+computer. Using a different host than the one passed to the "--host" flag might result in
+websocket connection issues. You might need to use "--disable-host-check" if that's the
+case.
+
+- Generating browser application bundles (phase: setup)...
+[32m✔[39m Browser application bundle generation complete.
+
+Initial chunk files   | Names         |  Raw size
+main.js               | main          |   4.12 MB |
+styles.css, styles.js | styles        | 800.00 kB |
+polyfills.js          | polyfills     | 247.62 kB |
+runtime.js            | runtime       |   6.91 kB |
+
+                      | Initial total |   5.17 MB
+
+Build at: 2026-03-12T15:52:10.828Z - Hash: f1ac5ea7014e51e3 - Time: 32010ms
+
+** Angular Live Development Server is listening on 0.0.0.0:4300, open your browser on http://localhost:4300/ **
+
+
+✔ Compiled successfully.

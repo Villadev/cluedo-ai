@@ -1,43 +1,56 @@
 <section class="game-layout grid relative">
   <div class="col-12">
-    <p-card header="Xat d'investigació">
-      <div class="chat-list mb-3">
-        @for (message of (chatMessages$ | async); track message.id) {
-          <article class="chat-message" [class]="'chat-' + message.type">
-            @if (message.sender) {
-              <strong class="block mb-1 text-primary">{{ message.sender }}:</strong>
-            }
-            <p class="m-0 white-space-pre-wrap">{{ message.message }}</p>
-            <small>{{ message.timestamp | date: 'shortTime' }}</small>
-          </article>
-        } @empty {
-          <p class="text-500">Encara no hi ha missatges.</p>
-        }
-      </div>
-
-      <form class="chat-input flex flex-column gap-2" [formGroup]="questionForm" (ngSubmit)="onSendQuestion()">
-        <textarea
-          pInputTextarea
-          formControlName="question"
-          placeholder="Escriu la teva pregunta d'investigació..."
-          class="w-full"
-          [rows]="3"
-          [autoResize]="true"
-          [disabled]="(canAskQuestion$ | async) === false"></textarea>
-
-        <div class="flex justify-content-end align-items-center gap-3">
-          @if ((canAskQuestion$ | async) === false) {
-            <span class="text-orange-500 font-medium">Ja has enviat una pregunta en aquesta ronda.</span>
-          }
-          <button
-            pButton
-            type="submit"
-            icon="pi pi-send"
-            label="Enviar Pregunta"
-            [disabled]="(canAskQuestion$ | async) === false || questionForm.invalid"></button>
+    @if (gameState() === 'LOBBY' || gameState() === 'READY' || gameState() === 'NONE') {
+      <p-card header="Sala d'espera" styleClass="text-center py-6">
+        <div class="flex flex-column align-items-center gap-4">
+          <p-progressSpinner ariaLabel="Carregant..."></p-progressSpinner>
+          <div>
+            <h2 class="text-2xl font-bold mb-3">Sala d'espera</h2>
+            <p class="text-xl font-medium m-0">La partida encara no ha començat. El director del joc està preparant el misteri...</p>
+            <p class="text-500 mt-3">La partida començarà aviat.</p>
+          </div>
         </div>
-      </form>
-    </p-card>
+      </p-card>
+    } @else {
+      <p-card header="Xat d'investigació">
+        <div class="chat-list mb-3">
+          @for (message of (chatMessages$ | async); track message.id) {
+            <article class="chat-message" [class]="'chat-' + message.type">
+              @if (message.sender) {
+                <strong class="block mb-1 text-primary">{{ message.sender }}:</strong>
+              }
+              <p class="m-0 white-space-pre-wrap">{{ message.message }}</p>
+              <small>{{ message.timestamp | date: 'shortTime' }}</small>
+            </article>
+          } @empty {
+            <p class="text-500">Encara no hi ha missatges.</p>
+          }
+        </div>
+
+        <form class="chat-input flex flex-column gap-2" [formGroup]="questionForm" (ngSubmit)="onSendQuestion()">
+          <textarea
+            pInputTextarea
+            formControlName="question"
+            placeholder="Escriu la teva pregunta d'investigació..."
+            class="w-full"
+            [rows]="3"
+            [autoResize]="true"
+            [disabled]="(canAskQuestion$ | async) === false"></textarea>
+
+          <div class="flex justify-content-end align-items-center gap-3">
+            @if ((canAskQuestion$ | async) === false) {
+              <span class="text-orange-500 font-medium">Ja has enviat una pregunta en aquesta ronda.</span>
+            }
+            <button
+              pButton
+              type="submit"
+              icon="pi pi-send"
+              label="Enviar Pregunta"
+              [disabled]="(canAskQuestion$ | async) === false || questionForm.invalid"></button>
+          </div>
+        </form>
+      </p-card>
+    }
   </div>
 
   <app-game-status-indicator [gameId]="gameId"></app-game-status-indicator>

@@ -10,10 +10,38 @@
       {{ error() }}
     </div>
   } @else if (instructions(); as text) {
-    <p-card>
-      <div class="white-space-pre-wrap line-height-3">
-        {{ text }}
-      </div>
-    </p-card>
+    <div class="flex flex-column gap-4">
+      <p-card header="Com jugar" styleClass="shadow-2">
+        <div class="white-space-pre-wrap line-height-3 text-lg">
+          Cada jugador rep un personatge amb informació secreta.
+          Durant la partida es revelaran pistes en diverses rondes.
+          Parla amb els altres jugadors per compartir informació i descobrir contradiccions.
+          Analitza les coartades, els rumors i les proves.
+          Quan creguis saber la veritat, pots fer una acusació.
+          Si l'acusació és correcta, resoldràs el cas.
+          Si t'equivoques, no podràs tornar a acusar durant dues rondes.
+        </div>
+      </p-card>
+
+      <p-card header="Objectiu del joc" styleClass="shadow-2 border-left-3 border-primary">
+        <div class="text-lg">
+          <p class="mb-3">Has de descobrir tres elements clau:</p>
+          <ul class="list-none p-0 m-0 flex flex-column gap-2">
+            <li class="flex align-items-center gap-2">
+              <i class="pi pi-user text-primary font-bold"></i>
+              <span><strong>Qui</strong> és l'assassí</span>
+            </li>
+            <li class="flex align-items-center gap-2">
+              <i class="pi pi-hammer text-primary font-bold"></i>
+              <span> Amb <strong>quina arma</strong></span>
+            </li>
+            <li class="flex align-items-center gap-2">
+              <i class="pi pi-map-marker text-primary font-bold"></i>
+              <span><strong>On</strong> es va produir el crim</span>
+            </li>
+          </ul>
+        </div>
+      </p-card>
+    </div>
   }
 </div>

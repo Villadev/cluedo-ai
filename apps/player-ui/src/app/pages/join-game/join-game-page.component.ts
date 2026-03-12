@@ -85,7 +85,7 @@ export class JoinGamePageComponent implements OnInit {
 
   private completeJoin(gameId: string, playerId: string): void {
     this.sessionService.setSession(gameId, playerId);
-    void this.router.navigate(['/game', gameId, 'introduction']);
+    void this.router.navigate(['/game', gameId]);
   }
 
   private configureConditionalValidation(): void {
