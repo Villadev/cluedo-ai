@@ -1,8 +1,7 @@
 
 > @cluedo/player-ui@0.1.0 start /app/apps/player-ui
-> ng serve player-ui --host 0.0.0.0 --port 4200 "--port" "4200"
+> ng serve player-ui --host 0.0.0.0 --port 4200
 
-Option 'port' has been specified multiple times. The value '4200' will be used.
 
 Warning: This is a simple server for use in testing or debugging Angular applications
 locally. It hasn't been reviewed for security issues.
@@ -21,16 +20,16 @@ styles.css, styles.js | styles                                                | 
 polyfills.js          | polyfills                                             | 247.62 kB |
 runtime.js            | runtime                                               |  13.16 kB |
 
-                      | Initial total                                         |   3.79 MB
+                      | Initial total                                         |   3.80 MB
 
 Lazy chunk files      | Names                                                 |  Raw size
 569.js                | pages-detective-notebook-detective-notebook-component |   1.10 MB |
 648.js                | pages-join-game-join-game-page-component              | 159.92 kB |
 199.js                | pages-accusation-accusation-component                 | 130.43 kB |
 279.js                | pages-join-game-join-game-page-component              |  69.77 kB |
+669.js                | pages-game-game-page-component                        |  56.66 kB |
 361.js                | pages-game-info-game-info-component                   |  52.79 kB |
-669.js                | pages-game-game-page-component                        |  50.75 kB |
-307.js                | pages-participants-participants-component             |  33.25 kB |
+307.js                | pages-participants-participants-component             |  39.92 kB |
 320.js                | pages-participants-participants-component             |  31.05 kB |
 332.js                | pages-detective-notebook-detective-notebook-component |  28.76 kB |
 557.js                | pages-introduction-introduction-component             |  19.17 kB |
@@ -38,13 +37,7 @@ Lazy chunk files      | Names                                                 | 
 common.js             | common                                                |  10.58 kB |
 401.js                | pages-instructions-instructions-component             |   9.84 kB |
 
-Build at: 2026-03-12T15:52:12.819Z - Hash: 88fcdc6c6c68de3c - Time: 33992ms
-
-Warning: [96msrc/app/pages/game/game-page.component.ts[0m:[93m24[0m:[93m5[0m - [93mwarning[0m[90m NG8113: [0mNgIf is not used within the template of GamePageComponent
-
-[7m24[0m     NgIf,
-[7m  [0m [93m    ~~~~[0m
-
+Build at: 2026-03-12T20:37:49.010Z - Hash: 27e21f254ec44909 - Time: 25918ms
 
 Warning: /app/node_modules/.pnpm/socket.io-parser@4.2.5/node_modules/socket.io-parser/build/esm-debug/index.js depends on 'debug'. CommonJS or AMD dependencies can cause optimization bailouts.
 For more info see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
@@ -52,28 +45,6 @@ For more info see: https://angular.dev/tools/cli/build#configuring-commonjs-depe
 
 
 ** Angular Live Development Server is listening on 0.0.0.0:4200, open your browser on http://localhost:4200/ **
-
-
-✔ Compiled successfully.
-[32m✔[39m Browser application bundle generation complete.
-
-Initial chunk files | Names                          | Raw size
-main.js             | main                           |  2.73 MB |
-runtime.js          | runtime                        | 13.16 kB |
-
-Lazy chunk files    | Names                          | Raw size
-669.js              | pages-game-game-page-component | 50.75 kB |
-
-14 unchanged chunks
-
-Build at: 2026-03-12T15:52:55.298Z - Hash: 764850be50f7d0d6 - Time: 2062ms
-
-Warning: [96msrc/app/pages/game/game-page.component.ts[0m:[93m24[0m:[93m5[0m - [93mwarning[0m[90m NG8113: [0mNgIf is not used within the template of GamePageComponent
-
-[7m24[0m     NgIf,
-[7m  [0m [93m    ~~~~[0m
-
-
 
 
 ✔ Compiled successfully.

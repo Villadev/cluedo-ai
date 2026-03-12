@@ -1,7 +1,8 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { MenuItem } from 'primeng/api';
 import { catchError, of } from 'rxjs';
+import { SplashScreenComponent } from './components/splash-screen/splash-screen.component';
 import { AppLayoutComponent } from './layout/app-layout.component';
 import { GameService } from './services/game.service';
 import { SessionService } from './services/session.service';
@@ -9,7 +10,7 @@ import { WebSocketService } from './services/websocket.service';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, AppLayoutComponent],
+  imports: [RouterOutlet, AppLayoutComponent, SplashScreenComponent],
   standalone: true,
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
@@ -19,6 +20,8 @@ export class AppComponent implements OnInit {
   private readonly gameService = inject(GameService);
   private readonly sessionService = inject(SessionService);
   private readonly websocketService = inject(WebSocketService);
+
+  protected isLoading = signal(true);
 
   protected menuItems: MenuItem[] = [
     { label: 'Xat', icon: 'pi pi-comments', command: () => this.navigateToGameSection('') },
@@ -31,6 +34,11 @@ export class AppComponent implements OnInit {
   ];
 
   ngOnInit(): void {
+    // Splash screen timeout
+    setTimeout(() => {
+      this.isLoading.set(false);
+    }, 3000);
+
     const gameId = this.sessionService.getGameId();
     const playerId = this.sessionService.getPlayerId();
 
