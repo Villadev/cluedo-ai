@@ -67,19 +67,31 @@ export class ChatService implements OnDestroy {
   }
 
   private handleChatMessage(payload: any): void {
+    // Ensure payload is an object
+    let data = payload;
+    if (typeof payload === 'string') {
+      try {
+        data = JSON.parse(payload);
+      } catch (e) {
+        console.error('Failed to parse chat message payload', e);
+        return;
+      }
+    }
+
     const typeMap: Record<string, ChatMessageType> = {
       'question': 'question',
       'response': 'response',
       'clue': 'clue',
-      'system': 'system'
+      'system': 'system',
+      'chat': 'response' // Handle "chat" type from requested format
     };
 
     const message: ChatMessage = {
       id: crypto.randomUUID(),
-      type: typeMap[payload.messageType] || 'response',
-      sender: payload.sender,
-      message: payload.message,
-      timestamp: new Date()
+      type: typeMap[data.type] || typeMap[data.messageType] || 'response',
+      sender: data.playerName || data.sender,
+      message: data.message,
+      timestamp: data.timestamp ? new Date(data.timestamp) : new Date()
     };
     this.addMessage(message);
   }
