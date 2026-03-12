@@ -1,6 +1,3 @@
-export interface Participant {
-  id: string;
-  name: string;
-  description: string;
-  avatar?: string;
-}
+import { PublicPlayerView } from './player.model';
+
+export type Participant = PublicPlayerView;

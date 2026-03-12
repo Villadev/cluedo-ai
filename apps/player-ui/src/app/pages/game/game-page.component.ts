@@ -1,4 +1,4 @@
-import { AsyncPipe, DatePipe, NgClass } from '@angular/common';
+import { AsyncPipe, DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -11,10 +11,11 @@ import { ChatService } from '../../services/chat.service';
 import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
 import { WebSocketService } from '../../services/websocket.service';
+import { GameStatusIndicatorComponent } from '../../components/game-status-indicator/game-status-indicator.component';
 
 @Component({
   selector: 'app-game-page',
-  imports: [ReactiveFormsModule, AsyncPipe, NgClass, DatePipe, CardModule, InputTextModule, ButtonModule],
+  imports: [ReactiveFormsModule, AsyncPipe, DatePipe, CardModule, InputTextModule, ButtonModule, GameStatusIndicatorComponent],
   templateUrl: './game-page.component.html',
   styleUrl: './game-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -33,7 +34,6 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
   protected gameId = '';
   protected playerId = '';
-  protected roundStatus = 'En espera';
   protected askedThisRound = false;
 
   protected readonly questionForm = this.formBuilder.nonNullable.group({
@@ -42,35 +42,36 @@ export class GamePageComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     const routeGameId = this.route.snapshot.paramMap.get('gameId') ?? '';
-    const queryPlayerId = this.route.snapshot.queryParamMap.get('playerId') ?? '';
 
     const storedGameId = this.sessionService.getGameId();
     const storedPlayerId = this.sessionService.getPlayerId();
 
     this.gameId = routeGameId || storedGameId;
-    this.playerId = queryPlayerId || storedPlayerId;
+    this.playerId = storedPlayerId;
 
-    this.sessionService.setSession(this.gameId, this.playerId);
-    this.gameService.setSession({
-      gameId: this.gameId,
-      playerId: this.playerId || undefined
-    });
+    if (this.gameId) {
+      this.sessionService.setSession(this.gameId, this.playerId);
+      this.gameService.setSession({
+        gameId: this.gameId,
+        playerId: this.playerId || undefined
+      });
 
-    this.chatService.clear();
-    this.gameService.resetRoundQuestion();
-    this.websocketService.connect(this.gameId, this.playerId || undefined);
+      this.chatService.clear();
+      this.gameService.resetRoundQuestion();
+      this.websocketService.connect(this.gameId, this.playerId || undefined);
 
-    this.subscriptions.add(
-      this.websocketService.events$.subscribe((event: SocketGameEvent) => {
-        this.handleSocketEvent(event);
-      })
-    );
+      this.subscriptions.add(
+        this.websocketService.events$.subscribe((event: SocketGameEvent) => {
+          this.handleSocketEvent(event);
+        })
+      );
 
-    this.subscriptions.add(
-      this.gameService.askedThisRound$.subscribe((value: boolean) => {
-        this.askedThisRound = value;
-      })
-    );
+      this.subscriptions.add(
+        this.gameService.askedThisRound$.subscribe((value: boolean) => {
+          this.askedThisRound = value;
+        })
+      );
+    }
   }
 
   ngOnDestroy(): void {
@@ -97,11 +98,11 @@ export class GamePageComponent implements OnInit, OnDestroy {
   private handleSocketEvent(event: SocketGameEvent): void {
     switch (event.event) {
       case 'connected':
-        this.chatService.addMessage(this.createMessage('system', 'Connexió WebSocket establerta correctament.'));
+        this.chatService.addMessage(this.createMessage('system', 'Connexió d\'investigació establerta.'));
         break;
       case 'game_state':
       case 'game_state_updated':
-        this.chatService.addMessage(this.createMessage('master', `Actualització d'estat: ${JSON.stringify(event.payload)}`));
+        // Silenced or handled differently as we now have info pages and a status indicator
         break;
       case 'clue':
         this.chatService.addMessage(this.createMessage('clue', this.extractText(event.payload, 'Nova pista rebuda.')));
@@ -110,13 +111,11 @@ export class GamePageComponent implements OnInit, OnDestroy {
         this.chatService.addMessage(this.createMessage('system', this.extractText(event.payload, 'Missatge del sistema.')));
         break;
       case 'round_start':
-        this.roundStatus = 'Ronda en curs';
         this.gameService.resetRoundQuestion();
-        this.chatService.addMessage(this.createMessage('system', 'Comença una nova ronda.'));
+        this.chatService.addMessage(this.createMessage('system', 'Comença una nova ronda d\'investigació.'));
         break;
       case 'round_end':
-        this.roundStatus = 'Ronda finalitzada';
-        this.chatService.addMessage(this.createMessage('system', 'La ronda ha finalitzat.'));
+        this.chatService.addMessage(this.createMessage('system', 'La ronda ha finalitzat. Revisa les pistes.'));
         break;
       case 'error':
         this.chatService.addMessage(this.createMessage('system', "S'ha rebut un error del servidor."));
