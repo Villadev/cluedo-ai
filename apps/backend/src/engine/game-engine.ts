@@ -23,11 +23,7 @@ import { HttpError } from '../utils/http-error.js';
 import { generateId, nowIso } from '../utils/id.js';
 
 const MAX_PLAYERS = 17;
-
-// We need a way to emit system messages from the engine
-// but to avoid circular dependencies we might need a listener or a simpler approach.
-// For now, let's assume the controller handles the high-level events.
-// But some events like "New Round" or "Clue Revealed" happen inside nextTurn.
+const MIN_SUSPECTS = 4;
 
 export class GameEngine {
   private onSystemEvent?: (gameId: string, message: string) => void;
@@ -94,7 +90,8 @@ export class GameEngine {
       hasAccused: false,
       askedThisRound: false,
       accusedThisRound: false,
-      accusationCooldown: 0
+      accusationCooldown: 0,
+      type: 'real'
     };
 
     game.players.push(player);
@@ -121,7 +118,8 @@ export class GameEngine {
 
     console.log("[GAME STATE] LOBBY → READY (Generant cas...)");
 
-    const fullCase = await this.aiService.generateFullCase(game.players.length);
+    const requestedSuspectsCount = Math.max(game.players.length, MIN_SUSPECTS);
+    const fullCase = await this.aiService.generateFullCase(requestedSuspectsCount);
 
     game.murder = {
       killerPlayerId: '', // To be assigned
@@ -152,6 +150,8 @@ export class GameEngine {
     }
 
     const shuffledCharacters = this.shuffle(game.characters);
+
+    // Assign characters to real players first
     game.players.forEach((player, index) => {
       const character = shuffledCharacters[index];
       if (character) {
@@ -161,6 +161,31 @@ export class GameEngine {
         }
       }
     });
+
+    // Create NPC players for remaining characters
+    if (shuffledCharacters.length > game.players.length) {
+      for (let i = game.players.length; i < shuffledCharacters.length; i++) {
+        const character = shuffledCharacters[i];
+        if (character) {
+          const npcPlayer: Player = {
+            id: generateId(),
+            nickname: character.name,
+            characterId: character.id,
+            isReady: true,
+            isEliminated: false,
+            hasAccused: false,
+            askedThisRound: false,
+            accusedThisRound: false,
+            accusationCooldown: 0,
+            type: 'npc'
+          };
+          game.players.push(npcPlayer);
+          if (character.id === game.assassinCharacterId) {
+            game.murder!.killerPlayerId = npcPlayer.id;
+          }
+        }
+      }
+    }
 
     game.clues = [
       ...fullCase.clues.round1.map(c => ({ ...c, id: generateId(), isTrue: true, roundNumber: 1, createdAt: nowIso() })),
@@ -188,6 +213,10 @@ export class GameEngine {
       description: 'La investigació ha començat oficialment.'
     });
 
+    // Ensure turn index points to the first real player
+    const firstRealPlayerIndex = game.players.findIndex(p => p.type === 'real');
+    game.currentTurnIndex = firstRealPlayerIndex >= 0 ? firstRealPlayerIndex : 0;
+
     this.store.save(game);
     return game;
   }
@@ -199,6 +228,9 @@ export class GameEngine {
     }
 
     const player = this.getPlayerOrThrow(game, input.playerId);
+    if (player.type !== 'real') {
+       throw new HttpError(403, 'Només els jugadors reals poden fer preguntes');
+    }
     this.assertActivePlayer(player);
 
     if (player.askedThisRound || player.accusedThisRound) {
@@ -260,6 +292,9 @@ export class GameEngine {
   public async handleAccusation(gameId: string, input: AccusationInput): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     const player = this.getPlayerOrThrow(game, input.playerId);
+    if (player.type !== 'real') {
+       throw new HttpError(403, 'Només els jugadors reals poden fer acusacions');
+    }
     this.assertActivePlayer(player);
 
     if (player.hasAccused && player.accusationCooldown > 0) {
@@ -341,7 +376,8 @@ export class GameEngine {
           askedThisRound: player.askedThisRound,
           accusedThisRound: player.accusedThisRound,
           accusationCooldown: player.accusationCooldown,
-          isAssassin: canSeePrivateInfo ? isAssassin : false
+          isAssassin: canSeePrivateInfo ? isAssassin : false,
+          type: player.type
         };
       }),
       clues: game.clues
@@ -484,7 +520,8 @@ export class GameEngine {
   }
 
   private async nextTurn(game: Game): Promise<void> {
-    const allPlayersActed = game.players.every((p) => p.askedThisRound || p.accusedThisRound || p.isEliminated);
+    const realPlayers = game.players.filter(p => p.type === 'real');
+    const allPlayersActed = realPlayers.every((p) => p.askedThisRound || p.accusedThisRound || p.isEliminated);
 
     if (allPlayersActed) {
       game.roundNumber += 1;
@@ -528,7 +565,9 @@ export class GameEngine {
           p.accusationCooldown -= 1;
         }
       });
-      game.currentTurnIndex = 0;
+
+      const firstRealPlayerIndex = game.players.findIndex(p => p.type === 'real');
+      game.currentTurnIndex = firstRealPlayerIndex >= 0 ? firstRealPlayerIndex : 0;
     } else {
       let nextIndex = game.currentTurnIndex;
       let count = 0;
@@ -536,7 +575,8 @@ export class GameEngine {
         nextIndex = (nextIndex + 1) % game.players.length;
         count++;
       } while (
-        (game.players[nextIndex]?.isEliminated ||
+        (game.players[nextIndex]?.type === 'npc' ||
+        game.players[nextIndex]?.isEliminated ||
         game.players[nextIndex]?.askedThisRound ||
         game.players[nextIndex]?.accusedThisRound) &&
         count < game.players.length

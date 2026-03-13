@@ -10,7 +10,7 @@
   <div class="grid">
     @for (player of participants(); track player.id) {
       <div class="col-12 md:col-6 lg:col-4 mb-4">
-        <p-card [header]="player.nickname" styleClass="h-full">
+        <p-card [header]="player.nickname + (player.type === 'npc' ? ' (NPC)' : '')" styleClass="h-full">
           <div class="flex flex-column gap-3">
             @if (player.character) {
               <div>
