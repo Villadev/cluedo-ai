@@ -45,6 +45,12 @@ export class AppComponent {
         visible: hasGameId
       },
       {
+        label: 'Preguntes',
+        icon: 'pi pi-question-circle',
+        routerLink: '/questions',
+        visible: hasGameId
+      },
+      {
         label: 'Depuració',
         icon: 'pi pi-cog',
         routerLink: '/debug',

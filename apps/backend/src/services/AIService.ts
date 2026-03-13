@@ -95,7 +95,7 @@ Regles per a la coartada (coartada):
 
 Regles importants per a cada personatge:
 - cada personatge rep una secretKnowledge diferent.
-- la secretKnowledge pot revelar informació parcial però mai directament qui és l'assassí.
+- la secretKnowledge pot revelar informació parcial peró mai directament qui és l'assassí.
 - els personatges s'han de conèixer entre ells.
 - diversos personatges han de tenir conflictes amb la víctima.
 
@@ -176,8 +176,15 @@ Retorna el resultat en JSON amb aquesta estructura:
   }
 
   public async respondToQuestion(publicGameState: string, question: string): Promise<string> {
-    const instruction = 'Respon la pregunta del jugador amb to narratiu sense revelar cap secret no autoritzat. Respon sempre en català.';
-    return this.generateNarrative({ instruction, publicGameState, question }, 300);
+    const instruction = `Respon la pregunta del jugador amb to narratiu.
+Regles:
+- Màxim 2-3 frases.
+- Respostes clares i directes.
+- Sense storytelling innecessari.
+- Centra't en les pistes.
+- No revelis cap secret no autoritzat.
+- Respon sempre en català.`;
+    return this.generateNarrative({ instruction, publicGameState, question }, 150);
   }
 
   public async generateClueNarration(publicGameState: string, clueDescription: string): Promise<string> {

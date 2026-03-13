@@ -34,9 +34,12 @@ export const initSocket = (httpServer: HttpServer): Server => {
           question: payload.message
         });
 
+        // The question and response are already recorded in chat history by gameEngine.askQuestion
+
         // Broadcast the question and response to all players in the game
         const chatMsg = {
           type: 'chat',
+          messageType: 'question',
           playerId: payload.playerId,
           playerName: result.game.players.find(p => p.id === payload.playerId)?.nickname || 'Jugador',
           message: payload.message,
@@ -45,7 +48,7 @@ export const initSocket = (httpServer: HttpServer): Server => {
 
         const responseMsg = {
           type: 'response',
-          playerName: 'Narrador',
+          playerName: 'Narrador 🕵️',
           message: result.response,
           timestamp: Date.now()
         };
@@ -90,6 +93,25 @@ export const emitGameStateUpdated = (gameId: string, payload: PublicGameView): v
 export const emitGameStarted = (gameId: string, payload: PublicGameView): void => {
   console.log(`WS_EMIT: game_started to room ${gameId}`);
   getSocketServer().to(gameId).emit('game_started', payload);
+};
+
+export const emitSystemChatMessage = (gameId: string, message: string): void => {
+  const timestamp = Date.now();
+  const systemMsg = {
+    type: 'system',
+    playerName: 'Sistema ⚙️',
+    message,
+    timestamp
+  };
+  console.log(`WS_EMIT: system chat message to room ${gameId}: ${message}`);
+  getSocketServer().to(gameId).emit('chat_message', systemMsg);
+
+  // Also persist to chat history
+  gameEngine.recordChatMessage(gameId, {
+    type: 'system',
+    message,
+    timestamp
+  });
 };
 
 // Legacy support for shared module

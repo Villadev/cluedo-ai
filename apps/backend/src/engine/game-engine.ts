@@ -14,7 +14,9 @@ import type {
   PublicParticipant,
   PublicCharacterView,
   AIServiceClue,
-  FullCase
+  FullCase,
+  ChatMessage,
+  Question
 } from '../types/game.types.js';
 import { GameStates } from '../types/game.types.js';
 import { HttpError } from '../utils/http-error.js';
@@ -22,11 +24,22 @@ import { generateId, nowIso } from '../utils/id.js';
 
 const MAX_PLAYERS = 17;
 
+// We need a way to emit system messages from the engine
+// but to avoid circular dependencies we might need a listener or a simpler approach.
+// For now, let's assume the controller handles the high-level events.
+// But some events like "New Round" or "Clue Revealed" happen inside nextTurn.
+
 export class GameEngine {
+  private onSystemEvent?: (gameId: string, message: string) => void;
+
   constructor(
     private readonly store: GameStoreService,
     private readonly aiService: AIService
   ) {}
+
+  public setSystemEventListener(listener: (gameId: string, message: string) => void): void {
+    this.onSystemEvent = listener;
+  }
 
   public createGame(): Game {
     const timestamp = nowIso();
@@ -46,6 +59,8 @@ export class GameEngine {
       tensionLevel: 0,
       winnerPlayerId: null,
       timeline: [],
+      chatHistory: [],
+      questionHistory: [],
       createdAt: timestamp,
       updatedAt: timestamp
     };
@@ -98,209 +113,79 @@ export class GameEngine {
 
   public async startGame(gameId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
-    console.log("[GAME START] Preparing game", gameId);
+    this.validateGameStateTransition(game.state, GameStates.READY);
 
-    try {
-      this.validateGameStateTransition(game.state, GameStates.READY);
-
-      if (game.players.length < 2) {
-        throw new HttpError(400, 'Es necessiten almenys 2 jugadors per començar');
-      }
-
-      game.state = GameStates.READY;
-
-      this.recordTimelineEvent(game, {
-        type: 'STATE_CHANGE',
-        description: 'CASE_GENERATION_STARTED'
-      });
-
-      console.log("[AI] Case generation started");
-
-      // Generar cas complet
-      let fullCase: FullCase;
-      try {
-        this.recordTimelineEvent(game, {
-          type: 'STATE_CHANGE',
-          description: 'OPENAI_REQUEST_CASE'
-        });
-
-        fullCase = await this.aiService.generateFullCase(game.players.length);
-
-        this.recordTimelineEvent(game, {
-          type: 'STATE_CHANGE',
-          description: 'OPENAI_RESPONSE_RECEIVED'
-        });
-
-        console.log("[AI] Case generation completed");
-      } catch (aiError: any) {
-        console.error("[AI ERROR]", aiError);
-        this.recordTimelineEvent(game, {
-          type: 'STATE_CHANGE',
-          description: 'OPENAI_ERROR'
-        });
-        this.recordTimelineEvent(game, {
-          type: 'STATE_CHANGE',
-          description: 'CASE_GENERATION_FAILED'
-        });
-        throw aiError;
-      }
-
-      // Record specialized narrative events
-      if (fullCase.crimeWindow) {
-        this.recordTimelineEvent(game, {
-          type: 'CRIME_TIME_WINDOW_GENERATED',
-          description: `Finestra temporal del crim generada: ${fullCase.crimeWindow.start} - ${fullCase.crimeWindow.end}`
-        });
-      }
-
-      this.recordTimelineEvent(game, {
-        type: 'ALIBI_NETWORK_GENERATED',
-        description: 'Xarxa de coartades creuades generada.'
-      });
-
-      this.recordTimelineEvent(game, {
-        type: 'ALIBI_CONTRADICTION_CREATED',
-        description: 'Contradicció temporal introduïda entre coartades.'
-      });
-
-      // Mapejar personatges de la IA a l'estructura del joc
-      game.characters = fullCase.characters.map(c => ({
-        id: generateId(),
-        name: c.name,
-        profession: c.profession,
-        description: c.description,
-        personality: c.personality,
-        possibleMotive: c.possibleMotive,
-        secret: c.secret,
-        secretKnowledge: c.secretKnowledge,
-        coartada: c.coartada,
-        rumor: c.rumor,
-        relationships: c.relationships,
-        tensions: c.tensions,
-        isAssassin: c.name === fullCase.assassin
-      }));
-
-      // Si l'assassí no s'ha trobat pel nom (rar), n'assignem un
-      if (!game.characters.some(c => c.isAssassin)) {
-        game.characters[0]!.isAssassin = true;
-      }
-
-      const assassinChar = game.characters.find(c => c.isAssassin)!;
-      game.assassinCharacterId = assassinChar.id;
-
-      // Assignar personatges als jugadors
-      const shuffledCharacters = this.shuffle([...game.characters]);
-      game.players.forEach((player, index) => {
-        const assignedChar = shuffledCharacters[index % shuffledCharacters.length]!;
-        player.characterId = assignedChar.id;
-        this.recordTimelineEvent(game, {
-          type: 'CHARACTER_ASSIGNED',
-          playerId: player.id,
-          characterId: assignedChar.id,
-          description: `A ${player.nickname} se li ha assignat el personatge: ${assignedChar.name}`
-        });
-
-        // Record coartada assignment
-        this.recordTimelineEvent(game, {
-          type: 'CHARACTER_COARTADA_ASSIGNED',
-          playerId: player.id,
-          description: `A ${player.nickname} se li ha assignat una coartada estructurada.`
-        });
-
-        // Record secret knowledge assignment
-        this.recordTimelineEvent(game, {
-          type: 'PLAYER_SECRET_ASSIGNED',
-          playerId: player.id,
-          description: `A ${player.nickname} se li ha assignat informació secreta.`
-        });
-      });
-
-      // Configurar el crim
-      const killerPlayer = game.players.find(p => p.characterId === game.assassinCharacterId);
-      game.murder = {
-        killerPlayerId: killerPlayer?.id || 'IA',
-        weapon: fullCase.weapon,
-        location: fullCase.location,
-        victim: fullCase.victim,
-        crimeWindow: fullCase.crimeWindow
-      };
-
-      // Narrativa
-      game.introNarrative = fullCase.introductionNarrative;
-      game.solution = {
-        assassin: assassinChar.name,
-        weapon: fullCase.weapon,
-        location: fullCase.location,
-        victimName: fullCase.victim,
-        finalNarrative: fullCase.solutionNarrative
-      };
-
-      // Pistes estructurades per rondes
-      const processedClues: Clue[] = [];
-      const addCluesForRound = (roundClues: AIServiceClue[], roundNumber: number) => {
-        roundClues.forEach(c => {
-          processedClues.push({
-            id: generateId(),
-            type: c.type,
-            text: c.text,
-            isTrue: true,
-            roundNumber,
-            createdAt: nowIso()
-          });
-        });
-      };
-
-      addCluesForRound(fullCase.clues.round1, 1);
-      addCluesForRound(fullCase.clues.round2, 2);
-      addCluesForRound(fullCase.clues.round3, 3);
-      addCluesForRound(fullCase.clues.round4, 4);
-
-      game.clues = processedClues;
-
-      this.recordTimelineEvent(game, {
-        type: 'STATE_CHANGE',
-        description: 'CASE_STORED'
-      });
-
-      this.recordTimelineEvent(game, {
-        type: 'STATE_CHANGE',
-        description: 'SOLUTION_AVAILABLE'
-      });
-
-      game.updatedAt = nowIso();
-      this.store.save(game);
-      return game;
-    } catch (error: any) {
-      game.state = GameStates.LOBBY;
-      this.store.save(game);
-      throw error;
+    if (game.players.length < 2) {
+      throw new HttpError(400, 'Es necessiten almenys 2 jugadors per començar');
     }
+
+    console.log("[GAME STATE] LOBBY → READY (Generant cas...)");
+
+    const fullCase = await this.aiService.generateFullCase(game.players.length);
+
+    game.murder = {
+      killerPlayerId: '', // To be assigned
+      weapon: fullCase.weapon,
+      location: fullCase.location,
+      victim: fullCase.victim,
+      crimeWindow: fullCase.crimeWindow
+    };
+
+    game.introNarrative = fullCase.introductionNarrative;
+    game.solution = {
+      assassin: fullCase.assassin,
+      weapon: fullCase.weapon,
+      location: fullCase.location,
+      victimName: fullCase.victim,
+      finalNarrative: fullCase.solutionNarrative
+    };
+
+    game.characters = fullCase.characters.map((c) => ({
+      ...c,
+      id: generateId(),
+      isAssassin: c.name === fullCase.assassin
+    }));
+
+    const assassinCharacter = game.characters.find(c => c.isAssassin);
+    if (assassinCharacter) {
+       game.assassinCharacterId = assassinCharacter.id;
+    }
+
+    const shuffledCharacters = this.shuffle(game.characters);
+    game.players.forEach((player, index) => {
+      const character = shuffledCharacters[index];
+      if (character) {
+        player.characterId = character.id;
+        if (character.id === game.assassinCharacterId) {
+          game.murder!.killerPlayerId = player.id;
+        }
+      }
+    });
+
+    game.clues = [
+      ...fullCase.clues.round1.map(c => ({ ...c, id: generateId(), isTrue: true, roundNumber: 1, createdAt: nowIso() })),
+      ...fullCase.clues.round2.map(c => ({ ...c, id: generateId(), isTrue: true, roundNumber: 2, createdAt: nowIso() })),
+      ...fullCase.clues.round3.map(c => ({ ...c, id: generateId(), isTrue: true, roundNumber: 3, createdAt: nowIso() })),
+      ...fullCase.clues.round4.map(c => ({ ...c, id: generateId(), isTrue: true, roundNumber: 4, createdAt: nowIso() }))
+    ];
+
+    game.state = GameStates.READY;
+    game.updatedAt = nowIso();
+    this.store.save(game);
+
+    return game;
   }
 
   public async startPlaying(gameId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
-    if (game.state !== 'READY') {
-      throw new HttpError(409, 'La partida ha d\'estar en estat READY per començar a jugar');
-    }
-
     this.validateGameStateTransition(game.state, GameStates.PLAYING);
+
     game.state = GameStates.PLAYING;
+    game.updatedAt = nowIso();
 
     this.recordTimelineEvent(game, {
       type: 'STATE_CHANGE',
-      description: 'La partida ha començat. Que comenci el misteri!'
-    });
-
-    this.recordTimelineEvent(game, {
-      type: 'ROUND_START',
-      roundNumber: 1,
-      description: 'Ronda 1 iniciada'
-    });
-
-    this.recordTimelineEvent(game, {
-      type: 'CLUE_ROUND_REVEALED',
-      roundNumber: 1,
-      description: 'S\'han revelat els rumors de la Ronda 1.'
+      description: 'La investigació ha començat oficialment.'
     });
 
     this.store.save(game);
@@ -335,6 +220,31 @@ export class GameEngine {
 
     player.askedThisRound = true;
 
+    const timestamp = Date.now();
+    game.questionHistory.push({
+      playerId: player.id,
+      playerName: player.nickname,
+      question: input.question,
+      timestamp,
+      roundNumber: game.roundNumber
+    });
+
+    // Record in chat history
+    game.chatHistory.push({
+      type: 'player',
+      playerId: player.id,
+      playerName: player.nickname,
+      message: input.question,
+      timestamp
+    });
+
+    game.chatHistory.push({
+      type: 'narrator',
+      playerName: 'Narrador 🕵️',
+      message: response,
+      timestamp: Date.now()
+    });
+
     this.recordTimelineEvent(game, {
       type: 'QUESTION',
       playerId: player.id,
@@ -349,42 +259,30 @@ export class GameEngine {
 
   public async handleAccusation(gameId: string, input: AccusationInput): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
-    if (game.state !== 'PLAYING') {
-      throw new HttpError(409, 'La partida no està en curs');
-    }
-
     const player = this.getPlayerOrThrow(game, input.playerId);
     this.assertActivePlayer(player);
 
-    if (player.askedThisRound || player.accusedThisRound) {
-      throw new HttpError(409, 'Ja has realitzat la teva acció en aquesta ronda');
-    }
-
-    if (player.accusationCooldown > 0) {
+    if (player.hasAccused && player.accusationCooldown > 0) {
       throw new HttpError(409, `Has d'esperar ${player.accusationCooldown} rondes per tornar a acusar`);
     }
 
     const accusedPlayer = this.getPlayerOrThrow(game, input.accusedPlayerId);
-    const murder = game.murder;
-
-    if (!murder) {
-      throw new HttpError(500, 'No s\'ha trobat la informació del crim');
-    }
+    const accusedCharacter = game.characters.find(c => c.id === accusedPlayer.characterId);
 
     const isCorrect =
-      accusedPlayer.characterId === game.assassinCharacterId &&
-      input.weapon.toLowerCase().includes(murder.weapon.toLowerCase()) &&
-      input.location.toLowerCase().includes(murder.location.toLowerCase());
+      accusedCharacter?.id === game.assassinCharacterId &&
+      input.weapon.toLowerCase().includes(game.murder?.weapon.toLowerCase() || '') &&
+      input.location.toLowerCase().includes(game.murder?.location.toLowerCase() || '');
 
-    player.accusedThisRound = true;
     player.hasAccused = true;
+    player.accusedThisRound = true;
 
     this.recordTimelineEvent(game, {
       type: 'ACCUSATION',
       playerId: player.id,
-      targetCharacterId: accusedPlayer.characterId || undefined,
+      targetCharacterId: accusedCharacter?.id,
       success: isCorrect,
-      description: `${player.nickname} ha acusat a ${accusedPlayer.nickname}`
+      description: `${player.nickname} ha acusat a ${accusedCharacter?.name || 'algú'}.`
     });
 
     if (isCorrect) {
@@ -416,6 +314,7 @@ export class GameEngine {
         const character = game.characters.find((c) => c.id === player.characterId);
 
         const canSeePrivateInfo = requesterPlayerId === player.id || game.state === 'FINISHED';
+        const isAssassin = character?.id === game.assassinCharacterId;
 
         const publicCharacter: PublicCharacterView | undefined = character ? {
           id: character.id,
@@ -441,7 +340,8 @@ export class GameEngine {
           hasAccused: player.hasAccused,
           askedThisRound: player.askedThisRound,
           accusedThisRound: player.accusedThisRound,
-          accusationCooldown: player.accusationCooldown
+          accusationCooldown: player.accusationCooldown,
+          isAssassin: canSeePrivateInfo ? isAssassin : false
         };
       }),
       clues: game.clues
@@ -524,6 +424,22 @@ export class GameEngine {
     this.store.save(game);
   }
 
+  public recordChatMessage(gameId: string, message: ChatMessage): void {
+    const game = this.getGameOrThrow(gameId);
+    game.chatHistory.push(message);
+    this.store.save(game);
+  }
+
+  public getChatHistory(gameId: string): ChatMessage[] {
+    const game = this.getGameOrThrow(gameId);
+    return game.chatHistory;
+  }
+
+  public getQuestionHistory(gameId: string): Question[] {
+    const game = this.getGameOrThrow(gameId);
+    return [...game.questionHistory].sort((a, b) => b.timestamp - a.timestamp);
+  }
+
   public endGame(gameId: string, winnerPlayerId?: string): Game {
     const game = this.getGameOrThrow(gameId);
     this.validateGameStateTransition(game.state, GameStates.FINISHED);
@@ -552,6 +468,8 @@ export class GameEngine {
     game.tensionLevel = 0;
     game.winnerPlayerId = null;
     game.timeline = [];
+    game.chatHistory = [];
+    game.questionHistory = [];
     game.updatedAt = nowIso();
     this.store.save(game);
     return game;
@@ -572,12 +490,17 @@ export class GameEngine {
       game.roundNumber += 1;
       game.tensionLevel = Math.min(100, game.tensionLevel + 10);
 
+      const msg = `Comença la ronda ${game.roundNumber}.`;
       console.log("Starting round:", game.roundNumber);
       this.recordTimelineEvent(game, {
         type: 'ROUND_START',
         roundNumber: game.roundNumber,
         description: `Ronda ${game.roundNumber} iniciada`
       });
+
+      if (this.onSystemEvent) {
+        this.onSystemEvent(game.id, msg);
+      }
 
       // Reveal clues for the new round
       const cluesMapping: Record<number, string> = {
@@ -587,11 +510,15 @@ export class GameEngine {
       };
       const theme = cluesMapping[game.roundNumber];
       if (theme) {
+        const clueMsg = `S'ha revelat una nova pista (${theme}).`;
         this.recordTimelineEvent(game, {
           type: 'CLUE_ROUND_REVEALED',
           roundNumber: game.roundNumber,
           description: `S'han revelat els ${theme} de la Ronda ${game.roundNumber}.`
         });
+        if (this.onSystemEvent) {
+           this.onSystemEvent(game.id, clueMsg);
+        }
       }
 
       game.players.forEach((p) => {

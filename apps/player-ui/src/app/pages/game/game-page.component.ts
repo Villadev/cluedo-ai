@@ -11,7 +11,7 @@ import { ChatService } from '../../services/chat.service';
 import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
 import { WebSocketService } from '../../services/websocket.service';
-import { GameState } from '../../models/player.model';
+import { GameState, PublicPlayerView } from '../../models/player.model';
 import { GameStatusIndicatorComponent } from '../../components/game-status-indicator/game-status-indicator.component';
 
 @Component({
@@ -51,6 +51,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   protected readonly canAskQuestion$ = this.chatService.canAskQuestion$;
 
   protected readonly gameState = signal<GameState | 'NONE'>('NONE');
+  protected readonly askedThisRound = signal<boolean>(false);
   protected gameId = '';
   protected playerId = '';
 
@@ -76,6 +77,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
       });
 
       this.chatService.clear();
+      this.chatService.loadHistory(this.gameId);
       this.websocketService.connect(this.gameId, this.playerId || undefined);
 
       this.startPolling();
@@ -102,9 +104,15 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
           filter(response => response.success && !!response.data)
         )
         .subscribe(response => {
-          const newState = response.data!.state;
+          const game = response.data!;
+          const newState = game.state;
           const oldState = this.gameState();
           this.gameState.set(newState);
+
+          const currentPlayer = game.players.find((p: PublicPlayerView) => p.id === this.playerId);
+          if (currentPlayer) {
+            this.askedThisRound.set(currentPlayer.askedThisRound || currentPlayer.accusedThisRound);
+          }
 
           if (newState === 'PLAYING' && oldState !== 'PLAYING') {
             const hasSeenIntro = sessionStorage.getItem(`intro_seen_${this.gameId}`);
@@ -117,7 +125,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   protected onSendQuestion(): void {
-    if (this.questionForm.invalid) {
+    if (this.questionForm.invalid || this.askedThisRound()) {
       return;
     }
 
@@ -128,6 +136,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     this.chatService.sendQuestion(this.gameId, this.playerId, question);
     this.questionForm.reset();
+    this.askedThisRound.set(true);
   }
 
   private scrollToBottom(): void {

@@ -124,6 +124,14 @@ export interface UsersResponse {
   players: { id: string; name: string }[];
 }
 
+export interface Question {
+  playerId: string;
+  playerName: string;
+  question: string;
+  timestamp: number;
+  roundNumber: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -200,6 +208,10 @@ export class GameApiService {
 
   getTimeline(gameId: string): Observable<ApiResponse<TimelineEvent[]>> {
     return this.http.get<ApiResponse<TimelineEvent[]>>(`${this.baseUrl}/game/${gameId}/timeline`);
+  }
+
+  getQuestions(gameId: string): Observable<ApiResponse<Question[]>> {
+    return this.http.get<ApiResponse<Question[]>>(`${this.baseUrl}/game/${gameId}/questions`);
   }
 
   getGameState(gameId: string): Observable<ApiResponse<GameStateInfo>> {
