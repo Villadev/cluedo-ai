@@ -112,7 +112,8 @@ export class GameService implements OnDestroy {
   }
 
   getParticipants(gameId: string): Observable<ApiResponse<PublicPlayerView[]>> {
-    return this.http.get<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}`).pipe(
+    const playerId = this.sessionService.getPlayerId();
+    return this.getGame(gameId, playerId).pipe(
       map(response => ({
         success: response.success,
         data: response.data?.players,

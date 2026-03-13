@@ -1,0 +1,8 @@
+<<<<<<< SEARCH
+export interface PublicGameView {
+  id: string;
+=======
+export interface PublicGameView {
+  assassinId?: string;
+  id: string;
+>>>>>>> REPLACE

@@ -195,6 +195,7 @@ export interface PublicPlayerView {
 }
 
 export interface PublicGameView {
+  assassinId?: string;
   id: string;
   state: GameState;
   players: PublicPlayerView[];
@@ -213,6 +214,7 @@ export interface PublicParticipant {
 }
 
 export interface GameSolution {
+  assassinId?: string;
   assassin: string;
   weapon: string;
   location: string;

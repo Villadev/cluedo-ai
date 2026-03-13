@@ -1,0 +1,73 @@
+<<<<<<< SEARCH
+    game.solution = {
+      assassin: fullCase.assassin,
+      weapon: fullCase.weapon,
+      location: fullCase.location,
+      victimName: fullCase.victim,
+      finalNarrative: fullCase.solutionNarrative
+    };
+=======
+    game.solution = {
+      assassin: fullCase.assassin,
+      weapon: fullCase.weapon,
+      location: fullCase.location,
+      victimName: fullCase.victim,
+      finalNarrative: fullCase.solutionNarrative,
+      assassinId: ''
+    };
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    // Assign characters to real players first
+    game.players.forEach((player, index) => {
+      const character = shuffledCharacters[index];
+      if (character) {
+        player.characterId = character.id;
+        if (character.id === game.assassinCharacterId) {
+          game.murder!.killerPlayerId = player.id;
+        }
+      }
+    });
+=======
+    // Assign characters to real players first
+    game.players.forEach((player, index) => {
+      const character = shuffledCharacters[index];
+      if (character) {
+        player.characterId = character.id;
+        if (character.id === game.assassinCharacterId) {
+          game.murder!.killerPlayerId = player.id;
+          game.solution!.assassinId = player.id;
+        }
+      }
+    });
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+          if (character.id === game.assassinCharacterId) {
+            game.murder!.killerPlayerId = npcPlayer.id;
+          }
+=======
+          if (character.id === game.assassinCharacterId) {
+            game.murder!.killerPlayerId = npcPlayer.id;
+            game.solution!.assassinId = npcPlayer.id;
+          }
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  public getPublicState(gameId: string, requesterPlayerId?: string): PublicGameView {
+    const game = this.getGameOrThrow(gameId);
+    const currentTurnPlayer = this.getCurrentTurnPlayer(game);
+
+    return {
+      id: game.id,
+=======
+  public getPublicState(gameId: string, requesterPlayerId?: string): PublicGameView {
+    const game = this.getGameOrThrow(gameId);
+    const currentTurnPlayer = this.getCurrentTurnPlayer(game);
+
+    const isRequesterAssassin = requesterPlayerId && game.murder?.killerPlayerId === requesterPlayerId;
+    const revealAssassin = isRequesterAssassin || game.state === 'FINISHED';
+
+    console.log(`[DEBUG] getPublicState: gameId=${gameId}, requester=${requesterPlayerId}, revealAssassin=${revealAssassin}, assassinId=${game.murder?.killerPlayerId}`);
+
+    return {
+      assassinId: revealAssassin ? game.murder?.killerPlayerId : undefined,
+      id: game.id,
+>>>>>>> REPLACE
