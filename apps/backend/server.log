@@ -1,0 +1,39 @@
+
+> @cluedo/backend@0.1.0 start
+> node dist/main.js
+
+[CONFIG ERROR] OPENAI_API_KEY is missing
+/app/apps/backend/dist/config/env.js:20
+    throw new Error(`Variables d'entorn invàlides: ${parsed.error.message}`);
+    ^
+
+Error: Variables d'entorn invàlides: [
+  {
+    "code": "invalid_type",
+    "expected": "string",
+    "received": "undefined",
+    "path": [
+      "OPENAI_API_KEY"
+    ],
+    "message": "Required"
+  }
+]
+    at Object.<anonymous> (/app/apps/backend/dist/config/env.js:20:11)
+    at Module._compile (node:internal/modules/cjs/loader:1705:14)
+    at Object..js (node:internal/modules/cjs/loader:1838:10)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at Module.require (node:internal/modules/cjs/loader:1463:12)
+    at require (node:internal/modules/helpers:147:16)
+    at Object.<anonymous> (/app/apps/backend/dist/main.js:4:18)
+
+Node.js v22.22.1
+npm error Lifecycle script `start` failed with error:
+npm error code 1
+npm error path /app/apps/backend
+npm error workspace @cluedo/backend@0.1.0
+npm error location /app/apps/backend
+npm error command failed
+npm error command sh -c node dist/main.js

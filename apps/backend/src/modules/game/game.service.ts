@@ -77,8 +77,9 @@ export class GameService {
     });
 
     const state = await this.getState();
-    emitGameStarted(state);
-    emitGameStateUpdated(state);
+    // Use MAIN_GAME_ID for compatibility
+    emitGameStarted(MAIN_GAME_ID, state as any);
+    emitGameStateUpdated(MAIN_GAME_ID, state as any);
     return state;
   }
 
@@ -93,7 +94,7 @@ export class GameService {
     game.updatedAt = nowIso();
 
     const state = await this.getState();
-    emitGameStateUpdated(state);
+    emitGameStateUpdated(MAIN_GAME_ID, state as any);
     return state;
   }
 

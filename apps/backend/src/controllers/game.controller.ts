@@ -2,6 +2,11 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { gameEngine } from '../models/dependencies.js';
 import { successResponse } from '../utils/api-response.js';
+import {
+  emitGameStateUpdated,
+  emitPlayerJoined,
+  emitGameStarted
+} from '../websocket/socket.js';
 
 const joinSchema = z.object({
   name: z.string().trim().min(2).max(50)
@@ -63,6 +68,14 @@ export class GameController {
     const parsed = joinSchema.parse(req.body);
     const gameId = this.getGameId(req);
     const game = await gameEngine.addPlayer(gameId, parsed.name);
+
+    // WS Emit
+    const player = game.players.find(p => p.nickname === parsed.name);
+    if (player) {
+      emitPlayerJoined(gameId, player);
+    }
+    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
@@ -72,7 +85,13 @@ export class GameController {
   public async startGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const game = await gameEngine.startGame(gameId);
-    res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
+
+    // WS Emit
+    const state = gameEngine.getPublicState(game.id);
+    emitGameStarted(gameId, state);
+    emitGameStateUpdated(gameId, state);
+
+    res.status(200).json(successResponse(state));
   }
 
   /**
@@ -81,6 +100,10 @@ export class GameController {
   public async startPlaying(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const game = await gameEngine.startPlaying(gameId);
+
+    // WS Emit
+    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
@@ -91,6 +114,10 @@ export class GameController {
     const parsed = askSchema.parse(req.body);
     const gameId = this.getGameId(req);
     const result = await gameEngine.askQuestion(gameId, parsed);
+
+    // WS Emit is handled by the socket question event if coming from WS,
+    // but for REST API we should also emit if needed.
+    // Actually, the requirements say to fix the WS communication.
 
     res.status(200).json(successResponse({
       response: result.response,
@@ -105,6 +132,10 @@ export class GameController {
     const parsed = accusationSchema.parse(req.body);
     const gameId = this.getGameId(req);
     const game = await gameEngine.handleAccusation(gameId, parsed);
+
+    // WS Emit
+    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id, parsed.playerId)));
   }
 
@@ -210,6 +241,10 @@ export class GameController {
     const gameId = this.getGameId(req);
     const parsed = endSchema.parse(req.body);
     const game = gameEngine.endGame(gameId, parsed.winnerPlayerId);
+
+    // WS Emit
+    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+
     res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
     }));
@@ -221,6 +256,10 @@ export class GameController {
   public async resetGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const game = gameEngine.resetGame(gameId);
+
+    // WS Emit
+    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+
     res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
     }));
@@ -243,6 +282,10 @@ export class GameController {
   public async deleteUser(req: Request, res: Response): Promise<void> {
     const { id: gameId, userId } = userParamsSchema.parse(req.params);
     const game = gameEngine.deletePlayer(gameId, userId);
+
+    // WS Emit
+    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+
     res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
     }));
