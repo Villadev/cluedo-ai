@@ -103,6 +103,7 @@ export interface Player {
   askedThisRound: boolean;
   accusedThisRound: boolean;
   accusationCooldown: number;
+  type: 'real' | 'npc';
 }
 
 export interface ChatMessage {
@@ -190,6 +191,7 @@ export interface PublicPlayerView {
   accusedThisRound: boolean;
   accusationCooldown: number;
   isAssassin: boolean;
+  type: 'real' | 'npc';
 }
 
 export interface PublicGameView {
