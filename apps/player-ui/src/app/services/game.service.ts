@@ -103,8 +103,8 @@ export class GameService implements OnDestroy {
     return this.http.post<ApiResponse<unknown>>(`${this.baseUrl}/game/${gameId}/timeline/log`, { type, description });
   }
 
-  getParticipants(gameId: string): Observable<ApiResponse<PublicPlayerView[]>> {
-    return this.http.get<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}`).pipe(
+  getParticipants(gameId: string, playerId?: string): Observable<ApiResponse<PublicPlayerView[]>> {
+    return this.getGame(gameId, playerId).pipe(
       map(response => ({
         success: response.success,
         data: response.data?.players,

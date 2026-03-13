@@ -441,7 +441,8 @@ export class GameEngine {
           hasAccused: player.hasAccused,
           askedThisRound: player.askedThisRound,
           accusedThisRound: player.accusedThisRound,
-          accusationCooldown: player.accusationCooldown
+          accusationCooldown: player.accusationCooldown,
+          isAssassin: canSeePrivateInfo ? !!character?.isAssassin : undefined
         };
       }),
       clues: game.clues

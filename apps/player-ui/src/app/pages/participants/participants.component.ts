@@ -29,6 +29,7 @@ export class ParticipantsComponent implements OnInit {
 
   ngOnInit(): void {
     const gameId = this.route.snapshot.paramMap.get('gameId') ?? this.sessionService.getGameId();
+    const playerId = this.sessionService.getPlayerId();
 
     if (!gameId) {
       this.loading.set(false);
@@ -36,7 +37,7 @@ export class ParticipantsComponent implements OnInit {
       return;
     }
 
-    this.gameService.getParticipants(gameId).subscribe({
+    this.gameService.getParticipants(gameId, playerId || undefined).subscribe({
       next: (response) => {
         this.loading.set(true);
         if (response.success && response.data) {

@@ -171,6 +171,7 @@ export interface PublicPlayerView {
   askedThisRound: boolean;
   accusedThisRound: boolean;
   accusationCooldown: number;
+  isAssassin?: boolean;
 }
 
 export interface PublicGameView {
