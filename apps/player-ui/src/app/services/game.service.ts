@@ -41,6 +41,14 @@ export interface SecretResponse {
   secret: string;
 }
 
+export interface ChatHistoryMessage {
+  type: 'player' | 'narrator' | 'system';
+  playerId?: string;
+  playerName?: string;
+  message: string;
+  timestamp: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class GameService implements OnDestroy {
   private readonly http = inject(HttpClient);
@@ -120,6 +128,10 @@ export class GameService implements OnDestroy {
 
   getGameState(gameId: string): Observable<ApiResponse<GameStateInfo>> {
     return this.http.get<ApiResponse<GameStateInfo>>(`${this.baseUrl}/game/${gameId}/state`);
+  }
+
+  getChatHistory(gameId: string): Observable<ApiResponse<ChatHistoryMessage[]>> {
+    return this.http.get<ApiResponse<ChatHistoryMessage[]>>(`${this.baseUrl}/game/${gameId}/chat`);
   }
 
   getPossibleWeapons(): string[] {

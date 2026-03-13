@@ -1,34 +1,28 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { GameController } from '../controllers/game.controller.js';
+import { asyncHandler } from '../utils/async-handler.js';
 
 const gameRouter = Router();
 const controller = new GameController();
-
-/**
- * Encapsula la gestió d'errors per a les rutes asíncrones.
- */
-const asyncHandler = (fn: (req: any, res: any, next: any) => Promise<any>) => (req: any, res: any, next: any) => {
-  Promise.resolve(fn(req, res, next)).catch(next);
-};
 
 /**
  * @openapi
  * /game:
  *   post:
  *     summary: Crear una nova partida
- *     description: Inicialitza una nova partida en estat LOBBY.
+ *     description: Inicialitza una nova instància de joc i retorna l'estat inicial.
  *     responses:
  *       200:
  *         description: Partida creada correctament.
  */
-gameRouter.post('/', asyncHandler((req, res) => controller.createGame(req, res)));
+gameRouter.post('/', asyncHandler((req: Request, res: Response) => controller.createGame(req, res)));
 
 /**
  * @openapi
  * /game/{id}/join:
  *   post:
  *     summary: Unir-se a una partida
- *     description: Permet a un nou jugador entrar a la sala d'espera.
+ *     description: Afegeix un nou jugador a la sala d'espera d'una partida existent.
  *     parameters:
  *       - in: path
  *         name: id
@@ -43,21 +37,24 @@ gameRouter.post('/', asyncHandler((req, res) => controller.createGame(req, res))
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - name
  *             properties:
  *               name:
  *                 type: string
+ *                 description: Nom del jugador (mínim 2 caràcters)
  *     responses:
  *       200:
  *         description: Jugador unit correctament.
  */
-gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req, res)));
+gameRouter.post('/:id/join', asyncHandler((req: Request, res: Response) => controller.joinGame(req, res)));
 
 /**
  * @openapi
  * /game/{id}/start:
  *   post:
- *     summary: Generar cas i començar preparatius
- *     description: Genera el cas mitjançant IA i posa la partida en estat READY.
+ *     summary: Iniciar generació del cas
+ *     description: Tanca la sala d'espera i comença la generació IA del misteri i els personatges.
  *     parameters:
  *       - in: path
  *         name: id
@@ -68,16 +65,16 @@ gameRouter.post('/:id/join', asyncHandler((req, res) => controller.joinGame(req,
  *         description: ID de la partida
  *     responses:
  *       200:
- *         description: Cas generat correctament.
+ *         description: Inici de generació del cas confirmat.
  */
-gameRouter.post('/:id/start', asyncHandler((req, res) => controller.startGame(req, res)));
+gameRouter.post('/:id/start', asyncHandler((req: Request, res: Response) => controller.startGame(req, res)));
 
 /**
  * @openapi
  * /game/{id}/play:
  *   post:
- *     summary: Començar a jugar la partida
- *     description: Passa la partida d'estat READY a PLAYING.
+ *     summary: Començar a jugar
+ *     description: Canvia l'estat de la partida a PLAYING per permetre l'inici dels torns.
  *     parameters:
  *       - in: path
  *         name: id
@@ -88,16 +85,16 @@ gameRouter.post('/:id/start', asyncHandler((req, res) => controller.startGame(re
  *         description: ID de la partida
  *     responses:
  *       200:
- *         description: Partida en joc.
+ *         description: Partida iniciada correctament.
  */
-gameRouter.post('/:id/play', asyncHandler((req, res) => controller.startPlaying(req, res)));
+gameRouter.post('/:id/play', asyncHandler((req: Request, res: Response) => controller.startPlaying(req, res)));
 
 /**
  * @openapi
  * /game/{id}/ask:
  *   post:
  *     summary: Fer una pregunta
- *     description: El jugador del torn actual fa una pregunta al Mestre del Joc.
+ *     description: Envia una pregunta d'investigació al mestre del joc (IA).
  *     parameters:
  *       - in: path
  *         name: id
@@ -112,6 +109,9 @@ gameRouter.post('/:id/play', asyncHandler((req, res) => controller.startPlaying(
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - playerId
+ *               - question
  *             properties:
  *               playerId:
  *                 type: string
@@ -120,16 +120,16 @@ gameRouter.post('/:id/play', asyncHandler((req, res) => controller.startPlaying(
  *                 type: string
  *     responses:
  *       200:
- *         description: Resposta generada correctament.
+ *         description: Resposta del mestre del joc obtinguda.
  */
-gameRouter.post('/:id/ask', asyncHandler((req, res) => controller.ask(req, res)));
+gameRouter.post('/:id/ask', asyncHandler((req: Request, res: Response) => controller.ask(req, res)));
 
 /**
  * @openapi
  * /game/{id}/accuse:
  *   post:
  *     summary: Realitzar una acusació
- *     description: Un jugador intenta resoldre el cas acusant un sospitós, una arma i un lloc.
+ *     description: Un jugador intenta resoldre el cas acusant un sospitós amb una arma i lloc concrets.
  *     parameters:
  *       - in: path
  *         name: id
@@ -159,7 +159,7 @@ gameRouter.post('/:id/ask', asyncHandler((req, res) => controller.ask(req, res))
  *       200:
  *         description: Resultat de l'acusació processat.
  */
-gameRouter.post('/:id/accuse', asyncHandler((req, res) => controller.accuse(req, res)));
+gameRouter.post('/:id/accuse', asyncHandler((req: Request, res: Response) => controller.accuse(req, res)));
 
 /**
  * @openapi
@@ -179,7 +179,7 @@ gameRouter.post('/:id/accuse', asyncHandler((req, res) => controller.accuse(req,
  *       200:
  *         description: Llista de participants obtinguda.
  */
-gameRouter.get('/:id/players', asyncHandler((req, res) => controller.getPlayers(req, res)));
+gameRouter.get('/:id/players', asyncHandler((req: Request, res: Response) => controller.getPlayers(req, res)));
 
 /**
  * @openapi
@@ -199,7 +199,7 @@ gameRouter.get('/:id/players', asyncHandler((req, res) => controller.getPlayers(
  *       200:
  *         description: Instruccions obtingudes en format text.
  */
-gameRouter.get('/:id/instructions', asyncHandler((req, res) => controller.getInstructions(req, res)));
+gameRouter.get('/:id/instructions', asyncHandler((req: Request, res: Response) => controller.getInstructions(req, res)));
 
 /**
  * @openapi
@@ -219,7 +219,7 @@ gameRouter.get('/:id/instructions', asyncHandler((req, res) => controller.getIns
  *       200:
  *         description: Solució de la partida.
  */
-gameRouter.get('/:id/solution', asyncHandler((req, res) => controller.getSolution(req, res)));
+gameRouter.get('/:id/solution', asyncHandler((req: Request, res: Response) => controller.getSolution(req, res)));
 
 /**
  * @openapi
@@ -239,7 +239,7 @@ gameRouter.get('/:id/solution', asyncHandler((req, res) => controller.getSolutio
  *       200:
  *         description: Narrativa inicial.
  */
-gameRouter.get('/:id/intro', asyncHandler((req, res) => controller.getIntro(req, res)));
+gameRouter.get('/:id/intro', asyncHandler((req: Request, res: Response) => controller.getIntro(req, res)));
 
 /**
  * @openapi
@@ -263,7 +263,7 @@ gameRouter.get('/:id/intro', asyncHandler((req, res) => controller.getIntro(req,
  *       200:
  *         description: Llista de pistes de la ronda.
  */
-gameRouter.get('/:id/clues/round/:roundNumber', asyncHandler((req, res) => controller.getCluesByRound(req, res)));
+gameRouter.get('/:id/clues/round/:roundNumber', asyncHandler((req: Request, res: Response) => controller.getCluesByRound(req, res)));
 
 /**
  * @openapi
@@ -288,7 +288,7 @@ gameRouter.get('/:id/clues/round/:roundNumber', asyncHandler((req, res) => contr
  *       200:
  *         description: Secret del jugador.
  */
-gameRouter.get('/:id/players/:playerId/secret', asyncHandler((req, res) => controller.getPlayerSecret(req, res)));
+gameRouter.get('/:id/players/:playerId/secret', asyncHandler((req: Request, res: Response) => controller.getPlayerSecret(req, res)));
 
 /**
  * @openapi
@@ -318,7 +318,7 @@ gameRouter.get('/:id/players/:playerId/secret', asyncHandler((req, res) => contr
  *       200:
  *         description: Event registrat correctament.
  */
-gameRouter.post('/:id/timeline/log', asyncHandler((req, res) => controller.logTimelineEvent(req, res)));
+gameRouter.post('/:id/timeline/log', asyncHandler((req: Request, res: Response) => controller.logTimelineEvent(req, res)));
 
 /**
  * @openapi
@@ -338,7 +338,7 @@ gameRouter.post('/:id/timeline/log', asyncHandler((req, res) => controller.logTi
  *       200:
  *         description: Dades de depuració obtingudes.
  */
-gameRouter.get('/:id/debug', asyncHandler((req, res) => controller.debug(req, res)));
+gameRouter.get('/:id/debug', asyncHandler((req: Request, res: Response) => controller.debug(req, res)));
 
 /**
  * @openapi
@@ -358,7 +358,47 @@ gameRouter.get('/:id/debug', asyncHandler((req, res) => controller.debug(req, re
  *       200:
  *         description: Historial d'esdeveniments obtingut.
  */
-gameRouter.get('/:id/timeline', asyncHandler((req, res) => controller.timeline(req, res)));
+gameRouter.get('/:id/timeline', asyncHandler((req: Request, res: Response) => controller.timeline(req, res)));
+
+/**
+ * @openapi
+ * /game/{id}/chat:
+ *   get:
+ *     summary: Obtenir historial del xat
+ *     description: Retorna tots els missatges enviats al xat.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Historial del xat obtingut.
+ */
+gameRouter.get('/:id/chat', asyncHandler((req: Request, res: Response) => controller.getChat(req, res)));
+
+/**
+ * @openapi
+ * /game/{id}/questions:
+ *   get:
+ *     summary: Obtenir historial de preguntes
+ *     description: Retorna totes les preguntes realitzades pels jugadors.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Historial de preguntes obtingut.
+ */
+gameRouter.get('/:id/questions', asyncHandler((req: Request, res: Response) => controller.getQuestions(req, res)));
 
 /**
  * @openapi
@@ -378,7 +418,7 @@ gameRouter.get('/:id/timeline', asyncHandler((req, res) => controller.timeline(r
  *       200:
  *         description: Estat de la partida obtingut.
  */
-gameRouter.get('/:id/state', asyncHandler((req, res) => controller.getState(req, res)));
+gameRouter.get('/:id/state', asyncHandler((req: Request, res: Response) => controller.getState(req, res)));
 
 /**
  * @openapi
@@ -404,7 +444,7 @@ gameRouter.get('/:id/state', asyncHandler((req, res) => controller.getState(req,
  *       200:
  *         description: Estat de la partida obtingut.
  */
-gameRouter.get('/:id', asyncHandler((req, res) => controller.getGame(req, res)));
+gameRouter.get('/:id', asyncHandler((req: Request, res: Response) => controller.getGame(req, res)));
 
 /**
  * @openapi
@@ -433,7 +473,7 @@ gameRouter.get('/:id', asyncHandler((req, res) => controller.getGame(req, res)))
  *       200:
  *         description: Partida finalitzada correctament.
  */
-gameRouter.post('/:id/end', asyncHandler((req, res) => controller.endGame(req, res)));
+gameRouter.post('/:id/end', asyncHandler((req: Request, res: Response) => controller.endGame(req, res)));
 
 /**
  * @openapi
@@ -453,7 +493,7 @@ gameRouter.post('/:id/end', asyncHandler((req, res) => controller.endGame(req, r
  *       200:
  *         description: Partida reiniciada correctament.
  */
-gameRouter.post('/:id/reset', asyncHandler((req, res) => controller.resetGame(req, res)));
+gameRouter.post('/:id/reset', asyncHandler((req: Request, res: Response) => controller.resetGame(req, res)));
 
 /**
  * @openapi
@@ -473,7 +513,7 @@ gameRouter.post('/:id/reset', asyncHandler((req, res) => controller.resetGame(re
  *       200:
  *         description: Llista de jugadors obtinguda.
  */
-gameRouter.get('/:id/users', asyncHandler((req, res) => controller.getUsers(req, res)));
+gameRouter.get('/:id/users', asyncHandler((req: Request, res: Response) => controller.getUsers(req, res)));
 
 /**
  * @openapi
@@ -500,6 +540,6 @@ gameRouter.get('/:id/users', asyncHandler((req, res) => controller.getUsers(req,
  *       200:
  *         description: Jugador eliminat correctament.
  */
-gameRouter.delete('/:id/users/:userId', asyncHandler((req, res) => controller.deleteUser(req, res)));
+gameRouter.delete('/:id/users/:userId', asyncHandler((req: Request, res: Response) => controller.deleteUser(req, res)));
 
 export { gameRouter };

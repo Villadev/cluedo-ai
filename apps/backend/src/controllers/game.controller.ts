@@ -5,7 +5,8 @@ import { successResponse } from '../utils/api-response.js';
 import {
   emitGameStateUpdated,
   emitPlayerJoined,
-  emitGameStarted
+  emitGameStarted,
+  emitSystemChatMessage
 } from '../websocket/socket.js';
 
 const joinSchema = z.object({
@@ -90,6 +91,7 @@ export class GameController {
     const state = gameEngine.getPublicState(game.id);
     emitGameStarted(gameId, state);
     emitGameStateUpdated(gameId, state);
+    emitSystemChatMessage(gameId, 'La partida ha començat.');
 
     res.status(200).json(successResponse(state));
   }
@@ -115,10 +117,6 @@ export class GameController {
     const gameId = this.getGameId(req);
     const result = await gameEngine.askQuestion(gameId, parsed);
 
-    // WS Emit is handled by the socket question event if coming from WS,
-    // but for REST API we should also emit if needed.
-    // Actually, the requirements say to fix the WS communication.
-
     res.status(200).json(successResponse({
       response: result.response,
       game: gameEngine.getPublicState(result.game.id, parsed.playerId)
@@ -132,6 +130,12 @@ export class GameController {
     const parsed = accusationSchema.parse(req.body);
     const gameId = this.getGameId(req);
     const game = await gameEngine.handleAccusation(gameId, parsed);
+
+    const player = game.players.find(p => p.id === parsed.playerId);
+    const accusedPlayer = game.players.find(p => p.id === parsed.accusedPlayerId);
+    if (player && accusedPlayer) {
+      emitSystemChatMessage(gameId, `${player.nickname} ha acusat a ${accusedPlayer.nickname}.`);
+    }
 
     // WS Emit
     emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
@@ -171,6 +175,22 @@ export class GameController {
   public async timeline(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     res.status(200).json(successResponse(gameEngine.getTimeline(gameId)));
+  }
+
+  /**
+   * Retorna l'historial del xat de la partida.
+   */
+  public async getChat(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    res.status(200).json(successResponse(gameEngine.getChatHistory(gameId)));
+  }
+
+  /**
+   * Retorna l'historial de preguntes de la partida.
+   */
+  public async getQuestions(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    res.status(200).json(successResponse(gameEngine.getQuestionHistory(gameId)));
   }
 
   /**

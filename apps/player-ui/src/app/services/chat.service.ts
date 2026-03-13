@@ -2,10 +2,12 @@ import { inject, Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, Subscription } from 'rxjs';
 import { ChatMessage, ChatMessageType, SocketGameEvent } from '../models/chat.models';
 import { WebSocketService } from './websocket.service';
+import { GameService, ChatHistoryMessage } from './game.service';
 
 @Injectable({ providedIn: 'root' })
 export class ChatService implements OnDestroy {
   private readonly websocketService = inject(WebSocketService);
+  private readonly gameService = inject(GameService);
   private readonly subscriptions = new Subscription();
 
   private readonly messagesSubject = new BehaviorSubject<ChatMessage[]>([]);
@@ -37,6 +39,29 @@ export class ChatService implements OnDestroy {
   clear(): void {
     this.messagesSubject.next([]);
     this.canAskQuestionSubject.next(true);
+  }
+
+  loadHistory(gameId: string): void {
+    this.gameService.getChatHistory(gameId).subscribe(response => {
+      if (response.success && response.data) {
+        const historyMessages: ChatMessage[] = response.data.map((msg: ChatHistoryMessage) => {
+          const typeMap: Record<string, ChatMessageType> = {
+            'player': 'question',
+            'narrator': 'response',
+            'system': 'system'
+          };
+
+          return {
+            id: crypto.randomUUID(),
+            type: typeMap[msg.type] || 'system',
+            sender: msg.playerName,
+            message: msg.message,
+            timestamp: new Date(msg.timestamp)
+          };
+        });
+        this.messagesSubject.next(historyMessages);
+      }
+    });
   }
 
   private handleSocketEvent(event: SocketGameEvent): void {
@@ -83,7 +108,7 @@ export class ChatService implements OnDestroy {
       'response': 'response',
       'clue': 'clue',
       'system': 'system',
-      'chat': 'response' // Handle "chat" type from requested format
+      'chat': 'question' // If type is 'chat', it's usually a player question
     };
 
     const message: ChatMessage = {

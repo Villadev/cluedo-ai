@@ -105,6 +105,22 @@ export interface Player {
   accusationCooldown: number;
 }
 
+export interface ChatMessage {
+  type: 'player' | 'narrator' | 'system';
+  playerId?: string;
+  playerName?: string;
+  message: string;
+  timestamp: number;
+}
+
+export interface Question {
+  playerId: string;
+  playerName: string;
+  question: string;
+  timestamp: number;
+  roundNumber: number;
+}
+
 export interface Game {
   id: string;
   state: GameState;
@@ -121,6 +137,8 @@ export interface Game {
   tensionLevel: number;
   winnerPlayerId: string | null;
   timeline: TimelineEvent[];
+  chatHistory: ChatMessage[];
+  questionHistory: Question[];
   createdAt: string;
   updatedAt: string;
 }
@@ -171,6 +189,7 @@ export interface PublicPlayerView {
   askedThisRound: boolean;
   accusedThisRound: boolean;
   accusationCooldown: number;
+  isAssassin: boolean;
 }
 
 export interface PublicGameView {

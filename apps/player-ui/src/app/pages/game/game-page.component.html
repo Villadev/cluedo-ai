@@ -58,18 +58,21 @@
             class="w-full"
             [rows]="3"
             [autoResize]="true"
-            [disabled]="(canAskQuestion$ | async) === false"></textarea>
+            [disabled]="askedThisRound()"></textarea>
 
           <div class="flex justify-content-end align-items-center gap-3">
-            @if ((canAskQuestion$ | async) === false) {
-              <span class="text-orange-500 font-medium">Ja has enviat una pregunta en aquesta ronda.</span>
+            @if (askedThisRound()) {
+              <span class="text-orange-500 font-medium">
+                Ja has fet una pregunta en aquesta ronda.
+                Hauràs d'esperar la següent.
+              </span>
             }
             <button
               pButton
               type="submit"
               icon="pi pi-send"
               label="Enviar Pregunta"
-              [disabled]="(canAskQuestion$ | async) === false || questionForm.invalid || !(connected$ | async)"></button>
+              [disabled]="askedThisRound() || questionForm.invalid || !(connected$ | async)"></button>
           </div>
         </form>
       </p-card>
