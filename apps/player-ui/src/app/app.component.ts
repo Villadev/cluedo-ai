@@ -37,7 +37,7 @@ export class AppComponent implements OnInit {
     // Splash screen timeout
     setTimeout(() => {
       this.isLoading.set(false);
-    }, 3000);
+    }, 2000);
 
     const gameId = this.sessionService.getGameId();
     const playerId = this.sessionService.getPlayerId();

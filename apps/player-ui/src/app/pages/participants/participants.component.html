@@ -74,6 +74,10 @@
                 @if (player.character.coartada) {
                    <app-coartada [coartada]="player.character.coartada"></app-coartada>
                 }
+
+                <div class="assassin-secret">
+                  🔒 Secret del teu personatge: {{ player.isAssassin ? "ets l'assassí." : "no ets l'assassí." }}
+                </div>
               }
             } @else {
               <p-message severity="info" text="Esperant assignació de personatge..."></p-message>
