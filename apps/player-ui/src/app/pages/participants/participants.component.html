@@ -73,7 +73,7 @@
                 }
 
                 <div class="assassin-secret">
-                  🔒 Secret del teu personatge: {{ player.isAssassin ? "ets l'assassí." : "no ets l'assassí." }}
+                  🔒 Secret del teu personatge: {{ (player.isAssassin || player.id === assassinId()) ? "ets l'assassí." : "no ets l'assassí." }}
                 </div>
               }
             } @else {

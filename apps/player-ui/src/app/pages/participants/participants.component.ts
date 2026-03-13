@@ -25,10 +25,14 @@ export class ParticipantsComponent implements OnInit {
 
   protected readonly loading = signal(true);
   protected readonly participants = signal<PublicPlayerView[]>([]);
+  protected readonly assassinId = signal<string | null>(null);
   protected readonly error = signal<string | null>(null);
 
   ngOnInit(): void {
     const gameId = this.route.snapshot.paramMap.get('gameId') ?? this.sessionService.getGameId();
+    const currentPlayerId = this.sessionService.getPlayerId();
+
+    console.log('[DEBUG] ParticipantsComponent: gameId=', gameId, 'currentPlayerId=', currentPlayerId);
 
     if (!gameId) {
       this.loading.set(false);
@@ -36,11 +40,16 @@ export class ParticipantsComponent implements OnInit {
       return;
     }
 
-    this.gameService.getParticipants(gameId).subscribe({
+    this.gameService.getGame(gameId, currentPlayerId).subscribe({
       next: (response) => {
         this.loading.set(true);
         if (response.success && response.data) {
-          this.participants.set(response.data);
+          this.participants.set(response.data.players);
+          this.assassinId.set(response.data.assassinId || null);
+
+          console.log('[DEBUG] Game state loaded. assassinId=', response.data.assassinId);
+          const me = response.data.players.find(p => p.id === currentPlayerId);
+          console.log('[DEBUG] Current player info:', me);
         } else {
           this.error.set(response.error || 'Error en obtenir els participants');
         }

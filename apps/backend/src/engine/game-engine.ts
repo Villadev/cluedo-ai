@@ -135,7 +135,8 @@ export class GameEngine {
       weapon: fullCase.weapon,
       location: fullCase.location,
       victimName: fullCase.victim,
-      finalNarrative: fullCase.solutionNarrative
+      finalNarrative: fullCase.solutionNarrative,
+      assassinId: ''
     };
 
     game.characters = fullCase.characters.map((c) => ({
@@ -158,6 +159,7 @@ export class GameEngine {
         player.characterId = character.id;
         if (character.id === game.assassinCharacterId) {
           game.murder!.killerPlayerId = player.id;
+          game.solution!.assassinId = player.id;
         }
       }
     });
@@ -182,6 +184,7 @@ export class GameEngine {
           game.players.push(npcPlayer);
           if (character.id === game.assassinCharacterId) {
             game.murder!.killerPlayerId = npcPlayer.id;
+            game.solution!.assassinId = npcPlayer.id;
           }
         }
       }
@@ -342,7 +345,13 @@ export class GameEngine {
     const game = this.getGameOrThrow(gameId);
     const currentTurnPlayer = this.getCurrentTurnPlayer(game);
 
+    const isRequesterAssassin = requesterPlayerId && game.murder?.killerPlayerId === requesterPlayerId;
+    const revealAssassin = isRequesterAssassin || game.state === 'FINISHED';
+
+    console.log(`[DEBUG] getPublicState: gameId=${gameId}, requester=${requesterPlayerId}, revealAssassin=${revealAssassin}, assassinId=${game.murder?.killerPlayerId}`);
+
     return {
+      assassinId: revealAssassin ? game.murder?.killerPlayerId : undefined,
       id: game.id,
       state: game.state,
       players: game.players.map((player) => {
