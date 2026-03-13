@@ -41,6 +41,7 @@ export interface PublicPlayerView {
   askedThisRound: boolean;
   accusedThisRound: boolean;
   accusationCooldown: number;
+  isAssassin: boolean;
   isNpc?: boolean;
   type?: 'player' | 'npc';
 }
