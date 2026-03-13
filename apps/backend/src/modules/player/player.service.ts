@@ -4,6 +4,7 @@ import { emitGameStateUpdated, emitPlayerJoined } from '../../websocket/socket.j
 import { GameService } from '../game/game.service.js';
 
 const MAX_PLAYERS = 15;
+const MAIN_GAME_ID = 'MAIN_GAME';
 
 export class PlayerService {
   private readonly gameService = new GameService();
@@ -37,10 +38,11 @@ export class PlayerService {
       cardId: player.cardId
     };
 
-    emitPlayerJoined(mappedPlayer);
+    // Use MAIN_GAME_ID and cast for compatibility
+    emitPlayerJoined(MAIN_GAME_ID, mappedPlayer as any);
 
     const state = await this.gameService.getState();
-    emitGameStateUpdated(state);
+    emitGameStateUpdated(MAIN_GAME_ID, state as any);
 
     return mappedPlayer;
   }
