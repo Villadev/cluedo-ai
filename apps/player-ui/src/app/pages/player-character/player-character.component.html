@@ -1,0 +1,83 @@
+<div class="p-4 flex flex-column align-items-center min-h-screen">
+  <h1 class="text-3xl font-bold mb-4 text-center">El teu personatge</h1>
+
+  @if (loading()) {
+    <div class="flex flex-column align-items-center justify-content-center p-8">
+      <p-progressSpinner></p-progressSpinner>
+      <p class="mt-4 text-xl">Carregant la informació del teu personatge...</p>
+    </div>
+  } @else if (error()) {
+    <p-message severity="error" [text]="error() || ''"></p-message>
+    <div class="mt-4">
+        <p-button label="Tornar" icon="pi pi-arrow-left" (onClick)="continueToChat()"></p-button>
+    </div>
+  } @else if (currentPlayer(); as player) {
+    <div class="character-container w-full max-w-2xl">
+      <p-card styleClass="character-card shadow-4 mb-4">
+        <ng-template pTemplate="header">
+          <div class="p-4 bg-primary text-white border-round-top">
+            <h2 class="m-0 text-2xl">🧑 {{ player.character?.name }}</h2>
+            <p class="m-0 opacity-80">{{ player.character?.profession }}</p>
+          </div>
+        </ng-template>
+
+        <div class="flex flex-column gap-4">
+          <section>
+            <h3 class="text-primary font-bold mb-2 border-bottom-1 pb-1">Descripció del personatge</h3>
+            <p class="line-height-3 m-0">{{ player.character?.description }}</p>
+          </section>
+
+          @if (player.character?.rumor) {
+            <section>
+              <h3 class="text-purple-600 font-bold mb-2 border-bottom-1 pb-1">🕵️ Rumor al poble</h3>
+              <p class="line-height-3 m-0">{{ player.character?.rumor }}</p>
+            </section>
+          }
+
+          @if (player.character?.coartada) {
+            <section>
+              <h3 class="text-orange-600 font-bold mb-2 border-bottom-1 pb-1">🕒 Coartada de la nit dels fets</h3>
+              <app-coartada [coartada]="player.character!.coartada"></app-coartada>
+            </section>
+          }
+
+          @if (player.character?.relationships) {
+            <section>
+              <h3 class="text-teal-600 font-bold mb-2 border-bottom-1 pb-1">🤝 Relacions</h3>
+              <p class="line-height-3 m-0">{{ player.character?.relationships }}</p>
+            </section>
+          }
+
+          <section class="secret-section p-3 border-round bg-gray-100 border-1 border-gray-300">
+            <h3 class="m-0 text-lg font-bold flex align-items-center gap-2 mb-2">
+              🔒 Secret del teu personatge
+            </h3>
+            <div class="p-2 border-round font-bold text-center"
+                 [ngClass]="(player.isAssassin || player.id === assassinId()) ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'">
+              @if (player.isAssassin || player.id === assassinId()) {
+                Ets l’assassí. Ningú més ho sap.
+              } @else {
+                No ets l’assassí.
+              }
+            </div>
+            @if (player.character?.secret) {
+              <p class="mt-3 mb-0 italic text-sm line-height-2">
+                <strong>Detall del secret:</strong> {{ player.character?.secret }}
+              </p>
+            }
+          </section>
+        </div>
+
+        <ng-template pTemplate="footer">
+          <div class="flex justify-content-center pt-2">
+            <p-button label="Començar la investigació"
+                      icon="pi pi-search"
+                      styleClass="p-button-lg p-button-success w-full"
+                      (onClick)="continueToChat()">
+            </p-button>
+          </div>
+        </ng-template>
+      </p-card>
+    </div>
+  }
+</div>
