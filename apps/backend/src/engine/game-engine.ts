@@ -38,7 +38,7 @@ export class GameEngine {
     this.onSystemEvent = listener;
   }
 
-  public createGame(): Game {
+  public createGame(maxRounds: number = 5): Game {
     const timestamp = nowIso();
     const game: Game = {
       id: generateId(),
@@ -53,8 +53,10 @@ export class GameEngine {
       turns: [],
       currentTurnIndex: 0,
       roundNumber: 1,
+      maxRounds,
       tensionLevel: 0,
       winnerPlayerId: null,
+      winnerType: null,
       timeline: [],
       chatHistory: [],
       questionHistory: [],
@@ -327,6 +329,7 @@ export class GameEngine {
     if (isCorrect) {
       game.state = GameStates.FINISHED;
       game.winnerPlayerId = player.id;
+      game.winnerType = 'INVESTIGATORS';
       this.recordTimelineEvent(game, {
         type: 'GAME_END',
         winnerPlayerId: player.id,
@@ -402,8 +405,10 @@ export class GameEngine {
         })),
       currentTurnPlayerId: currentTurnPlayer?.id ?? null,
       roundNumber: game.roundNumber,
+      maxRounds: game.maxRounds,
       tensionLevel: game.tensionLevel,
       winnerPlayerId: game.winnerPlayerId,
+      winnerType: game.winnerType,
       createdAt: game.createdAt,
       updatedAt: game.updatedAt
     };
@@ -521,6 +526,7 @@ export class GameEngine {
     game.roundNumber = 1;
     game.tensionLevel = 0;
     game.winnerPlayerId = null;
+    game.winnerType = null;
     game.timeline = [];
     game.chatHistory = [];
     game.questionHistory = [];
@@ -538,10 +544,30 @@ export class GameEngine {
   }
 
   private async nextTurn(game: Game): Promise<void> {
+    if (game.state === GameStates.FINISHED) return;
+
     const realPlayers = game.players.filter(p => p.type === 'real');
     const allPlayersActed = realPlayers.every((p) => p.askedThisRound || p.accusedThisRound || p.isEliminated);
 
     if (allPlayersActed) {
+      if (game.roundNumber >= game.maxRounds) {
+        game.state = GameStates.FINISHED;
+        game.winnerType = 'ASSASSIN';
+        game.updatedAt = nowIso();
+
+        const msg = "El temps s'ha acabat. L'assassí ha aconseguit escapar.";
+        this.recordTimelineEvent(game, {
+          type: 'GAME_END',
+          description: msg
+        });
+
+        if (this.onSystemEvent) {
+          this.onSystemEvent(game.id, msg);
+        }
+        this.store.save(game);
+        return;
+      }
+
       game.roundNumber += 1;
       game.tensionLevel = Math.min(100, game.tensionLevel + 10);
 
@@ -619,6 +645,13 @@ export class GameEngine {
     if (!game) {
       throw new HttpError(404, 'Partida no trobada');
     }
+    // Compatibility fix for older games
+    if (game.maxRounds === undefined) {
+      game.maxRounds = 5;
+    }
+    if (game.winnerType === undefined) {
+      game.winnerType = null;
+    }
     return game;
   }
 
@@ -687,7 +720,9 @@ export class GameEngine {
       state: game.state,
       playersCount: game.players.length,
       charactersCount: game.characters.length,
-      roundNumber: game.roundNumber
+      roundNumber: game.roundNumber,
+      maxRounds: game.maxRounds,
+      winnerType: game.winnerType
     };
   }
 }

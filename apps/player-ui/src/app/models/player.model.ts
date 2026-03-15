@@ -1,4 +1,5 @@
 export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
+export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
 
 export interface Coartada {
   location: string;
@@ -54,8 +55,10 @@ export interface PublicGameView {
   clues: PublicClueView[];
   currentTurnPlayerId: string | null;
   roundNumber: number;
+  maxRounds: number;
   tensionLevel: number;
   winnerPlayerId: string | null;
+  winnerType: WinnerType | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -65,4 +68,6 @@ export interface GameStateInfo {
   playersCount: number;
   charactersCount: number;
   roundNumber: number;
+  maxRounds: number;
+  winnerType: WinnerType | null;
 }

@@ -6,11 +6,26 @@
         <span [style.color]="currentStatus().color">●</span>
         <span>Game Status: {{ currentStatus().state }}</span>
       </div>
+      @if (currentStatus().state === 'PLAYING' || currentStatus().state === 'FINISHED') {
+        <div class="text-sm font-medium text-blue-600">
+          Ronda actual: {{ currentRound() }} / {{ maxRounds() }}
+        </div>
+      }
       <div class="text-sm font-medium" [class.text-green-600]="solutionStatus() === 'Solution generated ✔'" [class.text-orange-600]="solutionStatus() === 'Solution pending...'">
         {{ solutionStatus() }}
       </div>
     </div>
   </div>
+
+  @if (currentStatus().state === 'FINISHED') {
+    <div class="mb-4">
+      @if (winnerType() === 'ASSASSIN') {
+        <p-message severity="warn" text="El temps s'ha acabat. L'assassí ha aconseguit escapar."></p-message>
+      } @else if (winnerType() === 'INVESTIGATORS') {
+        <p-message severity="success" text="L'assassí ha estat descobert."></p-message>
+      }
+    </div>
+  }
 
   @if (error()) {
     <div class="mb-4">
@@ -23,10 +38,23 @@
     <div class="col-12 md:col-6 lg:col-4 mb-4">
       <p-card header="Crear partida" styleClass="h-full">
         <div class="flex flex-column gap-3">
+          <div class="flex flex-column gap-2">
+            <label for="maxRounds" class="font-bold">Nombre màxim de rondes</label>
+            <input
+              pInputText
+              id="maxRounds"
+              type="number"
+              [ngModel]="maxRounds()"
+              (ngModelChange)="onMaxRoundsChange($event)"
+              [disabled]="loading() || !!gameId()"
+              class="w-full"
+            />
+          </div>
           <p-button
             label="Crear partida"
             (onClick)="createGame()"
             [loading]="loading()"
+            [disabled]="!!gameId()"
             icon="pi pi-plus"
           ></p-button>
 

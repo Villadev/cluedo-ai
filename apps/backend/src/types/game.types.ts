@@ -7,6 +7,8 @@ export const GameStates: Record<GameState, GameState> = {
   FINISHED: 'FINISHED'
 };
 
+export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
+
 export interface TimelineEvent {
   timestamp: string;
   type:
@@ -135,8 +137,10 @@ export interface Game {
   turns: Turn[];
   currentTurnIndex: number;
   roundNumber: number;
+  maxRounds: number;
   tensionLevel: number;
   winnerPlayerId: string | null;
+  winnerType: WinnerType | null;
   timeline: TimelineEvent[];
   chatHistory: ChatMessage[];
   questionHistory: Question[];
@@ -202,8 +206,10 @@ export interface PublicGameView {
   clues: PublicClueView[];
   currentTurnPlayerId: string | null;
   roundNumber: number;
+  maxRounds: number;
   tensionLevel: number;
   winnerPlayerId: string | null;
+  winnerType: WinnerType | null;
   createdAt: string;
   updatedAt: string;
 }

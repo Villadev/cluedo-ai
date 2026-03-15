@@ -9,6 +9,10 @@ import {
   emitSystemChatMessage
 } from '../websocket/socket.js';
 
+const createSchema = z.object({
+  maxRounds: z.number().int().positive().optional().default(5)
+});
+
 const joinSchema = z.object({
   name: z.string().trim().min(2).max(50)
 });
@@ -57,8 +61,9 @@ export class GameController {
   /**
    * Crea una nova partida.
    */
-  public async createGame(_req: Request, res: Response): Promise<void> {
-    const game = gameEngine.createGame();
+  public async createGame(req: Request, res: Response): Promise<void> {
+    const { maxRounds } = createSchema.parse(req.body || {});
+    const game = gameEngine.createGame(maxRounds);
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 

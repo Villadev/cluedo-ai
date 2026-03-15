@@ -33,10 +33,13 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
 
   readonly gameId = this.gameApiService.gameId;
   readonly playerName = signal<string>('');
+  readonly maxRounds = signal<number>(5);
+  readonly currentRound = signal<number>(1);
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
   readonly currentStatus = signal<{ state: string; color: string }>({ state: 'No Active Game', color: 'red' });
+  readonly winnerType = signal<string | null>(null);
   readonly solutionStatus = signal<string>('Solution pending...');
   private pollInterval?: any;
 
@@ -76,6 +79,9 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
           else if (state === 'LOBBY') color = 'orange';
 
           this.currentStatus.set({ state, color });
+          this.currentRound.set(response.data.roundNumber);
+          this.maxRounds.set(response.data.maxRounds);
+          this.winnerType.set(response.data.winnerType);
         }
       },
       error: () => {
@@ -102,7 +108,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   protected createGame(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.gameApiService.createGame().subscribe({
+    this.gameApiService.createGame(this.maxRounds()).subscribe({
       next: (response) => {
         if (!response.success) {
           this.error.set(response.error || 'Error al crear la partida');
@@ -209,5 +215,9 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
 
   protected onPlayerNameChange(value: string): void {
     this.playerName.set(value);
+  }
+
+  protected onMaxRoundsChange(value: number): void {
+    this.maxRounds.set(value);
   }
 }
