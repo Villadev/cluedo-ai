@@ -3,6 +3,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 
 export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
+export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
 
 export interface Coartada {
   location: string;
@@ -54,8 +55,10 @@ export interface PublicGameView {
   clues: PublicClueView[];
   currentTurnPlayerId: string | null;
   roundNumber: number;
+  maxRounds: number;
   tensionLevel: number;
   winnerPlayerId: string | null;
+  winnerType: WinnerType | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -119,6 +122,8 @@ export interface GameStateInfo {
   playersCount: number;
   charactersCount: number;
   roundNumber: number;
+  maxRounds: number;
+  winnerType: WinnerType | null;
 }
 
 export interface UsersResponse {
@@ -152,8 +157,8 @@ export class GameApiService {
     this.gameId.set(id);
   }
 
-  createGame(): Observable<ApiResponse<PublicGameView>> {
-    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game`, {}).pipe(
+  createGame(maxRounds: number = 5): Observable<ApiResponse<PublicGameView>> {
+    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game`, { maxRounds }).pipe(
       tap(response => {
         if (response.success && response.data?.id) {
           this.setGameId(response.data.id);

@@ -52,6 +52,9 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   protected readonly gameState = signal<GameState | 'NONE'>('NONE');
   protected readonly askedThisRound = signal<boolean>(false);
+  protected readonly currentRound = signal<number>(1);
+  protected readonly maxRounds = signal<number>(5);
+  protected readonly winnerType = signal<string | null>(null);
   protected gameId = '';
   protected playerId = '';
 
@@ -108,6 +111,9 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
           const newState = game.state;
           const oldState = this.gameState();
           this.gameState.set(newState);
+          this.currentRound.set(game.roundNumber);
+          this.maxRounds.set(game.maxRounds);
+          this.winnerType.set(game.winnerType);
 
           const currentPlayer = game.players.find((p: PublicPlayerView) => p.id === this.playerId);
           if (currentPlayer) {
