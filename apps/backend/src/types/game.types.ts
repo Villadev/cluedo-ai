@@ -109,7 +109,7 @@ export interface Player {
 }
 
 export interface ChatMessage {
-  type: 'player' | 'narrator' | 'system';
+  type: 'player' | 'narrator' | 'system' | 'clue';
   playerId?: string;
   playerName?: string;
   message: string;
@@ -245,6 +245,7 @@ export interface AIServiceCharacter {
 export interface AIServiceClue {
   type: ClueType;
   text: string;
+  isTrue: boolean;
 }
 
 export interface FullCase {

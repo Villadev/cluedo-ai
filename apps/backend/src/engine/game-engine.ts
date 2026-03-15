@@ -27,14 +27,14 @@ const MAX_PLAYERS = 17;
 const MIN_SUSPECTS = 4;
 
 export class GameEngine {
-  private onSystemEvent?: (gameId: string, message: string) => void;
+  private onSystemEvent?: (gameId: string, message: string, type?: ChatMessage['type']) => void;
 
   constructor(
     private readonly store: GameStoreService,
     private readonly aiService: AIService
   ) {}
 
-  public setSystemEventListener(listener: (gameId: string, message: string) => void): void {
+  public setSystemEventListener(listener: (gameId: string, message: string, type?: ChatMessage['type']) => void): void {
     this.onSystemEvent = listener;
   }
 
@@ -194,10 +194,10 @@ export class GameEngine {
     }
 
     game.clues = [
-      ...fullCase.clues.round1.map(c => ({ ...c, id: generateId(), isTrue: true, roundNumber: 1, createdAt: nowIso() })),
-      ...fullCase.clues.round2.map(c => ({ ...c, id: generateId(), isTrue: true, roundNumber: 2, createdAt: nowIso() })),
-      ...fullCase.clues.round3.map(c => ({ ...c, id: generateId(), isTrue: true, roundNumber: 3, createdAt: nowIso() })),
-      ...fullCase.clues.round4.map(c => ({ ...c, id: generateId(), isTrue: true, roundNumber: 4, createdAt: nowIso() }))
+      ...fullCase.clues.round1.map(c => ({ ...c, id: generateId(), roundNumber: 1, createdAt: nowIso() })),
+      ...fullCase.clues.round2.map(c => ({ ...c, id: generateId(), roundNumber: 2, createdAt: nowIso() })),
+      ...fullCase.clues.round3.map(c => ({ ...c, id: generateId(), roundNumber: 3, createdAt: nowIso() })),
+      ...fullCase.clues.round4.map(c => ({ ...c, id: generateId(), roundNumber: 4, createdAt: nowIso() }))
     ];
 
     game.state = GameStates.READY;
@@ -222,6 +222,9 @@ export class GameEngine {
     // Ensure turn index points to the first real player
     const firstRealPlayerIndex = game.players.findIndex(p => p.type === 'real');
     game.currentTurnIndex = firstRealPlayerIndex >= 0 ? firstRealPlayerIndex : 0;
+
+    // Reveal Round 1 clues
+    await this.revealCluesForRound(game, 1);
 
     this.store.save(game);
     return game;
@@ -460,7 +463,8 @@ export class GameEngine {
       .filter(c => c.roundNumber === roundNumber)
       .map(c => ({
         type: c.type,
-        text: c.text
+        text: c.text,
+        isTrue: c.isTrue
       }));
   }
 
@@ -584,23 +588,7 @@ export class GameEngine {
       }
 
       // Reveal clues for the new round
-      const cluesMapping: Record<number, string> = {
-        2: 'testimonis',
-        3: 'evidències físiques',
-        4: 'contradiccions'
-      };
-      const theme = cluesMapping[game.roundNumber];
-      if (theme) {
-        const clueMsg = `S'ha revelat una nova pista (${theme}).`;
-        this.recordTimelineEvent(game, {
-          type: 'CLUE_ROUND_REVEALED',
-          roundNumber: game.roundNumber,
-          description: `S'han revelat els ${theme} de la Ronda ${game.roundNumber}.`
-        });
-        if (this.onSystemEvent) {
-           this.onSystemEvent(game.id, clueMsg);
-        }
-      }
+      await this.revealCluesForRound(game, game.roundNumber);
 
       game.players.forEach((p) => {
         p.askedThisRound = false;
@@ -629,6 +617,39 @@ export class GameEngine {
     }
 
     game.updatedAt = nowIso();
+  }
+
+  private async revealCluesForRound(game: Game, roundNumber: number): Promise<void> {
+    const roundClues = game.clues.filter(c => c.roundNumber === roundNumber);
+    if (roundClues.length === 0) return;
+
+    console.log(`Revealing ${roundClues.length} clues for round ${roundNumber}`);
+
+    const publicStateStr = JSON.stringify(this.getPublicState(game.id));
+
+    for (const clue of roundClues) {
+      try {
+        const narrative = await this.aiService.generateClueNarration(publicStateStr, clue.text);
+
+        if (this.onSystemEvent) {
+          this.onSystemEvent(game.id, narrative, 'clue');
+        }
+
+        this.recordTimelineEvent(game, {
+          type: 'CLUE',
+          roundNumber: clue.roundNumber,
+          text: clue.text,
+          isTrue: clue.isTrue,
+          description: `Pista revelada: ${clue.text}`
+        });
+      } catch (error) {
+        console.error("Error generating clue narration:", error);
+        // Fallback to raw clue text if AI fails
+        if (this.onSystemEvent) {
+          this.onSystemEvent(game.id, clue.text, 'clue');
+        }
+      }
+    }
   }
 
   private shuffle<T>(array: T[]): T[] {

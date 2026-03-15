@@ -14,18 +14,22 @@
 
 .chat-system {
   background: #f4f4f5;
+  border-left: 4px solid #71717a;
 }
 
 .chat-clue {
   background: #eff6ff;
+  border-left: 4px solid #3b82f6;
 }
 
-.chat-player {
+.chat-player, .chat-question {
   background: #ecfdf5;
+  border-left: 4px solid #10b981;
 }
 
-.chat-master {
-  background: #fef3c7;
+.chat-narrator, .chat-response {
+  background: #fffbeb;
+  border-left: 4px solid #f59e0b;
 }
 
 .chat-input {

@@ -82,27 +82,6 @@
           }
         </p-card>
       </div>
-
-      <div class="col-12">
-        <p-panel header="Pistes Trobades" [toggleable]="true" styleClass="mt-4">
-          <div class="grid">
-            @for (clue of g.clues; track clue.id) {
-              <div class="col-12 md:col-6 lg:col-4">
-                <p-card styleClass="mb-3 h-full">
-                  <p class="m-0">{{ clue.text }}</p>
-                  <ng-template pTemplate="footer">
-                    <small class="text-500">Ronda {{ clue.roundNumber }}</small>
-                  </ng-template>
-                </p-card>
-              </div>
-            } @empty {
-              <div class="col-12">
-                <p class="text-500">Encara no s'han trobat pistes.</p>
-              </div>
-            }
-          </div>
-        </p-panel>
-      </div>
     </div>
   }
 </div>

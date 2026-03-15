@@ -30,7 +30,8 @@ const readContextFile = (absolutePath: string): string => {
 const VILLAGE_CONTEXT = readContextFile(VILLAGE_CONTEXT_PATH);
 const GAME_INSTRUCTIONS = readContextFile(INSTRUCTIONS_CONTEXT_PATH);
 
-const SYSTEM_PROMPT = `Ets el Mestre del Joc d'un Cluedo narratiu.
+const SYSTEM_PROMPT = `Ets el Mestre del Joc d'un Cluedo narratiu d'estil "social drama".
+- La teva narrativa és misteriosa, suggestiva i carregada de tensió.
 - Només generes narrativa i ambientació.
 - Sempre respon exclusivament en català.
 - Considera el context del poble i les instruccions del joc.
@@ -108,16 +109,19 @@ Regles importants per a cada personatge:
 
 Regles per a la narrativa:
 1. una narrativa inicial (introductionNarrative) que presenti el crim, la víctima i els sospitosos (entre 200 i 300 paraules).
-   CRÍTIC: Ha de mencionar la incertesa de l'hora del crim (ex: "La mort podria haver tingut lloc en algun moment entre les nou i mitja i les onze de la nit.").
-   CRÍTIC: L'introductionNarrative NO ha de revelar l'arma, ni el lloc exacte del crim, ni com va passar l'assassinat. S'ha de centrar en l'atmosfera, la víctima i les tensions.
+   CRÍTIC: NO revelis l'arma del crim, ni el lloc exacte, ni l'identitat de l'assassí.
+   CENTRA'T en la descoberta del cos, la confusió, la por, les tensions prèvies i els possibles motius dels presents.
+   Menciona la incertesa de l'hora del crim (ex: "La mort podria haver tingut lloc en algun moment entre les nou i mitja i les onze de la nit.").
 2. una narrativa final (solutionNarrative) que reveli què ha passat realment, explicant el motiu real, com es va cometre el crim (incloent l'hora exacta), com s'han interpretat malament algunes pistes i una revelació dramàtica final.
 
 Regles per a les pistes (clues):
-Has de generar pistes agrupades per rondes (entre 10 i 15 en total):
-- Round 1: rumors (alguns sobre inconsistències temporals).
-- Round 2: testimonis (witness) (alguns sobre haver vist algú a hores concretes).
-- Round 3: evidències físiques (evidence) (poden suggerir l'hora del crim).
-- Round 4: contradiccions (contradiction) (especialment sobre coartades que no quadren temporalment).
+Genera pistes progressives agrupades per rondes (entre 10 i 15 en total).
+IMPORTANT: Aproximadament un 30% de les pistes han de ser enganyoses (misleading) o incompletes, però plausibles.
+IMPORTANT: Evita dir directament el nom de l'arma o del lloc. Utilitza descripcions evocadores (ex: en comptes de "ganivet", digues "un objecte tallant habitual a la cuina").
+
+- Round 1-2: Rumors i observacions vagues. Comportaments estranys, reaccions emocionals, murmuracions sobre el passat.
+- Round 3-4: Referències indirectes a objectes o llocs. Inconsistències menors en les coartades. Informació parcial sobre moviments.
+- Round 5+: Pistes més clares sobre l'arma o el lloc (encara descriptives) i contradiccions evidents entre sospitosos.
 
 Retorna el resultat en JSON amb aquesta estructura:
 {
@@ -150,10 +154,10 @@ Retorna el resultat en JSON amb aquesta estructura:
  "introductionNarrative": "",
  "solutionNarrative": "",
  "clues": {
-    "round1": [{"type": "rumor", "text": ""}],
-    "round2": [{"type": "witness", "text": ""}],
-    "round3": [{"type": "evidence", "text": ""}],
-    "round4": [{"type": "contradiction", "text": ""}]
+    "round1": [{"type": "rumor", "text": "", "isTrue": true}],
+    "round2": [{"type": "witness", "text": "", "isTrue": true}],
+    "round3": [{"type": "evidence", "text": "", "isTrue": true}],
+    "round4": [{"type": "contradiction", "text": "", "isTrue": true}]
  }
 }`;
 
@@ -183,19 +187,18 @@ Retorna el resultat en JSON amb aquesta estructura:
   }
 
   public async respondToQuestion(publicGameState: string, question: string): Promise<string> {
-    const instruction = `Respon la pregunta del jugador amb to narratiu.
+    const instruction = `Respon la pregunta del jugador amb to misteriós i breu.
 Regles:
-- Màxim 2-3 frases.
-- Respostes clares i directes.
-- Sense storytelling innecessari.
-- Centra't en les pistes.
-- No revelis cap secret no autoritzat.
-- Respon sempre en català.`;
+- Respostes molt curtes (màxim 1-2 frases).
+- Sigues enigmàtic. Si la informació no és clara, respon amb evasives com: "Això és difícil de saber", "Algú podria haver vist alguna cosa", "Les versions no coincideixen".
+- No donis explicacions llargues.
+- Centra't en les pistes de manera indirecta.
+- Respon always en català.`;
     return this.generateNarrative({ instruction, publicGameState, question }, 150);
   }
 
   public async generateClueNarration(publicGameState: string, clueDescription: string): Promise<string> {
-    const instruction = 'Narra la descoberta de la pista amb misteri, ritme i coherència amb la història. Respon sempre en català.';
+    const instruction = 'Narra la descoberta d\'una pista o un rumor amb misteri, intriga i coherència amb la història. Utilitza descripcions en comptes de noms directes si parles de l\'arma o el lloc. Respon sempre en català.';
     return this.generateNarrative({ instruction, publicGameState, clueDescription }, 240);
   }
 

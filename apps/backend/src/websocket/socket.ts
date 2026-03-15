@@ -2,7 +2,7 @@ import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { corsOrigins } from '../config/env.js';
 import { gameEngine } from '../models/dependencies.js';
-import { Player, PublicGameView } from '../types/game.types.js';
+import { Player, PublicGameView, ChatMessage } from '../types/game.types.js';
 
 let io: Server | null = null;
 
@@ -95,20 +95,24 @@ export const emitGameStarted = (gameId: string, payload: PublicGameView): void =
   getSocketServer().to(gameId).emit('game_started', payload);
 };
 
-export const emitSystemChatMessage = (gameId: string, message: string): void => {
+export const emitSystemChatMessage = (gameId: string, message: string, type: ChatMessage['type'] = 'system'): void => {
   const timestamp = Date.now();
+  const playerName = type === 'clue' || type === 'narrator' ? 'Narrador 🕵️' : 'Sistema ⚙️';
+
   const systemMsg = {
-    type: 'system',
-    playerName: 'Sistema ⚙️',
+    type,
+    playerName,
     message,
     timestamp
   };
-  console.log(`WS_EMIT: system chat message to room ${gameId}: ${message}`);
+
+  console.log(`WS_EMIT: ${type} chat message to room ${gameId}: ${message}`);
   getSocketServer().to(gameId).emit('chat_message', systemMsg);
 
   // Also persist to chat history
   gameEngine.recordChatMessage(gameId, {
-    type: 'system',
+    type,
+    playerName,
     message,
     timestamp
   });
