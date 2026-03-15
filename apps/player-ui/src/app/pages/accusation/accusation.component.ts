@@ -9,6 +9,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ToastModule } from 'primeng/toast';
 import { InputTextModule } from 'primeng/inputtext';
+import { DropdownModule } from 'primeng/dropdown';
 import { CommonModule } from '@angular/common';
 import { TagModule } from 'primeng/tag';
 import { forkJoin } from 'rxjs';
@@ -29,6 +30,7 @@ import { SessionService } from '../../services/session.service';
     ToastModule,
     ProgressSpinnerModule,
     InputTextModule,
+    DropdownModule,
     TagModule
   ],
   providers: [ConfirmationService, MessageService],
@@ -46,13 +48,16 @@ export class AccusationComponent implements OnInit {
 
   protected readonly loading = signal(true);
   protected readonly participants = signal<Participant[]>([]);
+  protected readonly weapons = signal<string[]>([]);
+  protected readonly locations = signal<string[]>([]);
   protected readonly canAccuse = signal(false);
   protected readonly blockedReason = signal('');
   protected readonly accusationSent = signal(false);
 
   protected readonly accusationForm = this.fb.nonNullable.group({
-    weapon: ['', [Validators.required, Validators.minLength(2)]],
-    location: ['', [Validators.required, Validators.minLength(2)]]
+    suspectId: ['', [Validators.required]],
+    weapon: ['', [Validators.required]],
+    location: ['', [Validators.required]]
   });
 
   private gameId = '';
@@ -75,10 +80,16 @@ export class AccusationComponent implements OnInit {
     this.loading.set(true);
     forkJoin({
       participantsResponse: this.gameService.getParticipants(this.gameId),
-      gameResponse: this.gameService.getGame(this.gameId, this.playerId)
+      gameResponse: this.gameService.getGame(this.gameId, this.playerId),
+      optionsResponse: this.gameService.getOptions(this.gameId)
     }).subscribe({
-      next: ({ participantsResponse, gameResponse }) => {
+      next: ({ participantsResponse, gameResponse, optionsResponse }) => {
         this.loading.set(false);
+
+        if (optionsResponse.success && optionsResponse.data) {
+          this.weapons.set(optionsResponse.data.weapons);
+          this.locations.set(optionsResponse.data.locations);
+        }
 
         if (!participantsResponse.success || !participantsResponse.data) {
           this.blockedReason.set(participantsResponse.error ?? 'No s’han pogut carregar els participants.');
@@ -127,39 +138,54 @@ export class AccusationComponent implements OnInit {
     });
   }
 
-  protected confirmAccusation(participant: Participant): void {
+  protected confirmAccusation(): void {
     if (!this.canAccuse() || this.accusationSent() || this.accusationForm.invalid) {
+      if (this.accusationForm.invalid) {
+        this.messageService.add({ severity: 'warn', summary: 'Atenció', detail: 'Has de seleccionar sospitós, arma i lloc.' });
+      }
       this.accusationForm.markAllAsTouched();
       return;
     }
 
-    const characterName = participant.character?.name || participant.nickname;
+    const { suspectId, weapon, location } = this.accusationForm.getRawValue();
+    const suspect = this.participants().find(p => p.id === suspectId);
+    const characterName = suspect?.character?.name || suspect?.nickname || 'algú';
 
     this.confirmationService.confirm({
-      message: `Estàs segur que vols acusar a ${characterName} amb l'arma ${this.accusationForm.value.weapon} a ${this.accusationForm.value.location}?`,
+      message: `Estàs segur que vols acusar a ${characterName} amb l'arma ${weapon} a ${location}?`,
       header: 'Confirmar acusació',
       icon: 'pi pi-exclamation-triangle',
       acceptLabel: 'Confirmar',
       rejectLabel: 'Cancel·lar',
       accept: () => {
-        this.sendAccusation(participant.id);
+        this.sendAccusation();
       }
     });
   }
 
-  private sendAccusation(accusedId: string): void {
-    const { weapon, location } = this.accusationForm.getRawValue();
+  private sendAccusation(): void {
+    const { suspectId, weapon, location } = this.accusationForm.getRawValue();
 
-    this.gameService.accuse(this.gameId, this.playerId, accusedId, weapon, location).subscribe({
+    this.gameService.accuse(this.gameId, this.playerId, suspectId, weapon, location).subscribe({
       next: (response) => {
-        if (!response.success) {
+        if (!response.success || !response.data) {
           this.messageService.add({ severity: 'error', summary: 'Error', detail: response.error ?? 'No s’ha pogut enviar l’acusació.' });
           return;
         }
 
         this.accusationSent.set(true);
         this.canAccuse.set(false);
-        this.messageService.add({ severity: 'success', summary: 'Acusació enviada', detail: 'La teva acusació s’ha registrat correctament.' });
+
+        if (response.data.correct) {
+          this.messageService.add({ severity: 'success', summary: 'Has resolt el misteri', detail: 'Enhorabona! Has trobat l’assassí.' });
+        } else {
+          this.messageService.add({
+            severity: 'error',
+            summary: 'Acusació incorrecta',
+            detail: `No podràs tornar a acusar durant ${response.data.penaltyRounds} rondes.`
+          });
+        }
+
         this.refreshData();
       },
       error: () => {

@@ -1,3 +1,4 @@
+import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 import { AIService } from '../services/AIService.js';
 import { GameStoreService } from '../services/game-store.service.js';
 import { errorLogger } from '../utils/error-logger.js';
@@ -307,10 +308,10 @@ export class GameEngine {
     const accusedPlayer = this.getPlayerOrThrow(game, input.accusedPlayerId);
     const accusedCharacter = game.characters.find(c => c.id === accusedPlayer.characterId);
 
-    const isCorrect =
+        const isCorrect =
       accusedCharacter?.id === game.assassinCharacterId &&
-      input.weapon.toLowerCase().includes(game.murder?.weapon.toLowerCase() || '') &&
-      input.location.toLowerCase().includes(game.murder?.location.toLowerCase() || '');
+      input.weapon === game.murder?.weapon &&
+      input.location === game.murder?.location;
 
     player.hasAccused = true;
     player.accusedThisRound = true;
@@ -405,6 +406,14 @@ export class GameEngine {
       winnerPlayerId: game.winnerPlayerId,
       createdAt: game.createdAt,
       updatedAt: game.updatedAt
+    };
+  }
+
+
+  public getOptions(_gameId: string): { weapons: string[], locations: string[] } {
+    return {
+      weapons: WEAPONS,
+      locations: LOCATIONS
     };
   }
 

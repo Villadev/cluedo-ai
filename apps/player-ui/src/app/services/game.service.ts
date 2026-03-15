@@ -108,7 +108,7 @@ export class GameService implements OnDestroy {
   }
 
   logTimelineEvent(gameId: string, type: string, description: string): Observable<ApiResponse<unknown>> {
-    return this.http.post<ApiResponse<unknown>>(`${this.baseUrl}/game/${gameId}/timeline/log`, { type, description });
+    return this.http.post<ApiResponse<{ correct: boolean, penaltyRounds: number, game: PublicGameView }>>(`${this.baseUrl}/game/${gameId}/timeline/log`, { type, description });
   }
 
   getParticipants(gameId: string): Observable<ApiResponse<PublicPlayerView[]>> {
@@ -131,14 +131,20 @@ export class GameService implements OnDestroy {
     return this.http.get<ApiResponse<GameStateInfo>>(`${this.baseUrl}/game/${gameId}/state`);
   }
 
+  getOptions(gameId: string): Observable<ApiResponse<{ weapons: string[], locations: string[] }>> {
+    return this.http.get<ApiResponse<{ weapons: string[], locations: string[] }>>(`${this.baseUrl}/game/${gameId}/options`);
+  }
+
   getChatHistory(gameId: string): Observable<ApiResponse<ChatHistoryMessage[]>> {
     return this.http.get<ApiResponse<ChatHistoryMessage[]>>(`${this.baseUrl}/game/${gameId}/chat`);
   }
 
+  // Deprecated: use getOptions instead
   getPossibleWeapons(): string[] {
     return ['Canelobre', 'Ganivet', 'Tubería de plom', 'Revòlver', 'Corda', 'Clau anglesa', 'Verí', 'Trofeu', 'Destral'];
   }
 
+  // Deprecated: use getOptions instead
   getPossibleLocations(): string[] {
     return [
       'Catalunya en Miniatura',
@@ -170,13 +176,13 @@ export class GameService implements OnDestroy {
       );
   }
 
-  accuse(gameId: string, playerId: string, accusedId: string, weapon: string, location: string): Observable<ApiResponse<unknown>> {
+  accuse(gameId: string, playerId: string, accusedId: string, weapon: string, location: string): Observable<ApiResponse<{ correct: boolean, penaltyRounds: number, game: PublicGameView }>> {
     const payload: AccusationPayload = {
       playerId,
       accusedPlayerId: accusedId,
       weapon,
       location
     };
-    return this.http.post<ApiResponse<unknown>>(`${this.baseUrl}/game/${gameId}/accuse`, payload);
+    return this.http.post<ApiResponse<{ correct: boolean, penaltyRounds: number, game: PublicGameView }>>(`${this.baseUrl}/game/${gameId}/accuse`, payload);
   }
 }

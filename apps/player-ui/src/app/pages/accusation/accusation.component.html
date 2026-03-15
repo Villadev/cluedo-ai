@@ -3,7 +3,7 @@
 
 <section class="accusation-page p-4">
   <p-card header="Acusació Final">
-    <p class="mb-4">Per fer una acusació, has de seleccionar un sospitós i indicar l'arma i el lloc del crim.</p>
+    <p class="mb-4">Per fer una acusació, has de seleccionar un sospitós, l'arma i el lloc del crim.</p>
 
     @if (loading()) {
       <div class="flex justify-content-center p-4">
@@ -17,52 +17,93 @@
       }
 
       <form [formGroup]="accusationForm" class="grid mb-4">
-        <div class="col-12 md:col-6 flex flex-column gap-2">
+        <!-- Selecció de Sospitós -->
+        <div class="col-12 md:col-4 flex flex-column gap-2">
+          <label for="suspect" class="font-bold">Sospitós</label>
+          <p-dropdown
+            id="suspect"
+            formControlName="suspectId"
+            [options]="participants()"
+            optionLabel="character.name"
+            optionValue="id"
+            placeholder="Selecciona sospitós"
+            styleClass="w-full"
+            [emptyMessage]="'No hi ha sospitosos disponibles'"
+          >
+            <ng-template pTemplate="selectedItem" let-selectedOption>
+                @if (selectedOption) {
+                    <div class="flex align-items-center gap-2">
+                        <span>{{ selectedOption.character?.name || selectedOption.nickname }}</span>
+                    </div>
+                }
+            </ng-template>
+            <ng-template let-participant pTemplate="item">
+              <div class="flex align-items-center gap-2">
+                <span>{{ participant.character?.name || participant.nickname }}</span>
+              </div>
+            </ng-template>
+          </p-dropdown>
+          @if (accusationForm.controls.suspectId.touched && accusationForm.controls.suspectId.invalid) {
+            <small class="text-red-500">Has de seleccionar un sospitós.</small>
+          }
+        </div>
+
+        <!-- Selecció d'Arma -->
+        <div class="col-12 md:col-4 flex flex-column gap-2">
           <label for="weapon" class="font-bold">Arma del crim</label>
-          <input pInputText id="weapon" formControlName="weapon" placeholder="Ex: Ganivet, Corda..." />
+          <p-dropdown
+            id="weapon"
+            formControlName="weapon"
+            [options]="weapons()"
+            placeholder="Selecciona arma"
+            styleClass="w-full"
+          ></p-dropdown>
           @if (accusationForm.controls.weapon.touched && accusationForm.controls.weapon.invalid) {
             <small class="text-red-500">L'arma és obligatòria.</small>
           }
         </div>
-        <div class="col-12 md:col-6 flex flex-column gap-2">
+
+        <!-- Selecció de Lloc -->
+        <div class="col-12 md:col-4 flex flex-column gap-2">
           <label for="location" class="font-bold">Lloc del crim</label>
-          <input pInputText id="location" formControlName="location" placeholder="Ex: Biblioteca, Cuina..." />
+          <p-dropdown
+            id="location"
+            formControlName="location"
+            [options]="locations()"
+            placeholder="Selecciona lloc"
+            styleClass="w-full"
+          ></p-dropdown>
           @if (accusationForm.controls.location.touched && accusationForm.controls.location.invalid) {
             <small class="text-red-500">El lloc és obligatori.</small>
           }
         </div>
+
+        <div class="col-12 mt-4 flex justify-content-center">
+            <button
+                pButton
+                type="button"
+                label="Realitzar Acusació"
+                icon="pi pi-gavel"
+                class="p-button-lg p-button-danger w-full md:w-30rem"
+                [disabled]="!canAccuse() || accusationSent() || accusationForm.invalid"
+                (click)="confirmAccusation()"
+            ></button>
+        </div>
       </form>
 
-      <div class="grid">
+      <div class="grid opacity-60">
+        <div class="col-12">
+            <h4 class="mb-3">Sospitosos a la partida</h4>
+        </div>
         @for (participant of participants(); track participant.id) {
-          <div class="col-12 md:col-6 lg:col-4 mb-3">
-            <p-card>
-              <div class="flex flex-column align-items-center text-center gap-3">
-                <div class="relative">
-                   <p-avatar [label]="(participant.character?.name || participant.nickname).charAt(0)" shape="circle" size="xlarge"></p-avatar>
+          <div class="col-6 md:col-4 lg:col-2 mb-3">
+            <div class="flex flex-column align-items-center text-center gap-2 border-1 border-200 p-3 border-round bg-white">
+                <p-avatar [label]="(participant.character?.name || participant.nickname).charAt(0)" shape="circle" size="large"></p-avatar>
+                <div>
+                  <div class="font-bold text-sm">{{ participant.character?.name || 'Sospitós' }}</div>
+                  <div class="text-xs text-500">{{ participant.character?.profession }}</div>
                 </div>
-
-                <div class="mt-2">
-                  <h3 class="m-0">{{ participant.character?.name || 'Sospitós' }}</h3>
-                  <p class="text-500 text-sm">({{ participant.nickname }})</p>
-                  @if (participant.character) {
-                    <p class="mt-2 text-sm">{{ participant.character.profession }}</p>
-                  }
-                </div>
-              </div>
-
-              <ng-template pTemplate="footer">
-                <button
-                  pButton
-                  type="button"
-                  label="Acusar"
-                  icon="pi pi-user-minus"
-                  class="w-full"
-                  [disabled]="!canAccuse() || accusationSent() || accusationForm.invalid"
-                  (click)="confirmAccusation(participant)"
-                ></button>
-              </ng-template>
-            </p-card>
+            </div>
           </div>
         }
       </div>

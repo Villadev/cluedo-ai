@@ -140,12 +140,28 @@ export class GameController {
     // WS Emit
     emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
 
-    res.status(200).json(successResponse(gameEngine.getPublicState(game.id, parsed.playerId)));
+    const currentPlayer = game.players.find(p => p.id === parsed.playerId);
+    const isCorrect = game.winnerPlayerId === parsed.playerId;
+
+    res.status(200).json(successResponse({
+      correct: isCorrect,
+      penaltyRounds: isCorrect ? 0 : 2,
+      game: gameEngine.getPublicState(game.id, parsed.playerId)
+    }));
   }
 
   /**
    * Retorna l'estat actual de la partida.
    */
+
+  /**
+   * Retorna les opcions d'armes i llocs per a l'acusació.
+   */
+  public async getOptions(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    res.status(200).json(successResponse(gameEngine.getOptions(gameId)));
+  }
+
   public async getGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const requesterPlayerId = typeof req.query.playerId === 'string' ? req.query.playerId : undefined;

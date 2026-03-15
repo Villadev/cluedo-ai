@@ -3,6 +3,7 @@ import path from 'node:path';
 import { openaiClient } from '../config/openai.js';
 import { errorLogger } from '../utils/error-logger.js';
 import { FullCase } from '../types/game.types.js';
+import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 
 const resolveContextPath = (fileName: string): string => {
   const candidatePaths = [
@@ -64,9 +65,15 @@ Crea:
 - diversos personatges sospitosos
 - una víctima
 - un assassí (que ha de ser un dels personatges)
-- una arma del crim
-- un lloc on ha passat el crim
+- una arma del crim (triada EXCLUSIVAMENT de la llista d'armes permeses)
+- un lloc on ha passat el crim (triat EXCLUSIVAMENT de la llista de llocs permesos)
 - una finestra temporal pel crim (crimeWindow) amb format HH:MM (ex: "21:30" a "23:00").
+
+Llista d'armes permeses (weapon):
+${WEAPONS.join(', ')}
+
+Llista de llocs permesos (location):
+${LOCATIONS.join(', ')}
 
 Cada personatge ha de tenir:
 - nom fictici

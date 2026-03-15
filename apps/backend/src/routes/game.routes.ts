@@ -338,6 +338,27 @@ gameRouter.post('/:id/timeline/log', asyncHandler((req: Request, res: Response) 
  *       200:
  *         description: Dades de depuració obtingudes.
  */
+
+/**
+ * @openapi
+ * /game/{id}/options:
+ *   get:
+ *     summary: Obtenir opcions d'acusació
+ *     description: Retorna les llistes d'armes i llocs vàlids per a la partida.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Llistes d'armes i llocs.
+ */
+gameRouter.get('/:id/options', asyncHandler((req: Request, res: Response) => controller.getOptions(req, res)));
+
 gameRouter.get('/:id/debug', asyncHandler((req: Request, res: Response) => controller.debug(req, res)));
 
 /**
