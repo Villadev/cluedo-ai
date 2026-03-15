@@ -48,7 +48,8 @@ export class ChatService implements OnDestroy {
           const typeMap: Record<string, ChatMessageType> = {
             'player': 'question',
             'narrator': 'response',
-            'system': 'system'
+            'system': 'system',
+            'clue': 'clue'
           };
 
           return {
@@ -108,6 +109,7 @@ export class ChatService implements OnDestroy {
       'response': 'response',
       'clue': 'clue',
       'system': 'system',
+      'narrator': 'response',
       'chat': 'question' // If type is 'chat', it's usually a player question
     };
 

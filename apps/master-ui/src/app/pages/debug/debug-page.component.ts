@@ -81,9 +81,6 @@ import { AccordionModule } from 'primeng/accordion';
           <p-accordionTab header="Personatges">
             <pre class="bg-gray-900 text-white p-3 border-round overflow-auto" style="max-height: 400px"><code>{{ data.characters | json }}</code></pre>
           </p-accordionTab>
-          <p-accordionTab header="Pistes">
-            <pre class="bg-gray-900 text-white p-3 border-round overflow-auto" style="max-height: 400px"><code>{{ data.clues | json }}</code></pre>
-          </p-accordionTab>
         </p-accordion>
       </div>
     </div>
