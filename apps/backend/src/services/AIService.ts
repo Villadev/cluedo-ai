@@ -103,14 +103,16 @@ Regles per a la coartada (coartada):
 
 Regles importants per a cada personatge:
 - cada personatge rep una secretKnowledge diferent.
-- la secretKnowledge pot revelar informació parcial peró mai directament qui és l'assassí.
+- la secretKnowledge pot revelar informació parcial peró never directament qui és l'assassí.
 - els personatges s'han de conèixer entre ells.
 - diversos personatges han de tenir conflictes amb la víctima.
 
 Regles per a la narrativa:
 1. una narrativa inicial (introductionNarrative) que presenti el crim, la víctima i els sospitosos (entre 200 i 300 paraules).
-   CRÍTIC: NO revelis l'arma del crim, ni el lloc exacte, ni l'identitat de l'assassí.
-   CENTRA'T en la descoberta del cos, la confusió, la por, les tensions prèvies i els possibles motius dels presents.
+   REGLA D'OR: L'introducció NO ha de revelar l'arma, ni el lloc exacte (nom o descripció), ni la identitat de l'assassí.
+   REGLA D'OR: No mencionis MAI llocs específics del poble (ex: "celler", "cuina", "jardí", o noms de la llista de llocs).
+   REGLA D'OR: Evita pistes indirectes sobre el lloc (ex: si el lloc és un celler, no parlis d'ampolles; si és l'església, no parlis de campanes; si és el Carrer Major, no parlis d'asfalt o botigues).
+   CENTRA'T EXCLUSIVAMENT en la descoberta del cos, la commoció, les relacions tenses entre els personatges i l'ambient de sospita general.
    Menciona la incertesa de l'hora del crim (ex: "La mort podria haver tingut lloc en algun moment entre les nou i mitja i les onze de la nit.").
 2. una narrativa final (solutionNarrative) que reveli què ha passat realment, explicant el motiu real, com es va cometre el crim (incloent l'hora exacta), com s'han interpretat malament algunes pistes i una revelació dramàtica final.
 
@@ -164,26 +166,73 @@ Retorna el resultat en JSON amb aquesta estructura:
     try {
       console.log("[OPENAI] Sending request for full case");
 
-      const completion = await openaiClient.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: instruction }
-        ],
-        response_format: { type: "json_object" }
-      });
+      let fullCase: FullCase | null = null;
+      let attempts = 0;
+      const maxAttempts = 3;
 
-      const responseText = completion.choices[0]?.message.content;
-      if (!responseText) {
-        throw new Error('Resposta buida del model');
+      while (attempts < maxAttempts) {
+        attempts++;
+        const completion = await openaiClient.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: instruction }
+          ],
+          response_format: { type: "json_object" }
+        });
+
+        const responseText = completion.choices[0]?.message.content;
+        if (!responseText) {
+          throw new Error('Resposta buida del model');
+        }
+
+        fullCase = JSON.parse(responseText) as FullCase;
+
+        if (this.isValidIntro(fullCase.introductionNarrative, fullCase.weapon, fullCase.location)) {
+          console.log(`[OPENAI] Case generated successfully on attempt ${attempts}`);
+          return fullCase;
+        }
+
+        console.warn(`[OPENAI] Intro validation failed (attempt ${attempts}). Location or weapon mentioned in introduction. Regenerating...`);
       }
 
-      return JSON.parse(responseText) as FullCase;
+      return fullCase!;
     } catch (error: any) {
       console.error("[OPENAI ERROR]", error.message || error);
       errorLogger.push("OPENAI", error);
       throw new Error('Error en generar el cas. Servei narratiu no disponible temporalment.');
     }
+  }
+
+  private isValidIntro(intro: string, weapon: string, location: string): boolean {
+    const lowerIntro = intro.toLowerCase();
+
+    // Check for the specific weapon and location chosen for this case
+    if (lowerIntro.includes(weapon.toLowerCase())) return false;
+    if (lowerIntro.includes(location.toLowerCase())) return false;
+
+    // Common mystery location keywords that should not appear in introduction
+    const genericForbidden = [
+      'celler', 'cuina', 'jardí', 'habitació', 'sala', 'garatge', 'biblioteca', 'bany', 'golfes', 'terrassa', 'menjador'
+    ];
+
+    for (const word of genericForbidden) {
+      if (lowerIntro.includes(word)) return false;
+    }
+
+    // Check for any possible location or weapon from the allowed list
+    const forbiddenKeywords = [
+      ...WEAPONS.map(w => w.toLowerCase()),
+      ...LOCATIONS.map(l => l.toLowerCase())
+    ];
+
+    for (const keyword of forbiddenKeywords) {
+      if (keyword.length >= 4 && lowerIntro.includes(keyword)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   public async respondToQuestion(publicGameState: string, question: string): Promise<string> {
