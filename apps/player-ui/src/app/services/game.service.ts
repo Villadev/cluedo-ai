@@ -5,6 +5,7 @@ import { PublicGameView, PublicPlayerView, GameStateInfo, GameState } from '../m
 import { SessionService } from './session.service';
 import { WebSocketService } from './websocket.service';
 import { SocketGameEvent } from '../models/chat.models';
+import { GameStateService } from './game-state.service';
 
 export interface GameSession {
   gameId: string;
@@ -54,21 +55,23 @@ export class GameService implements OnDestroy {
   private readonly http = inject(HttpClient);
   private readonly sessionService = inject(SessionService);
   private readonly websocketService = inject(WebSocketService);
+  private readonly gameStateService = inject(GameStateService);
   private readonly baseUrl = 'https://backend-veq8.onrender.com';
   private readonly subscriptions = new Subscription();
 
   private readonly sessionSubject = new BehaviorSubject<GameSession | null>(null);
   readonly session$ = this.sessionSubject.asObservable();
 
-  private readonly gameStateSubject = new BehaviorSubject<GameState | 'NONE'>('NONE');
-  readonly gameState$ = this.gameStateSubject.asObservable();
-
   constructor() {
     this.subscriptions.add(
       this.websocketService.events$.subscribe((event: SocketGameEvent) => {
         if (event.event === 'game_state' || event.event === 'game_state_updated') {
           if (event.payload && typeof event.payload === 'object' && 'state' in event.payload) {
-            this.gameStateSubject.next(event.payload.state as GameState);
+            this.gameStateService.setState(event.payload.state as GameState);
+          }
+        } else if (event.event === 'game_state_update') {
+          if (event.payload && typeof event.payload === 'object' && 'status' in event.payload) {
+            this.gameStateService.setState(event.payload.status as GameState);
           }
         }
       })

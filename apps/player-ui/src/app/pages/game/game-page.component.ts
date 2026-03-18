@@ -1,8 +1,8 @@
 import { AsyncPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, inject, signal, ViewChild, ElementRef, AfterViewChecked, effect } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subscription, timer, switchMap, filter, tap } from 'rxjs';
+import { Subscription, tap } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { InputTextareaModule } from 'primeng/inputtextarea';
@@ -13,7 +13,7 @@ import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
 import { WebSocketService } from '../../services/websocket.service';
 import { GameState, PublicPlayerView } from '../../models/player.model';
-import { GameStatusIndicatorComponent } from '../../components/game-status-indicator/game-status-indicator.component';
+import { GameStateService } from '../../services/game-state.service';
 
 @Component({
   selector: 'app-game-page',
@@ -25,8 +25,7 @@ import { GameStatusIndicatorComponent } from '../../components/game-status-indic
     CardModule,
     InputTextareaModule,
     ButtonModule,
-    ProgressSpinnerModule,
-    GameStatusIndicatorComponent
+    ProgressSpinnerModule
   ],
   templateUrl: './game-page.component.html',
   styleUrl: './game-page.component.scss',
@@ -42,6 +41,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   private readonly chatService = inject(ChatService);
   private readonly gameService = inject(GameService);
   private readonly sessionService = inject(SessionService);
+  private readonly gameStateService = inject(GameStateService);
   protected readonly ttsService = inject(TtsService);
   private readonly subscriptions = new Subscription();
 
@@ -52,7 +52,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   protected readonly reconnecting$ = this.websocketService.reconnecting$;
   protected readonly canAskQuestion$ = this.chatService.canAskQuestion$;
 
-  protected readonly gameState = signal<GameState | 'NONE'>('NONE');
+  protected readonly gameState = this.gameStateService.state;
   protected readonly askedThisRound = signal<boolean>(false);
   protected readonly currentRound = signal<number>(1);
   protected readonly maxRounds = signal<number>(5);
@@ -65,6 +65,18 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   protected readonly questionForm = this.formBuilder.nonNullable.group({
     question: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(1000)]]
   });
+
+  constructor() {
+    effect(() => {
+      const newState = this.gameState();
+      if (newState === 'PLAYING') {
+        const hasSeenIntro = sessionStorage.getItem(`intro_seen_${this.gameId}`);
+        if (!hasSeenIntro) {
+          void this.router.navigate(['/game', this.gameId, 'introduction']);
+        }
+      }
+    });
+  }
 
   ngOnInit(): void {
     const routeGameId = this.route.snapshot.paramMap.get('gameId') ?? '';
@@ -85,8 +97,28 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.chatService.loadHistory(this.gameId);
       this.websocketService.connect(this.gameId, this.playerId || undefined);
 
-      this.startPolling();
+      // We still need one initial fetch to get current round, maxRounds, etc.
+      this.fetchInitialGameData();
     }
+  }
+
+  private fetchInitialGameData(): void {
+    this.subscriptions.add(
+      this.gameService.getGame(this.gameId, this.playerId).subscribe(response => {
+        if (response.success && response.data) {
+          const game = response.data;
+          this.gameStateService.setState(game.state);
+          this.currentRound.set(game.roundNumber);
+          this.maxRounds.set(game.maxRounds);
+          this.winnerType.set(game.winnerType);
+
+          const currentPlayer = game.players.find((p: PublicPlayerView) => p.id === this.playerId);
+          if (currentPlayer) {
+            this.askedThisRound.set(currentPlayer.askedThisRound || currentPlayer.accusedThisRound);
+          }
+        }
+      })
+    );
   }
 
   ngAfterViewChecked(): void {
@@ -100,37 +132,6 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.unsubscribe();
     this.websocketService.disconnect();
     this.ttsService.stop();
-  }
-
-  private startPolling(): void {
-    this.subscriptions.add(
-      timer(0, 5000)
-        .pipe(
-          switchMap(() => this.gameService.getGame(this.gameId, this.playerId)),
-          filter(response => response.success && !!response.data)
-        )
-        .subscribe(response => {
-          const game = response.data!;
-          const newState = game.state;
-          const oldState = this.gameState();
-          this.gameState.set(newState);
-          this.currentRound.set(game.roundNumber);
-          this.maxRounds.set(game.maxRounds);
-          this.winnerType.set(game.winnerType);
-
-          const currentPlayer = game.players.find((p: PublicPlayerView) => p.id === this.playerId);
-          if (currentPlayer) {
-            this.askedThisRound.set(currentPlayer.askedThisRound || currentPlayer.accusedThisRound);
-          }
-
-          if (newState === 'PLAYING' && oldState !== 'PLAYING') {
-            const hasSeenIntro = sessionStorage.getItem(`intro_seen_${this.gameId}`);
-            if (!hasSeenIntro) {
-              void this.router.navigate(['/game', this.gameId, 'introduction']);
-            }
-          }
-        })
-    );
   }
 
   protected onSendQuestion(): void {

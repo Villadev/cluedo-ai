@@ -11,7 +11,11 @@
 
   <div class="layout-topbar-title">{{ appTitle }}</div>
 
-  <div class="layout-topbar-actions">
+  <div class="layout-topbar-actions flex align-items-center gap-3">
+    @if (gameId()) {
+      <app-game-status-indicator [gameId]="gameId()!"></app-game-status-indicator>
+    }
+
     <button
       pButton
       pRipple

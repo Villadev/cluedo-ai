@@ -1,6 +1,6 @@
 import { Role, type Player as PlayerType } from '../../shared/types';
 import { db } from '../../database/in-memory.js';
-import { emitGameStateUpdated, emitPlayerJoined } from '../../websocket/socket.js';
+import { emitGameStateUpdate, emitPlayerJoined } from '../../websocket/socket.js';
 import { GameService } from '../game/game.service.js';
 
 const MAX_PLAYERS = 15;
@@ -42,7 +42,7 @@ export class PlayerService {
     emitPlayerJoined(MAIN_GAME_ID, mappedPlayer as any);
 
     const state = await this.gameService.getState();
-    emitGameStateUpdated(MAIN_GAME_ID, state as any);
+    emitGameStateUpdate(MAIN_GAME_ID, state as any);
 
     return mappedPlayer;
   }

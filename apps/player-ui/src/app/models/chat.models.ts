@@ -12,6 +12,7 @@ export type SocketGameEventName =
   | 'chat_message'
   | 'round_state'
   | 'game_state'
+  | 'game_state_update'
   | 'clue'
   | 'system_event'
   | 'connected'
