@@ -11,6 +11,7 @@ import { ChatService } from '../../services/chat.service';
 import { TtsService } from '../../services/tts.service';
 import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
+import { GameStatusIndicatorComponent } from '../../components/game-status-indicator/game-status-indicator.component';
 import { WebSocketService } from '../../services/websocket.service';
 import { GameState, PublicPlayerView } from '../../models/player.model';
 import { GameStateService } from '../../services/game-state.service';
@@ -23,6 +24,7 @@ import { GameStateService } from '../../services/game-state.service';
     AsyncPipe,
     DatePipe,
     CardModule,
+    GameStatusIndicatorComponent,
     InputTextareaModule,
     ButtonModule,
     ProgressSpinnerModule
