@@ -23,7 +23,7 @@ export class GameStatusIndicatorComponent {
     PLAYING: { label: 'En joc', color: '#4caf50' },
     STARTED: { label: 'En joc', color: '#4caf50' },
     FINISHED: { label: 'Partida finalitzada', color: '#f44336' },
-    NONE: { label: 'Sessió invàlida o sense partida', color: '#9e9e9e' }
+    NONE: { label: 'Sense partida activa', color: '#9e9e9e' }
   };
 
   protected readonly status = computed(() => {

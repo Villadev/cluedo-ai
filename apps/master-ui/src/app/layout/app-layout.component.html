@@ -14,7 +14,7 @@
         [showCloseIcon]="false"
         styleClass="layout-mobile-sidebar"
         [visible]="menuService.mobileMenuVisible()"
-        (visibleChange)="menuService.mobileMenuVisible.set($event)"
+        (visibleChange)="menuService.mobileMenuVisible.set()"
       >
         <ui-sidebar [menuItems]="menuItems" (menuItemClick)="closeMobileMenu()"></ui-sidebar>
       </p-sidebar>

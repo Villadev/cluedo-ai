@@ -2,7 +2,7 @@ import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { corsOrigins } from '../config/env.js';
 import { gameEngine } from '../models/dependencies.js';
-import { Player, PublicGameView, ChatMessage } from '../types/game.types.js';
+import { Player, PublicGameView, ChatMessage, GameState } from '../types/game.types.js';
 
 let io: Server | null = null;
 
@@ -22,6 +22,18 @@ export const initSocket = (httpServer: HttpServer): Server => {
     if (gameId && typeof gameId === 'string') {
       socket.join(gameId);
       console.log(`Socket ${socket.id} joined room ${gameId}`);
+
+      try {
+        const gameInfo = gameEngine.getGameStateInfo(gameId);
+        socket.emit('game_state_update', {
+          gameId,
+          status: gameInfo.state
+        });
+      } catch (error) {
+        // This might fail if gameId is for the other 'MAIN_GAME' logic,
+        // but we prioritize the new GameEngine logic.
+        console.error('Error emitting initial state:', error);
+      }
     }
 
     socket.emit('connected', { message: 'Connected to Cluedo AI websocket server' });
@@ -33,8 +45,6 @@ export const initSocket = (httpServer: HttpServer): Server => {
           playerId: payload.playerId,
           question: payload.message
         });
-
-        // The question and response are already recorded in chat history by gameEngine.askQuestion
 
         // Broadcast the question and response to all players in the game
         const chatMsg = {
@@ -57,7 +67,7 @@ export const initSocket = (httpServer: HttpServer): Server => {
         io?.to(payload.gameId).emit('chat_message', responseMsg);
 
         // Also update game state for everyone
-        emitGameStateUpdated(payload.gameId, gameEngine.getPublicState(payload.gameId));
+        emitGameStateUpdate(payload.gameId, result.game.state);
 
       } catch (error: any) {
         console.error('WS_ERROR processing question:', error);
@@ -85,12 +95,14 @@ export const emitPlayerJoined = (gameId: string, player: Player): void => {
   getSocketServer().to(gameId).emit('player_joined', player);
 };
 
-export const emitGameStateUpdated = (gameId: string, payload: PublicGameView): void => {
-  console.log(`WS_EMIT: game_state_updated to room ${gameId}`);
-  getSocketServer().to(gameId).emit('game_state_updated', payload);
+export const emitGameStateUpdate = (gameId: string, status: GameState | any): void => {
+  console.log(`WS_EMIT: game_state_update to room ${gameId}: ${status}`);
+  // Handle both GameState and GameStatePayload for compatibility
+  const finalStatus = typeof status === 'string' ? status : status?.game?.status;
+  getSocketServer().to(gameId).emit('game_state_update', { gameId, status: finalStatus });
 };
 
-export const emitGameStarted = (gameId: string, payload: PublicGameView): void => {
+export const emitGameStarted = (gameId: string, payload: PublicGameView | any): void => {
   console.log(`WS_EMIT: game_started to room ${gameId}`);
   getSocketServer().to(gameId).emit('game_started', payload);
 };
@@ -110,12 +122,16 @@ export const emitSystemChatMessage = (gameId: string, message: string, type: Cha
   getSocketServer().to(gameId).emit('chat_message', systemMsg);
 
   // Also persist to chat history
-  gameEngine.recordChatMessage(gameId, {
-    type,
-    playerName,
-    message,
-    timestamp
-  });
+  try {
+    gameEngine.recordChatMessage(gameId, {
+      type,
+      playerName,
+      message,
+      timestamp
+    });
+  } catch (e) {
+    // Might fail for 'MAIN_GAME' which doesn't exist in gameEngine
+  }
 };
 
 // Legacy support for shared module

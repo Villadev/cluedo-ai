@@ -1,16 +1,11 @@
-import type { Request, Response } from 'express';
+import { Request, Response } from 'express';
 import { z } from 'zod';
 import { gameEngine } from '../models/dependencies.js';
 import { successResponse } from '../utils/api-response.js';
-import {
-  emitGameStateUpdated,
-  emitPlayerJoined,
-  emitGameStarted,
-  emitSystemChatMessage
-} from '../websocket/socket.js';
+import { emitGameStateUpdate, emitPlayerJoined, emitGameStarted, emitSystemChatMessage } from '../websocket/socket.js';
 
 const createSchema = z.object({
-  maxRounds: z.number().int().positive().optional().default(5)
+  maxRounds: z.number().int().min(1).max(20).optional().default(5)
 });
 
 const joinSchema = z.object({
@@ -19,7 +14,7 @@ const joinSchema = z.object({
 
 const askSchema = z.object({
   playerId: z.string().uuid(),
-  question: z.string().trim().min(3).max(500)
+  question: z.string().trim().min(3).max(1000)
 });
 
 const accusationSchema = z.object({
@@ -80,7 +75,7 @@ export class GameController {
     if (player) {
       emitPlayerJoined(gameId, player);
     }
-    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+    emitGameStateUpdate(gameId, game.state);
 
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
@@ -95,7 +90,7 @@ export class GameController {
     // WS Emit
     const state = gameEngine.getPublicState(game.id);
     emitGameStarted(gameId, state);
-    emitGameStateUpdated(gameId, state);
+    emitGameStateUpdate(gameId, game.state);
     emitSystemChatMessage(gameId, 'La partida ha començat.');
 
     res.status(200).json(successResponse(state));
@@ -109,7 +104,7 @@ export class GameController {
     const game = await gameEngine.startPlaying(gameId);
 
     // WS Emit
-    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+    emitGameStateUpdate(gameId, game.state);
 
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
@@ -143,7 +138,7 @@ export class GameController {
     }
 
     // WS Emit
-    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+    emitGameStateUpdate(gameId, game.state);
 
     const currentPlayer = game.players.find(p => p.id === parsed.playerId);
     const isCorrect = game.winnerPlayerId === parsed.playerId;
@@ -154,10 +149,6 @@ export class GameController {
       game: gameEngine.getPublicState(game.id, parsed.playerId)
     }));
   }
-
-  /**
-   * Retorna l'estat actual de la partida.
-   */
 
   /**
    * Retorna les opcions d'armes i llocs per a l'acusació.
@@ -284,7 +275,7 @@ export class GameController {
     const game = gameEngine.endGame(gameId, parsed.winnerPlayerId);
 
     // WS Emit
-    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+    emitGameStateUpdate(gameId, game.state);
 
     res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
@@ -299,7 +290,7 @@ export class GameController {
     const game = gameEngine.resetGame(gameId);
 
     // WS Emit
-    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+    emitGameStateUpdate(gameId, game.state);
 
     res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
@@ -325,7 +316,7 @@ export class GameController {
     const game = gameEngine.deletePlayer(gameId, userId);
 
     // WS Emit
-    emitGameStateUpdated(gameId, gameEngine.getPublicState(game.id));
+    emitGameStateUpdate(gameId, game.state);
 
     res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)

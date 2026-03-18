@@ -1,8 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, OnDestroy, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, OnInit, OnDestroy, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { GameApiService } from '../../services/game-api.service';
+import { Subscription } from 'rxjs';
+import { GameApiService, GameState } from '../../services/game-api.service';
+import { WebSocketService } from '../../services/websocket.service';
+import { GameStateService } from '../../services/game-state.service';
 
 // PrimeNG imports
 import { ButtonModule } from 'primeng/button';
@@ -29,7 +32,10 @@ import { MessagesModule } from 'primeng/messages';
 })
 export class ControlCenterComponent implements OnInit, OnDestroy {
   protected readonly gameApiService = inject(GameApiService);
+  private readonly websocketService = inject(WebSocketService);
+  private readonly gameStateService = inject(GameStateService);
   private readonly router = inject(Router);
+  private readonly subscriptions = new Subscription();
 
   readonly gameId = this.gameApiService.gameId;
   readonly playerName = signal<string>('');
@@ -38,54 +44,62 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
-  readonly currentStatus = signal<{ state: string; color: string }>({ state: 'No Active Game', color: 'red' });
+  readonly gameState = this.gameStateService.state;
   readonly winnerType = signal<string | null>(null);
   readonly solutionStatus = signal<string>('Solution pending...');
-  private pollInterval?: any;
+
+  constructor() {
+    effect(() => {
+      const id = this.gameId();
+      if (id) {
+        this.websocketService.connect(id);
+        this.fetchInitialGameData(id);
+      } else {
+        this.websocketService.disconnect();
+        this.gameStateService.setState('NONE');
+      }
+    });
+
+    this.subscriptions.add(
+      this.websocketService.events$.subscribe(event => {
+        if (event.event === 'game_state_update') {
+          if (event.payload && typeof event.payload === 'object' && 'status' in event.payload) {
+            this.gameStateService.setState(event.payload.status as GameState);
+            // Re-fetch to get more details if needed
+            const id = this.gameId();
+            if (id) this.fetchInitialGameData(id);
+          }
+        } else if (event.event === 'game_state_updated') {
+           if (event.payload && typeof event.payload === 'object' && 'state' in event.payload) {
+            this.gameStateService.setState(event.payload.state as GameState);
+             const id = this.gameId();
+            if (id) this.fetchInitialGameData(id);
+          }
+        }
+      })
+    );
+  }
 
   ngOnInit(): void {
-    this.startPolling();
   }
 
   ngOnDestroy(): void {
-    this.stopPolling();
+    this.subscriptions.unsubscribe();
+    this.websocketService.disconnect();
   }
 
-  private startPolling(): void {
-    this.updateStatus();
-    this.pollInterval = setInterval(() => this.updateStatus(), 5000);
-  }
-
-  private stopPolling(): void {
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval);
-    }
-  }
-
-  private updateStatus(): void {
-    const id = this.gameId();
-    if (!id) {
-      this.currentStatus.set({ state: 'No Active Game', color: 'red' });
-      return;
-    }
-
+  private fetchInitialGameData(id: string): void {
     this.gameApiService.getGameState(id).subscribe({
       next: (response) => {
         if (response.success && response.data) {
-          const state = response.data.state;
-          let color = 'red';
-          if (state === 'READY') color = 'orange';
-          else if (state === 'PLAYING') color = 'green';
-          else if (state === 'LOBBY') color = 'orange';
-
-          this.currentStatus.set({ state, color });
+          this.gameStateService.setState(response.data.state as GameState);
           this.currentRound.set(response.data.roundNumber);
           this.maxRounds.set(response.data.maxRounds);
           this.winnerType.set(response.data.winnerType);
         }
       },
       error: () => {
-        this.currentStatus.set({ state: 'Error Polling', color: 'red' });
+        this.gameStateService.setState('NONE');
       }
     });
 

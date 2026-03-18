@@ -1,7 +1,11 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
-import { SocketGameEvent, SocketGameEventName } from '../models/chat.models';
+
+export interface SocketGameEvent {
+  event: string;
+  payload: any;
+}
 
 @Injectable({ providedIn: 'root' })
 export class WebSocketService {
@@ -17,14 +21,13 @@ export class WebSocketService {
   private readonly eventsSubject = new Subject<SocketGameEvent>();
   readonly events$ = this.eventsSubject.asObservable();
 
-  connect(gameId: string, playerId?: string): void {
+  connect(gameId: string): void {
     this.disconnect();
 
     console.log("WS_CONNECTING");
     this.socket = io(this.baseUrl, {
       query: {
-        gameId,
-        playerId: playerId ?? ''
+        gameId
       },
       reconnection: true,
       reconnectionDelay: 3000,
@@ -53,31 +56,22 @@ export class WebSocketService {
       this.reconnectingSubject.next(true);
     });
 
-    const listenableEvents: SocketGameEventName[] = [
+    const listenableEvents = [
       'connected',
       'game_state',
-      'clue',
-      'system_event',
-      'chat_message',
-      'round_state',
-      'error',
-      'game_state_updated',
       'game_state_update',
-      'system_message',
-      'round_start',
-      'round_end'
+      'game_state_updated',
+      'chat_message',
+      'player_joined',
+      'error'
     ];
 
     for (const eventName of listenableEvents) {
       this.socket.on(eventName, (payload: any) => {
         console.log("WS_MESSAGE_RECEIVED", { event: eventName, payload });
-        this.eventsSubject.next({ event: eventName as any, payload });
+        this.eventsSubject.next({ event: eventName, payload });
       });
     }
-  }
-
-  sendQuestion(gameId: string, playerId: string, message: string): void {
-    this.socket?.emit('question', { gameId, playerId, message });
   }
 
   disconnect(): void {
