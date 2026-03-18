@@ -55,12 +55,23 @@
 
         <div #chatList class="chat-list mb-3" style="max-height: 500px; overflow-y: auto;">
           @for (message of (chatMessages$ | async); track message.id) {
-            <article class="chat-message mb-3 p-2 border-round" [class]="'chat-' + message.type">
+            <article class="chat-message mb-3 p-2 border-round relative" [class]="'chat-' + message.type">
               @if (message.sender || message.type === 'clue' || message.type === 'response') {
                 <strong class="block mb-1 text-primary">
                   {{ message.sender || (message.type === 'clue' || message.type === 'response' ? 'Narrador 🕵️' : 'Sistema ⚙️') }}:
                 </strong>
               }
+
+              @if (ttsService.isTtsSupported && (message.type === 'clue' || message.type === 'response')) {
+                <button
+                  type="button"
+                  class="tts-button p-button-text p-button-rounded p-button-sm"
+                  (click)="toggleSpeech(message.id, message.message)"
+                  title="Escoltar narrador">
+                  <i class="pi" [class.pi-volume-up]="ttsService.playingId() !== message.id" [class.pi-volume-down]="ttsService.playingId() === message.id"></i>
+                </button>
+              }
+
               <p class="m-0 white-space-pre-wrap">{{ message.message }}</p>
               <div class="flex justify-content-end mt-1">
                 <small class="text-500">{{ message.timestamp | date: 'shortTime' }}</small>
