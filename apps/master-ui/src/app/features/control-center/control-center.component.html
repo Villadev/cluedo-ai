@@ -11,7 +11,7 @@
               id="maxRounds"
               type="number"
               [ngModel]="maxRounds()"
-              (ngModelChange)="onMaxRoundsChange()"
+              (ngModelChange)="onMaxRoundsChange($event)"
               [disabled]="gameState() !== 'NONE' && gameState() !== 'LOBBY'"
             />
           </div>
@@ -72,7 +72,7 @@
                 id="playerName"
                 type="text"
                 [ngModel]="playerName()"
-                (ngModelChange)="onPlayerNameChange()"
+                (ngModelChange)="onPlayerNameChange($event)"
                 placeholder="Ex: Joan"
                 (keyup.enter)="addPlayer()"
               />
