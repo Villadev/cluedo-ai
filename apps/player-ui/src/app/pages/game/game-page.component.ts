@@ -8,6 +8,7 @@ import { CardModule } from 'primeng/card';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ChatService } from '../../services/chat.service';
+import { TtsService } from '../../services/tts.service';
 import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
 import { WebSocketService } from '../../services/websocket.service';
@@ -41,6 +42,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   private readonly chatService = inject(ChatService);
   private readonly gameService = inject(GameService);
   private readonly sessionService = inject(SessionService);
+  protected readonly ttsService = inject(TtsService);
   private readonly subscriptions = new Subscription();
 
   protected readonly chatMessages$ = this.chatService.messages$.pipe(
@@ -97,6 +99,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
     this.websocketService.disconnect();
+    this.ttsService.stop();
   }
 
   private startPolling(): void {
@@ -143,6 +146,14 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.chatService.sendQuestion(this.gameId, this.playerId, question);
     this.questionForm.reset();
     this.askedThisRound.set(true);
+  }
+
+  protected toggleSpeech(messageId: string, text: string): void {
+    if (this.ttsService.playingId() === messageId) {
+      this.ttsService.stop();
+    } else {
+      this.ttsService.speak(messageId, text);
+    }
   }
 
   private scrollToBottom(): void {
