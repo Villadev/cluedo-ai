@@ -27,14 +27,14 @@ const MAX_PLAYERS = 17;
 const MIN_SUSPECTS = 4;
 
 export class GameEngine {
-  private onSystemEvent?: (gameId: string, message: string, type?: ChatMessage['type']) => void;
+  private onSystemEvent?: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number) => void;
 
   constructor(
     private readonly store: GameStoreService,
     private readonly aiService: AIService
   ) {}
 
-  public setSystemEventListener(listener: (gameId: string, message: string, type?: ChatMessage['type']) => void): void {
+  public setSystemEventListener(listener: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number) => void): void {
     this.onSystemEvent = listener;
   }
 
@@ -293,7 +293,7 @@ export class GameEngine {
       description: `${player.nickname} ha fet una pregunta.`
     });
 
-    await this.nextTurn(game);
+    await this.nextTurn(game.id);
     this.store.save(game);
     return { response, game };
   }
@@ -343,7 +343,7 @@ export class GameEngine {
       game.tensionLevel = Math.min(100, game.tensionLevel + 15);
     }
 
-    await this.nextTurn(game);
+    await this.nextTurn(game.id);
     this.store.save(game);
     return game;
   }
@@ -547,7 +547,8 @@ export class GameEngine {
     return game;
   }
 
-  private async nextTurn(game: Game): Promise<void> {
+  public async nextTurn(gameId: string): Promise<void> {
+    const game = this.getGameOrThrow(gameId);
     if (game.state === GameStates.FINISHED) return;
 
     const realPlayers = game.players.filter(p => p.type === 'real');
@@ -566,7 +567,7 @@ export class GameEngine {
         });
 
         if (this.onSystemEvent) {
-          this.onSystemEvent(game.id, msg);
+          this.onSystemEvent(game.id, msg, undefined, game.roundNumber);
         }
         this.store.save(game);
         return;
@@ -584,7 +585,7 @@ export class GameEngine {
       });
 
       if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg);
+        this.onSystemEvent(game.id, msg, undefined, game.roundNumber);
       }
 
       // Reveal clues for the new round
