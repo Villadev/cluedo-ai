@@ -236,21 +236,19 @@ Retorna el resultat en JSON amb aquesta estructura:
   }
 
   public async respondToQuestion(publicGameState: string, question: string): Promise<string> {
-    const instruction = `Respon la pregunta del jugador amb to misteriós i breu.
+    const instruction = `Respon la pregunta de l'investigador de manera molt directa i breu (màxim 15 paraules).
 Regles:
-- Respostes molt curtes (màxim 1-2 frases).
-- Sigues enigmàtic. Si la informació no és clara, respon amb evasives com: "Això és difícil de saber", "Algú podria haver vist alguna cosa", "Les versions no coincideixen".
-- No donis explicacions llargues.
-- Centra't en les pistes de manera indirecta.
-- Respon always en català.`;
-    return this.generateNarrative({ instruction, publicGameState, question }, 150);
+- No utilitzis metàfores ni descripcions poètiques.
+- Dona una pista subtil o un fet concret si és possible.
+- Sigues enigmàtic però concís.
+- Respon sempre en català.`;
+    return this.generateNarrative({ instruction, publicGameState, question }, 80);
   }
 
   public async generateClueNarration(publicGameState: string, clueDescription: string): Promise<string> {
-    const instruction = 'Narra la descoberta d\'una pista o un rumor amb misteri, intriga i coherència amb la història. Utilitza descripcions en comptes de noms directes si parles de l\'arma o el lloc. Respon sempre en català.';
-    return this.generateNarrative({ instruction, publicGameState, clueDescription }, 240);
+    const instruction = "Narra una pista o rumor de manera breu i directa (màxim 20 paraules). Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el lloc, però sigues concís. Respon en català.";
+    return this.generateNarrative({ instruction, publicGameState, clueDescription }, 100);
   }
-
   public async generatePrivateMessage(privateContext: string): Promise<string> {
     const instruction = 'Redacta un missatge privat i segur, alineat amb la partida i sense revelar informació aliena. Respon sempre en català.';
     return this.generateNarrative({ instruction, privateContext }, 220);

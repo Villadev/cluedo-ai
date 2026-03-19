@@ -63,6 +63,8 @@ export class WebSocketService {
       'game_state_updated',
       'chat_message',
       'player_joined',
+      'clue',
+      'system_event',
       'error'
     ];
 
