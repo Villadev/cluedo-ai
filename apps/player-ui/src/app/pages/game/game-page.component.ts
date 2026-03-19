@@ -15,6 +15,7 @@ import { GameStatusIndicatorComponent } from '../../components/game-status-indic
 import { WebSocketService } from '../../services/websocket.service';
 import { GameState, PublicPlayerView } from '../../models/player.model';
 import { GameStateService } from '../../services/game-state.service';
+import { SocketGameEvent } from '../../models/chat.models';
 
 @Component({
   selector: 'app-game-page',
@@ -99,9 +100,63 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.chatService.loadHistory(this.gameId);
       this.websocketService.connect(this.gameId, this.playerId || undefined);
 
+      this.setupRealtimeSync();
+
       // We still need one initial fetch to get current round, maxRounds, etc.
       this.fetchInitialGameData();
     }
+  }
+
+  private setupRealtimeSync(): void {
+    this.subscriptions.add(
+      this.websocketService.events$.subscribe((event: SocketGameEvent) => {
+        if (event.event === 'game_state_update') {
+          this.handleStateUpdate(event.payload);
+        }
+      })
+    );
+  }
+
+  private handleStateUpdate(payload: any): void {
+    if (!payload) return;
+
+    if (payload.state) {
+      this.gameStateService.setState(payload.state as GameState);
+    }
+
+    if (payload.roundNumber !== undefined) {
+      const oldRound = this.currentRound();
+      this.currentRound.set(payload.roundNumber);
+
+      // If round has advanced, reset the "askedThisRound" status locally
+      if (payload.roundNumber > oldRound) {
+        this.askedThisRound.set(false);
+      }
+    }
+
+    if (payload.maxRounds !== undefined) {
+      this.maxRounds.set(payload.maxRounds);
+    }
+
+    if (payload.winnerType !== undefined) {
+      this.winnerType.set(payload.winnerType);
+    }
+
+    // After state update, we might want to refresh player status from backend
+    // to ensure askedThisRound is absolutely in sync
+    this.refreshPlayerStatus();
+  }
+
+  private refreshPlayerStatus(): void {
+    this.gameService.getGame(this.gameId, this.playerId).subscribe(response => {
+      if (response.success && response.data) {
+        const game = response.data;
+        const currentPlayer = game.players.find((p: PublicPlayerView) => p.id === this.playerId);
+        if (currentPlayer) {
+          this.askedThisRound.set(currentPlayer.askedThisRound || currentPlayer.accusedThisRound);
+        }
+      }
+    });
   }
 
   private fetchInitialGameData(): void {
