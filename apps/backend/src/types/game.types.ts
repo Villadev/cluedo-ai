@@ -30,6 +30,7 @@ export interface TimelineEvent {
   playerId?: string;
   characterId?: string;
   roundNumber?: number;
+  sequenceId?: number;
   text?: string;
   isTrue?: boolean;
   targetCharacterId?: string;
@@ -113,6 +114,7 @@ export interface ChatMessage {
   playerId?: string;
   playerName?: string;
   roundNumber?: number;
+  sequenceId?: number;
   message: string;
   timestamp: number;
 }
@@ -123,6 +125,7 @@ export interface Question {
   question: string;
   timestamp: number;
   roundNumber: number;
+  sequenceId: number;
 }
 
 export interface Game {
@@ -145,6 +148,7 @@ export interface Game {
   timeline: TimelineEvent[];
   chatHistory: ChatMessage[];
   questionHistory: Question[];
+  nextSequenceId: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -213,6 +217,7 @@ export interface PublicGameView {
   winnerType: WinnerType | null;
   createdAt: string;
   updatedAt: string;
+  nextSequenceId: number;
 }
 
 export interface PublicParticipant {

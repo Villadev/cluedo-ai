@@ -12,8 +12,8 @@ const bootstrap = (): void => {
   initSocket(server);
 
   // Wire up game engine events to websocket
-  gameEngine.setSystemEventListener((gameId, message, type) => {
-    emitSystemChatMessage(gameId, message, type);
+  gameEngine.setSystemEventListener((gameId, message, type, roundNumber, sequenceId) => {
+    emitSystemChatMessage(gameId, message, type, roundNumber, sequenceId);
   });
 
   server.listen(env.PORT, () => {

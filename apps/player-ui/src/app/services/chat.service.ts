@@ -57,7 +57,9 @@ export class ChatService implements OnDestroy {
             type: typeMap[msg.type] || 'system',
             sender: msg.playerName,
             message: msg.message,
-            timestamp: new Date(msg.timestamp)
+            timestamp: new Date(msg.timestamp),
+            round: msg.roundNumber,
+            sequenceId: msg.sequenceId
           };
         });
         this.messagesSubject.next(historyMessages);
@@ -118,7 +120,9 @@ export class ChatService implements OnDestroy {
       type: typeMap[data.type] || typeMap[data.messageType] || 'response',
       sender: data.playerName || data.sender,
       message: data.message,
-      timestamp: data.timestamp ? new Date(data.timestamp) : new Date()
+      timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+      round: data.roundNumber,
+      sequenceId: data.sequenceId
     };
     this.addMessage(message);
   }
@@ -139,7 +143,9 @@ export class ChatService implements OnDestroy {
       id: crypto.randomUUID(),
       type: type,
       message: content,
-      timestamp: new Date()
+      timestamp: new Date(),
+      round: payload?.roundNumber,
+      sequenceId: payload?.sequenceId
     });
   }
 }

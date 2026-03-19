@@ -17,6 +17,7 @@ export interface ChatMessage {
   message: string;
   timestamp: Date;
   round?: number;
+  sequenceId?: number;
 }
 
 @Component({
@@ -70,7 +71,8 @@ export class ChatViewComponent implements OnInit, OnDestroy, AfterViewChecked {
           sender: msg.playerName,
           message: msg.message,
           timestamp: new Date(msg.timestamp),
-          round: msg.roundNumber
+          round: msg.roundNumber,
+          sequenceId: msg.sequenceId
         }));
         this.messages.set(historyMessages);
         this.scrollToBottomRequested = true;
@@ -85,7 +87,8 @@ export class ChatViewComponent implements OnInit, OnDestroy, AfterViewChecked {
       sender: payload.playerName || payload.sender,
       message: payload.message,
       timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
-      round: payload.roundNumber
+      round: payload.roundNumber,
+      sequenceId: payload.sequenceId
     };
     this.messages.update(msgs => [...msgs, message]);
     this.scrollToBottomRequested = true;
