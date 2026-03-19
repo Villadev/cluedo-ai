@@ -36,6 +36,25 @@ export const initSocket = (httpServer: HttpServer): Server => {
 
     socket.emit('connected', { message: 'Connected to Cluedo AI websocket server' });
 
+    socket.on('resync_request', (payload: { gameId: string; playerId?: string }) => {
+      console.log('WS_RESYNC_REQUEST:', payload);
+      try {
+        const gameId = payload.gameId;
+        const playerId = payload.playerId;
+        const gameState = gameEngine.getPublicState(gameId, playerId);
+        const chatHistory = gameEngine.getChatHistory(gameId);
+
+        socket.emit('resync_data', {
+          gameState,
+          chatHistory,
+          timestamp: Date.now()
+        });
+      } catch (error: any) {
+        console.error('WS_RESYNC_ERROR:', error);
+        socket.emit('error', { message: 'Error en la resincronització' });
+      }
+    });
+
     socket.on('question', async (payload: { gameId: string; playerId: string; message: string }) => {
       console.log('WS_MESSAGE_RECEIVED: question', payload);
       try {

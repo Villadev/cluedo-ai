@@ -22,7 +22,8 @@ export type SocketGameEventName =
   | 'game_state_updated'
   | 'system_message'
   | 'round_start'
-  | 'round_end';
+  | 'round_end'
+  | 'resync_data';
 
 export interface SocketGameEvent<TPayload = any> {
   event: SocketGameEventName;

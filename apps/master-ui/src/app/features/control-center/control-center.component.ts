@@ -80,17 +80,16 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     this.subscriptions.add(
       this.websocketService.events$.subscribe(event => {
         if (event.event === 'game_state_update') {
-          if (event.payload && typeof event.payload === 'object' && 'status' in event.payload) {
-            this.gameStateService.setState(event.payload.status as GameState);
-            // Re-fetch to get more details if needed
-            const id = this.gameId();
-            if (id) this.fetchInitialGameData(id);
-          }
+          this.handleStateUpdate(event.payload);
         } else if (event.event === 'game_state_updated') {
            if (event.payload && typeof event.payload === 'object' && 'state' in event.payload) {
             this.gameStateService.setState(event.payload.state as GameState);
              const id = this.gameId();
             if (id) this.fetchInitialGameData(id);
+          }
+        } else if (event.event === 'resync_data') {
+          if (event.payload?.gameState) {
+            this.handleStateUpdate(event.payload.gameState);
           }
         }
       })
@@ -103,6 +102,31 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.subscriptions.unsubscribe();
     this.websocketService.disconnect();
+  }
+
+  private handleStateUpdate(payload: any): void {
+    if (!payload || typeof payload !== 'object') return;
+
+    const status = payload.status || payload.state;
+    if (status) {
+      this.gameStateService.setState(status as GameState);
+    }
+
+    if (payload.roundNumber !== undefined) {
+      this.currentRound.set(payload.roundNumber);
+    }
+
+    if (payload.maxRounds !== undefined) {
+      this.maxRounds.set(payload.maxRounds);
+    }
+
+    if (payload.winnerType !== undefined) {
+      this.winnerType.set(payload.winnerType);
+    }
+
+    // Always refresh for more details if needed
+    const id = this.gameId();
+    if (id) this.fetchInitialGameData(id);
   }
 
   private fetchInitialGameData(id: string): void {

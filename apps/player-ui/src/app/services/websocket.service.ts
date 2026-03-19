@@ -7,6 +7,8 @@ import { SocketGameEvent, SocketGameEventName } from '../models/chat.models';
 export class WebSocketService {
   private readonly baseUrl = 'https://backend-veq8.onrender.com';
   private socket: Socket | null = null;
+  private currentGameId: string | null = null;
+  private currentPlayerId: string | null = null;
 
   private readonly connectedSubject = new BehaviorSubject<boolean>(false);
   readonly connected$ = this.connectedSubject.asObservable();
@@ -19,6 +21,8 @@ export class WebSocketService {
 
   connect(gameId: string, playerId?: string): void {
     this.disconnect();
+    this.currentGameId = gameId;
+    this.currentPlayerId = playerId ?? null;
 
     console.log("WS_CONNECTING");
     this.socket = io(this.baseUrl, {
@@ -35,6 +39,7 @@ export class WebSocketService {
       console.log("WS_CONNECTED");
       this.connectedSubject.next(true);
       this.reconnectingSubject.next(false);
+      this.resync();
     });
 
     this.socket.on('disconnect', (reason) => {
@@ -65,7 +70,8 @@ export class WebSocketService {
       'game_state_update',
       'system_message',
       'round_start',
-      'round_end'
+      'round_end',
+      'resync_data'
     ];
 
     for (const eventName of listenableEvents) {
@@ -80,6 +86,16 @@ export class WebSocketService {
     this.socket?.emit('question', { gameId, playerId, message });
   }
 
+  resync(): void {
+    if (this.socket?.connected && this.currentGameId) {
+      console.log("WS_EMIT: resync_request", { gameId: this.currentGameId });
+      this.socket.emit('resync_request', {
+        gameId: this.currentGameId,
+        playerId: this.currentPlayerId
+      });
+    }
+  }
+
   disconnect(): void {
     if (!this.socket) {
       return;
@@ -90,5 +106,7 @@ export class WebSocketService {
     this.socket = null;
     this.connectedSubject.next(false);
     this.reconnectingSubject.next(false);
+    this.currentGameId = null;
+    this.currentPlayerId = null;
   }
 }

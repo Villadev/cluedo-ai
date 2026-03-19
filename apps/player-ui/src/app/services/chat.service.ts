@@ -91,7 +91,33 @@ export class ChatService implements OnDestroy {
       case 'round_end':
         this.addSystemMessage('system', 'La ronda ha finalitzat. Revisa les pistes.');
         break;
+      case 'resync_data':
+        if (event.payload?.chatHistory) {
+          this.applyResyncedHistory(event.payload.chatHistory);
+        }
+        break;
     }
+  }
+
+  private applyResyncedHistory(history: ChatHistoryMessage[]): void {
+    const typeMap: Record<string, ChatMessageType> = {
+      'player': 'question',
+      'narrator': 'response',
+      'system': 'system',
+      'clue': 'clue'
+    };
+
+    const messages: ChatMessage[] = history.map((msg) => ({
+      id: crypto.randomUUID(),
+      type: typeMap[msg.type] || 'system',
+      sender: msg.playerName,
+      message: msg.message,
+      timestamp: new Date(msg.timestamp),
+      round: msg.roundNumber,
+      sequenceId: msg.sequenceId
+    }));
+
+    this.messagesSubject.next(messages);
   }
 
   private handleChatMessage(payload: any): void {
