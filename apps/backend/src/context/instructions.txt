@@ -1,6 +1,6 @@
 🕵️ El joc
 
-Aquest és un joc d’investigació tipus Cluedo. Cada partida és única i generada dinàmicament: hi ha un assassí, una arma i un lloc que hauràs de descobrir.
+Aquest és un joc d’investigació tipus Cluedo. Cada partida és única i generada dinàmicament: hi ha un assassí, una arma i un lloc que hauràs de descobrir. L'assassí pot estar entre nosaltres!
 
 💬 El xat
 
@@ -18,13 +18,21 @@ A la pantalla de "Participants" trobaràs la informació del teu personatge i un
 
 Disposes d’un llibret per prendre notes personals. Fes-lo servir per apuntar pistes, sospites i construir la teva teoria.
 
+📢 Acusació
+
+Quan estiguis preparat, pots fer una acusació des de la pantalla d' "Acusació" al menú per intentar resoldre el cas.
+
+🔁 Desenvolupament i Guanyador
+
+La partida es desenvolupa per rondes. A cada ronda, cada jugador pot triar entre fer una pregunta al narrador o realitzar una acusació.
+
+⚠️ Si t'equivoques en una acusació, no podràs tornar a acusar durant les següents 2 rondes.
+
+Si s'esgoten totes les rondes sense que ningú hagi trobat el culpable, l'assassí serà el guanyador.
+
 🎯 Objectiu
 
 Has de descobrir tres elements clau:
 - Qui és l'assassí.
 - Amb quina arma.
 - A quin lloc.
-
-🔁 Desenvolupament
-
-La partida es desenvolupa per rondes. Cada jugador pot fer preguntes al narrador en cada ronda. Al final, podràs fer la teva acusació per resoldre el cas.

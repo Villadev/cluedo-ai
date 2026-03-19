@@ -6,21 +6,42 @@
     <p-card header="🕵️ El joc" styleClass="shadow-2">
       <div class="text-lg line-height-3">
         Aquest és un joc d’investigació tipus Cluedo. Cada partida és única i generada dinàmicament: hi ha un assassí, una arma i un lloc que hauràs de descobrir.
+        Recorda: <strong>l'assassí pot estar entre nosaltres!</strong>
       </div>
     </p-card>
 
     <!-- 💬 El xat -->
     <p-card header="💬 El xat" styleClass="shadow-2 border-left-3 border-primary">
       <div class="text-lg line-height-3">
-        <p class="font-bold mb-2">Tota l’activitat del joc passa al xat.</p>
-        Podràs fer preguntes i el narrador et respondrà amb pistes que t’ajudaran a avançar en la investigació. Les pistes són progressives i es tornen més clares a mesura que avança la partida.
+        <p class="font-bold mb-2">L'activitat principal passa al xat.</p>
+        Podràs fer preguntes i el narrador et respondrà amb pistes progressives que t’ajudaran a avançar en la investigació.
+      </div>
+    </p-card>
+
+    <!-- 🔁 Desenvolupament -->
+    <p-card header="🔁 Desenvolupament" styleClass="shadow-2 border-top-3 border-primary">
+      <div class="text-lg line-height-3">
+        La partida es divideix en rondes. A cada ronda pots escollir una d'aquestes dues accions:
+        <ul class="mt-2 ml-4">
+          <li><strong>Fer una pregunta</strong> al narrador per obtenir informació.</li>
+          <li><strong>Realitzar una acusació</strong> si creus que ja tens la solució.</li>
+        </ul>
+        <p class="mt-2 text-orange-600 font-bold">⚠️ Si t'equivoques en una acusació, no podràs tornar a acusar durant les següents 2 rondes.</p>
+        <p class="mt-2">Si s'esgoten les rondes i ningú ha trobat el culpable, <strong>l'assassí serà el guanyador</strong>.</p>
+      </div>
+    </p-card>
+
+    <!-- 📢 Acusació -->
+    <p-card header="📢 Acusació" styleClass="shadow-2">
+      <div class="text-lg line-height-3">
+        Quan estiguis preparat, ves a la pantalla d'<strong>"Acusació"</strong> al menú per intentar resoldre el cas indicant qui és l'assassí, l'arma i el lloc.
       </div>
     </p-card>
 
     <!-- 📖 La història -->
     <p-card header="📖 La història" styleClass="shadow-2">
       <div class="text-lg line-height-3">
-        La introducció de la història la trobaràs a la pantalla d'<strong>"Introducció"</strong>. Pots tornar-hi en qualsevol moment des del menú lateral si necessites repassar els detalls del crim.
+        La introducció de la història la trobaràs a la pantalla d'<strong>"Introducció"</strong>. Pots tornar-hi en qualsevol moment per repassar els detalls del crim.
       </div>
     </p-card>
 
@@ -30,7 +51,7 @@
         A la pantalla de <strong>"Participants"</strong> trobaràs:
         <ul class="mt-2 ml-4">
           <li>La informació detallada del teu personatge (incloent-hi la teva coartada i secrets).</li>
-          <li>Una breu descripció de la resta de personatges per saber qui és qui al poble.</li>
+          <li>Una breu descripció de la resta de personatges.</li>
         </ul>
       </div>
     </p-card>
@@ -38,14 +59,14 @@
     <!-- 📝 Llibret del detectiu -->
     <p-card header="📝 Llibret del detectiu" styleClass="shadow-2 border-left-3 border-orange-500">
       <div class="text-lg line-height-3">
-        Disposes d’un llibret per prendre notes personals. Fes-lo servir per apuntar pistes, sospites i construir la teva pròpia teoria sense que ningú més la vegi.
+        Disposes d’un llibret per prendre notes personals. Fes-lo servir per apuntar pistes, sospites i construir la teva pròpia teoria.
       </div>
     </p-card>
 
     <!-- 🎯 Objectiu -->
     <p-card header="🎯 Objectiu" styleClass="shadow-2 bg-primary-reverse">
       <div class="text-lg line-height-3">
-        <p class="mb-2 font-bold">Has de descobrir tres elements clau:</p>
+        <p class="mb-2 font-bold">Has de descobrir tres elements clau abans que s'acabin les rondes:</p>
         <ul class="list-none p-0 m-0 flex flex-column gap-2">
           <li class="flex align-items-center gap-2">
             <i class="pi pi-user text-primary font-bold"></i>
@@ -60,13 +81,6 @@
             <span><strong>A quin lloc</strong> va passar</span>
           </li>
         </ul>
-      </div>
-    </p-card>
-
-    <!-- 🔁 Desenvolupament -->
-    <p-card header="🔁 Desenvolupament" styleClass="shadow-2 border-top-3 border-primary">
-      <div class="text-lg line-height-3">
-        La partida es desenvolupa per rondes. Cada jugador pot fer preguntes al narrador en cada ronda. Quan estiguis segur de la teva teoria, podràs fer la teva acusació final.
       </div>
     </p-card>
   </div>
