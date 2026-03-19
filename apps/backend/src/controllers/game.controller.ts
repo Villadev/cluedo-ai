@@ -117,6 +117,7 @@ export class GameController {
     const gameId = this.getGameId(req);
     const result = await gameEngine.askQuestion(gameId, parsed);
 
+    await gameEngine.nextTurn(gameId);
     res.status(200).json(successResponse({
       response: result.response,
       game: gameEngine.getPublicState(result.game.id, parsed.playerId)
@@ -138,6 +139,7 @@ export class GameController {
     }
 
     // WS Emit
+    await gameEngine.nextTurn(gameId);
     emitGameStateUpdate(gameId, game.state);
 
     const currentPlayer = game.players.find(p => p.id === parsed.playerId);

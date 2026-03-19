@@ -9,6 +9,7 @@ import { GameStateService } from '../../services/game-state.service';
 
 // PrimeNG imports
 import { ButtonModule } from 'primeng/button';
+import { ChatViewComponent } from "../../components/chat-view/chat-view.component";
 import { InputTextModule } from 'primeng/inputtext';
 import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
@@ -19,6 +20,7 @@ import { MessagesModule } from 'primeng/messages';
   selector: 'app-control-center',
   standalone: true,
   imports: [
+    ChatViewComponent,
     CommonModule,
     FormsModule,
     ButtonModule,

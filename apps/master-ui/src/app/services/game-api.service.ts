@@ -138,6 +138,15 @@ export interface Question {
   roundNumber: number;
 }
 
+export interface ChatHistoryMessage {
+  type: 'player' | 'narrator' | 'system' | 'clue';
+  playerId?: string;
+  playerName?: string;
+  message: string;
+  timestamp: number;
+  roundNumber?: number;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -222,6 +231,10 @@ export class GameApiService {
 
   getGameState(gameId: string): Observable<ApiResponse<GameStateInfo>> {
     return this.http.get<ApiResponse<GameStateInfo>>(`${this.baseUrl}/game/${gameId}/state`);
+  }
+
+  getChatHistory(gameId: string): Observable<ApiResponse<ChatHistoryMessage[]>> {
+    return this.http.get<ApiResponse<ChatHistoryMessage[]>>(`${this.baseUrl}/game/${gameId}/chat`);
   }
 
   deleteUser(gameId: string, userId: string): Observable<ApiResponse<GameResponse>> {
