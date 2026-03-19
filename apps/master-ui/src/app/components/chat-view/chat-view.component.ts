@@ -45,6 +45,8 @@ export class ChatViewComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.websocketService.events$.subscribe((event: SocketGameEvent) => {
           if (event.event === 'chat_message') {
             this.handleChatMessage(event.payload);
+          } else if (event.event === 'resync_data') {
+            this.handleResyncData(event.payload);
           }
         })
       );
@@ -65,19 +67,29 @@ export class ChatViewComponent implements OnInit, OnDestroy, AfterViewChecked {
   private loadHistory(): void {
     this.gameApiService.getChatHistory(this.gameId).subscribe((response: ApiResponse<ChatHistoryMessage[]>) => {
       if (response.success && response.data) {
-        const historyMessages: ChatMessage[] = response.data.map((msg: ChatHistoryMessage) => ({
-          id: Math.random().toString(36).substring(2, 11),
-          type: msg.type as ChatMessageType,
-          sender: msg.playerName,
-          message: msg.message,
-          timestamp: new Date(msg.timestamp),
-          round: msg.roundNumber,
-          sequenceId: msg.sequenceId
-        }));
-        this.messages.set(historyMessages);
-        this.scrollToBottomRequested = true;
+        this.applyHistory(response.data);
       }
     });
+  }
+
+  private handleResyncData(payload: any): void {
+    if (payload?.chatHistory) {
+      this.applyHistory(payload.chatHistory);
+    }
+  }
+
+  private applyHistory(history: ChatHistoryMessage[]): void {
+    const historyMessages: ChatMessage[] = history.map((msg: ChatHistoryMessage) => ({
+      id: Math.random().toString(36).substring(2, 11),
+      type: msg.type as ChatMessageType,
+      sender: msg.playerName,
+      message: msg.message,
+      timestamp: new Date(msg.timestamp),
+      round: msg.roundNumber,
+      sequenceId: msg.sequenceId
+    }));
+    this.messages.set(historyMessages);
+    this.scrollToBottomRequested = true;
   }
 
   private handleChatMessage(payload: any): void {

@@ -108,13 +108,32 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   private setupRealtimeSync(): void {
+    document.addEventListener("visibilitychange", this.handleVisibilityChange);
     this.subscriptions.add(
       this.websocketService.events$.subscribe((event: SocketGameEvent) => {
         if (event.event === 'game_state_update') {
           this.handleStateUpdate(event.payload);
+        } else if (event.event === 'resync_data') {
+          this.handleResyncData(event.payload);
         }
       })
     );
+  }
+
+  private handleVisibilityChange = (): void => {
+    if (document.visibilityState === "visible") {
+      console.log("App visible, requesting resync");
+      this.websocketService.resync();
+    }
+  };
+
+  private handleResyncData(payload: any): void {
+    if (!payload) return;
+    console.log("Applying resync data", payload);
+
+    if (payload.gameState) {
+      this.handleStateUpdate(payload.gameState);
+    }
   }
 
   private handleStateUpdate(payload: any): void {
@@ -148,6 +167,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   private refreshPlayerStatus(): void {
+    if (!this.gameId) return;
     this.gameService.getGame(this.gameId, this.playerId).subscribe(response => {
       if (response.success && response.data) {
         const game = response.data;
@@ -186,6 +206,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   ngOnDestroy(): void {
+    document.removeEventListener("visibilitychange", this.handleVisibilityChange);
     this.subscriptions.unsubscribe();
     this.websocketService.disconnect();
     this.ttsService.stop();
