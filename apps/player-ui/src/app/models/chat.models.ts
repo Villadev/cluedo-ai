@@ -6,6 +6,8 @@ export interface ChatMessage {
   sender?: string;
   message: string;
   timestamp: Date;
+  round?: number;
+  sequenceId?: number;
 }
 
 export type SocketGameEventName =

@@ -46,6 +46,8 @@ export interface ChatHistoryMessage {
   type: 'player' | 'narrator' | 'system';
   playerId?: string;
   playerName?: string;
+  roundNumber?: number;
+  sequenceId?: number;
   message: string;
   timestamp: number;
 }

@@ -44,22 +44,28 @@ export const initSocket = (httpServer: HttpServer): Server => {
           question: payload.message
         });
 
+        // The question and response are the last two entries in history
+        const questionEntry = result.game.chatHistory[result.game.chatHistory.length - 2];
+        const responseEntry = result.game.chatHistory[result.game.chatHistory.length - 1];
+
         // Broadcast the question and response to all players in the game
         const chatMsg = {
           type: 'player',
           playerId: payload.playerId,
-          playerName: result.game.players.find(p => p.id === payload.playerId)?.nickname || 'Jugador',
+          playerName: questionEntry?.playerName || 'Jugador',
           message: payload.message,
-          timestamp: Date.now(),
-          roundNumber: result.game.roundNumber
+          timestamp: questionEntry?.timestamp || Date.now(),
+          roundNumber: result.game.roundNumber,
+          sequenceId: questionEntry?.sequenceId
         };
 
         const responseMsg = {
           type: 'narrator',
-          playerName: 'Narrador 🕵️',
+          playerName: responseEntry?.playerName || 'Narrador 🕵️',
           message: result.response,
-          timestamp: Date.now(),
-          roundNumber: result.game.roundNumber
+          timestamp: responseEntry?.timestamp || Date.now(),
+          roundNumber: result.game.roundNumber,
+          sequenceId: responseEntry?.sequenceId
         };
 
         io?.to(payload.gameId).emit('chat_message', chatMsg);
@@ -124,7 +130,7 @@ export const emitGameStarted = (gameId: string, payload: PublicGameView | any): 
   getSocketServer().to(gameId).emit('game_started', payload);
 };
 
-export const emitSystemChatMessage = (gameId: string, message: string, type: ChatMessage['type'] = 'system', roundNumber?: number): void => {
+export const emitSystemChatMessage = (gameId: string, message: string, type: ChatMessage['type'] = 'system', roundNumber?: number, sequenceId?: number): void => {
   const timestamp = Date.now();
   const playerName = type === 'clue' || type === 'narrator' ? 'Narrador 🕵️' : 'Sistema ⚙️';
 
@@ -133,7 +139,8 @@ export const emitSystemChatMessage = (gameId: string, message: string, type: Cha
     playerName,
     message,
     timestamp,
-    roundNumber
+    roundNumber,
+    sequenceId
   };
 
   console.log(`WS_EMIT: ${type} chat message to room ${gameId}: ${message}`);
@@ -146,7 +153,8 @@ export const emitSystemChatMessage = (gameId: string, message: string, type: Cha
       playerName,
       message,
       timestamp,
-      roundNumber
+      roundNumber,
+      sequenceId
     });
   } catch (e) {
     // Might fail for 'MAIN_GAME' which doesn't exist in gameEngine

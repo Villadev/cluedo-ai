@@ -92,6 +92,7 @@ export interface TimelineEvent {
   playerId?: string;
   characterId?: string;
   roundNumber?: number;
+  sequenceId?: number;
   text?: string;
   isTrue?: boolean;
   targetCharacterId?: string;
@@ -145,6 +146,7 @@ export interface ChatHistoryMessage {
   message: string;
   timestamp: number;
   roundNumber?: number;
+  sequenceId?: number;
 }
 
 @Injectable({

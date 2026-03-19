@@ -27,14 +27,14 @@ const MAX_PLAYERS = 17;
 const MIN_SUSPECTS = 4;
 
 export class GameEngine {
-  private onSystemEvent?: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number) => void;
+  private onSystemEvent?: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number) => void;
 
   constructor(
     private readonly store: GameStoreService,
     private readonly aiService: AIService
   ) {}
 
-  public setSystemEventListener(listener: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number) => void): void {
+  public setSystemEventListener(listener: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number) => void): void {
     this.onSystemEvent = listener;
   }
 
@@ -43,6 +43,7 @@ export class GameEngine {
     const game: Game = {
       id: generateId(),
       state: 'LOBBY',
+      nextSequenceId: 1,
       players: [],
       characters: [],
       assassinCharacterId: null,
@@ -250,6 +251,7 @@ export class GameEngine {
       JSON.stringify(this.getPublicState(game.id, player.id)),
       input.question
     );
+    const sequenceId = game.nextSequenceId++;
 
     game.turns.push({
       id: generateId(),
@@ -267,7 +269,8 @@ export class GameEngine {
       playerName: player.nickname,
       question: input.question,
       timestamp,
-      roundNumber: game.roundNumber
+      roundNumber: game.roundNumber,
+      sequenceId
     });
 
     // Record in chat history
@@ -276,14 +279,18 @@ export class GameEngine {
       playerId: player.id,
       playerName: player.nickname,
       message: input.question,
-      timestamp
+      timestamp,
+      roundNumber: game.roundNumber,
+      sequenceId
     });
 
     game.chatHistory.push({
       type: 'narrator',
       playerName: 'Narrador 🕵️',
       message: response,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      roundNumber: game.roundNumber,
+      sequenceId
     });
 
     this.recordTimelineEvent(game, {
@@ -406,6 +413,7 @@ export class GameEngine {
         })),
       currentTurnPlayerId: currentTurnPlayer?.id ?? null,
       roundNumber: game.roundNumber,
+      nextSequenceId: game.nextSequenceId,
       maxRounds: game.maxRounds,
       tensionLevel: game.tensionLevel,
       winnerPlayerId: game.winnerPlayerId,
@@ -485,8 +493,11 @@ export class GameEngine {
     this.store.save(game);
   }
 
-  public recordChatMessage(gameId: string, message: ChatMessage): void {
+  public recordChatMessage(gameId: string, message: ChatMessage, sequenceId?: number): void {
     const game = this.getGameOrThrow(gameId);
+    if (sequenceId) {
+      message.sequenceId = sequenceId;
+    }
     game.chatHistory.push(message);
     this.store.save(game);
   }
@@ -532,6 +543,7 @@ export class GameEngine {
     game.timeline = [];
     game.chatHistory = [];
     game.questionHistory = [];
+    game.nextSequenceId = 1;
     game.updatedAt = nowIso();
     this.store.save(game);
     return game;
@@ -565,7 +577,7 @@ export class GameEngine {
         });
 
         if (this.onSystemEvent) {
-          this.onSystemEvent(game.id, msg, undefined, game.roundNumber);
+          this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
         }
         this.store.save(game);
         return;
@@ -583,7 +595,7 @@ export class GameEngine {
       });
 
       if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg, undefined, game.roundNumber);
+        this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
       }
 
       // Reveal clues for the new round
@@ -631,7 +643,7 @@ export class GameEngine {
         const narrative = await this.aiService.generateClueNarration(publicStateStr, clue.text);
 
         if (this.onSystemEvent) {
-          this.onSystemEvent(game.id, narrative, 'clue');
+          this.onSystemEvent(game.id, narrative, 'clue', game.roundNumber, game.nextSequenceId++);
         }
 
         this.recordTimelineEvent(game, {
@@ -645,7 +657,7 @@ export class GameEngine {
         console.error("Error generating clue narration:", error);
         // Fallback to raw clue text if AI fails
         if (this.onSystemEvent) {
-          this.onSystemEvent(game.id, clue.text, 'clue');
+          this.onSystemEvent(game.id, clue.text, 'clue', game.roundNumber, game.nextSequenceId++);
         }
       }
     }
@@ -701,6 +713,7 @@ export class GameEngine {
       characters: game.characters,
       clues: game.clues,
       roundNumber: game.roundNumber,
+      nextSequenceId: game.nextSequenceId,
       state: game.state,
       errors: errorLogger.getLogs()
     };
@@ -741,6 +754,7 @@ export class GameEngine {
       playersCount: game.players.length,
       charactersCount: game.characters.length,
       roundNumber: game.roundNumber,
+      nextSequenceId: game.nextSequenceId,
       maxRounds: game.maxRounds,
       winnerType: game.winnerType
     };
