@@ -112,6 +112,7 @@ export interface ChatMessage {
   type: 'player' | 'narrator' | 'system' | 'clue';
   playerId?: string;
   playerName?: string;
+  roundNumber?: number;
   message: string;
   timestamp: number;
 }
