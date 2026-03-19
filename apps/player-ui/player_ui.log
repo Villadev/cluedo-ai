@@ -23,7 +23,7 @@ Lazy chunk files      | Names                                                 | 
 107.js                | pages-detective-notebook-detective-notebook-component | 248.43 kB |
 648.js                | pages-join-game-join-game-page-component              | 159.92 kB |
 199.js                | pages-accusation-accusation-component                 | 133.74 kB |
-279.js                | pages-join-game-join-game-page-component              |  78.21 kB |
+279.js                | pages-join-game-join-game-page-component              |  76.51 kB |
 307.js                | pages-participants-participants-component             |  53.84 kB |
 669.js                | pages-game-game-page-component                        |  50.04 kB |
 361.js                | pages-game-info-game-info-component                   |  49.89 kB |
@@ -33,7 +33,7 @@ Lazy chunk files      | Names                                                 | 
 401.js                | pages-instructions-instructions-component             |   9.84 kB |
 common.js             | common                                                |   4.94 kB |
 
-Build at: 2026-03-19T08:43:55.008Z - Hash: 9e85150fa902fe1d - Time: 28977ms
+Build at: 2026-03-19T09:30:38.213Z - Hash: fc87754795a46c60 - Time: 13293ms
 
 Warning: /app/node_modules/.pnpm/socket.io-parser@4.2.6/node_modules/socket.io-parser/build/esm-debug/index.js depends on 'debug'. CommonJS or AMD dependencies can cause optimization bailouts.
 For more info see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
