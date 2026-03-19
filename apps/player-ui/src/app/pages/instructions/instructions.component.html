@@ -1,47 +1,73 @@
-<div class="p-4">
-  <h1 class="text-3xl font-bold mb-4">Instruccions del Joc</h1>
+<div class="p-4 max-w-3xl mx-auto">
+  <h1 class="text-3xl font-bold mb-4 text-center">Instruccions del Joc</h1>
 
-  @if (loading()) {
-    <div class="flex justify-content-center p-4">
-      <p-progressSpinner ariaLabel="Carregant instruccions"></p-progressSpinner>
-    </div>
-  } @else if (error()) {
-    <div class="p-4 bg-red-100 text-red-700 border-round">
-      {{ error() }}
-    </div>
-  } @else if (instructions(); as text) {
-    <div class="flex flex-column gap-4">
-      <p-card header="Com jugar" styleClass="shadow-2">
-        <div class="white-space-pre-wrap line-height-3 text-lg">
-          Cada jugador rep un personatge amb informació secreta.
-          Durant la partida es revelaran pistes en diverses rondes.
-          Parla amb els altres jugadors per compartir informació i descobrir contradiccions.
-          Analitza les coartades, els rumors i les proves.
-          Quan creguis saber la veritat, pots fer una acusació.
-          Si l'acusació és correcta, resoldràs el cas.
-          Si t'equivoques, no podràs tornar a acusar durant dues rondes.
-        </div>
-      </p-card>
+  <div class="flex flex-column gap-4">
+    <!-- 🕵️ El joc -->
+    <p-card header="🕵️ El joc" styleClass="shadow-2">
+      <div class="text-lg line-height-3">
+        Aquest és un joc d’investigació tipus Cluedo. Cada partida és única i generada dinàmicament: hi ha un assassí, una arma i un lloc que hauràs de descobrir.
+      </div>
+    </p-card>
 
-      <p-card header="Objectiu del joc" styleClass="shadow-2 border-left-3 border-primary">
-        <div class="text-lg">
-          <p class="mb-3">Has de descobrir tres elements clau:</p>
-          <ul class="list-none p-0 m-0 flex flex-column gap-2">
-            <li class="flex align-items-center gap-2">
-              <i class="pi pi-user text-primary font-bold"></i>
-              <span><strong>Qui</strong> és l'assassí</span>
-            </li>
-            <li class="flex align-items-center gap-2">
-              <i class="pi pi-hammer text-primary font-bold"></i>
-              <span> Amb <strong>quina arma</strong></span>
-            </li>
-            <li class="flex align-items-center gap-2">
-              <i class="pi pi-map-marker text-primary font-bold"></i>
-              <span><strong>On</strong> es va produir el crim</span>
-            </li>
-          </ul>
-        </div>
-      </p-card>
-    </div>
-  }
+    <!-- 💬 El xat -->
+    <p-card header="💬 El xat" styleClass="shadow-2 border-left-3 border-primary">
+      <div class="text-lg line-height-3">
+        <p class="font-bold mb-2">Tota l’activitat del joc passa al xat.</p>
+        Podràs fer preguntes i el narrador et respondrà amb pistes que t’ajudaran a avançar en la investigació. Les pistes són progressives i es tornen més clares a mesura que avança la partida.
+      </div>
+    </p-card>
+
+    <!-- 📖 La història -->
+    <p-card header="📖 La història" styleClass="shadow-2">
+      <div class="text-lg line-height-3">
+        La introducció de la història la trobaràs a la pantalla d'<strong>"Introducció"</strong>. Pots tornar-hi en qualsevol moment des del menú lateral si necessites repassar els detalls del crim.
+      </div>
+    </p-card>
+
+    <!-- 👥 Participants -->
+    <p-card header="👥 Participants" styleClass="shadow-2">
+      <div class="text-lg line-height-3">
+        A la pantalla de <strong>"Participants"</strong> trobaràs:
+        <ul class="mt-2 ml-4">
+          <li>La informació detallada del teu personatge (incloent-hi la teva coartada i secrets).</li>
+          <li>Una breu descripció de la resta de personatges per saber qui és qui al poble.</li>
+        </ul>
+      </div>
+    </p-card>
+
+    <!-- 📝 Llibret del detectiu -->
+    <p-card header="📝 Llibret del detectiu" styleClass="shadow-2 border-left-3 border-orange-500">
+      <div class="text-lg line-height-3">
+        Disposes d’un llibret per prendre notes personals. Fes-lo servir per apuntar pistes, sospites i construir la teva pròpia teoria sense que ningú més la vegi.
+      </div>
+    </p-card>
+
+    <!-- 🎯 Objectiu -->
+    <p-card header="🎯 Objectiu" styleClass="shadow-2 bg-primary-reverse">
+      <div class="text-lg line-height-3">
+        <p class="mb-2 font-bold">Has de descobrir tres elements clau:</p>
+        <ul class="list-none p-0 m-0 flex flex-column gap-2">
+          <li class="flex align-items-center gap-2">
+            <i class="pi pi-user text-primary font-bold"></i>
+            <span><strong>Qui</strong> és l'assassí</span>
+          </li>
+          <li class="flex align-items-center gap-2">
+            <i class="pi pi-hammer text-primary font-bold"></i>
+            <span>Amb <strong>quina arma</strong></span>
+          </li>
+          <li class="flex align-items-center gap-2">
+            <i class="pi pi-map-marker text-primary font-bold"></i>
+            <span><strong>A quin lloc</strong> va passar</span>
+          </li>
+        </ul>
+      </div>
+    </p-card>
+
+    <!-- 🔁 Desenvolupament -->
+    <p-card header="🔁 Desenvolupament" styleClass="shadow-2 border-top-3 border-primary">
+      <div class="text-lg line-height-3">
+        La partida es desenvolupa per rondes. Cada jugador pot fer preguntes al narrador en cada ronda. Quan estiguis segur de la teva teoria, podràs fer la teva acusació final.
+      </div>
+    </p-card>
+  </div>
 </div>

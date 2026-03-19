@@ -1,1 +1,81 @@
- ERR_PNPM_NO_SCRIPT_OR_SERVER  Missing script start or file server.js
+
+> @cluedo/player-ui@0.1.0 start /app/apps/player-ui
+> ng serve player-ui --host 0.0.0.0 --port 4200
+
+
+Warning: This is a simple server for use in testing or debugging Angular applications
+locally. It hasn't been reviewed for security issues.
+
+Binding this server to an open connection can result in compromising your application or
+computer. Using a different host than the one passed to the "--host" flag might result in
+websocket connection issues. You might need to use "--disable-host-check" if that's the
+case.
+
+- Generating browser application bundles (phase: setup)...
+[32m✔[39m Browser application bundle generation complete.
+
+Initial chunk files   | Names                                                 |  Raw size
+main.js               | main                                                  |   2.77 MB |
+styles.css, styles.js | styles                                                | 800.00 kB |
+polyfills.js          | polyfills                                             | 247.62 kB |
+runtime.js            | runtime                                               |  13.16 kB |
+
+                      | Initial total                                         |   3.83 MB
+
+Lazy chunk files      | Names                                                 |  Raw size
+569.js                | pages-detective-notebook-detective-notebook-component | 859.48 kB |
+107.js                | pages-detective-notebook-detective-notebook-component | 248.43 kB |
+648.js                | pages-join-game-join-game-page-component              | 159.92 kB |
+199.js                | pages-accusation-accusation-component                 | 133.74 kB |
+279.js                | pages-join-game-join-game-page-component              |  76.51 kB |
+307.js                | pages-participants-participants-component             |  53.84 kB |
+669.js                | pages-game-game-page-component                        |  53.27 kB |
+361.js                | pages-game-info-game-info-component                   |  49.89 kB |
+557.js                | pages-introduction-introduction-component             |  19.17 kB |
+323.js                | pages-participants-participants-component             |  18.11 kB |
+583.js                | pages-introduction-introduction-component             |  13.60 kB |
+401.js                | pages-instructions-instructions-component             |  13.37 kB |
+common.js             | common                                                |   4.94 kB |
+
+Build at: 2026-03-19T20:04:15.960Z - Hash: 10d1e6a6726f0e31 - Time: 21019ms
+
+Warning: /app/node_modules/.pnpm/socket.io-parser@4.2.6/node_modules/socket.io-parser/build/esm-debug/index.js depends on 'debug'. CommonJS or AMD dependencies can cause optimization bailouts.
+For more info see: https://angular.dev/tools/cli/build#configuring-commonjs-dependencies
+
+
+
+** Angular Live Development Server is listening on 0.0.0.0:4200, open your browser on http://localhost:4200/ **
+
+
+✔ Compiled successfully.
+[32m✔[39m Browser application bundle generation complete.
+
+Initial chunk files | Names                                     | Raw size
+runtime.js          | runtime                                   | 13.16 kB |
+
+Lazy chunk files    | Names                                     | Raw size
+401.js              | pages-instructions-instructions-component | 12.66 kB |
+
+15 unchanged chunks
+
+Build at: 2026-03-19T20:05:05.403Z - Hash: 9bd0f3c5caefce89 - Time: 1749ms
+
+✔ Compiled successfully.
+[32m✔[39m Browser application bundle generation complete.
+
+Initial chunk files | Names                                     | Raw size
+main.js             | main                                      |  2.77 MB |
+runtime.js          | runtime                                   | 13.16 kB |
+
+Lazy chunk files    | Names                                     | Raw size
+557.js              | pages-instructions-instructions-component | 22.32 kB |
+938.js              | pages-introduction-introduction-component | 19.17 kB |
+
+13 unchanged chunks
+
+Build at: 2026-03-19T20:05:36.202Z - Hash: 6449b32ebcd0d4aa - Time: 2216ms
+
+✔ Compiled successfully.
+/app/apps/player-ui:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @cluedo/player-ui@0.1.0 start: `ng serve player-ui --host 0.0.0.0 --port 4200`
+Command failed with signal "SIGTERM"
