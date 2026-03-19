@@ -1,4 +1,23 @@
 <div class="p-4 flex flex-column gap-4">
+
+  @if (gameId()) {
+    <div class="flex align-items-center gap-3 mb-4 p-3 bg-blue-50 border-round border-1 border-blue-200">
+      <div>
+        <span class="text-700 font-bold mr-2">Partida:</span>
+        <span class="text-primary font-mono">{{ gameId() }}</span>
+      </div>
+      <button
+        pButton
+        icon="pi pi-copy"
+        [label]="showCopyFeedback() ? 'Enllaç copiat!' : 'Copiar enllaç jugadors'"
+        [severity]="showCopyFeedback() ? 'success' : 'secondary'"
+        class="p-button-sm"
+        (click)="copyGameLink()"
+        [pTooltip]="'Copia l\u0027enllaç per als jugadors'"
+        tooltipPosition="top"
+      ></button>
+    </div>
+  }
   <div class="grid">
     <!-- Creació de Partida -->
     <div class="col-12 md:col-6">

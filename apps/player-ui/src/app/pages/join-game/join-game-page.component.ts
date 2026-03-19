@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -12,6 +12,7 @@ import { SessionService } from '../../services/session.service';
 
 @Component({
   selector: 'app-join-game-page',
+  standalone: true,
   imports: [ReactiveFormsModule, CardModule, InputTextModule, CheckboxModule, ButtonModule],
   templateUrl: './join-game-page.component.html',
   styleUrl: './join-game-page.component.scss',
@@ -27,6 +28,7 @@ export class JoinGamePageComponent implements OnInit {
 
   protected isSubmitting = false;
   protected errorMessage = '';
+  protected isAutoJoining = signal(false);
 
   protected readonly joinForm = this.formBuilder.nonNullable.group({
     gameId: ['', Validators.required],
@@ -39,15 +41,47 @@ export class JoinGamePageComponent implements OnInit {
     this.configureConditionalValidation();
 
     const gameId = this.route.snapshot.queryParamMap.get('gameId') ?? '';
-    const playerId = this.route.snapshot.queryParamMap.get('playerId') ?? '';
+    const participantId = this.route.snapshot.queryParamMap.get('participantId') ?? this.route.snapshot.queryParamMap.get('playerId') ?? '';
 
-    this.joinForm.patchValue({
-      gameId,
-      usePlayerId: Boolean(playerId),
-      playerId
+    if (gameId && participantId) {
+      this.handleAutoJoin(gameId, participantId);
+    } else if (gameId) {
+      this.joinForm.patchValue({ gameId });
+    }
+  }
+
+  private handleAutoJoin(gameId: string, participantId: string): void {
+    this.isAutoJoining.set(true);
+    this.isSubmitting = true;
+
+    // Validate game and participant
+    this.gameService.getGame(gameId, participantId).subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          // Check if player exists in the game
+          const playerExists = response.data.players.some(p => p.id === participantId);
+          if (playerExists) {
+            this.completeJoin(gameId, participantId);
+          } else {
+            this.handleAutoJoinError();
+          }
+        } else {
+          this.handleAutoJoinError();
+        }
+      },
+      error: () => {
+        this.handleAutoJoinError();
+      }
     });
+  }
 
-    this.applyConditionalValidation(Boolean(playerId));
+  private handleAutoJoinError(): void {
+    this.isAutoJoining.set(false);
+    this.isSubmitting = false;
+    this.errorMessage = "No s'ha pogut accedir a la partida";
+    // Pre-fill form with what we have
+    const gameId = this.route.snapshot.queryParamMap.get('gameId') ?? '';
+    this.joinForm.patchValue({ gameId });
   }
 
   protected onJoin(): void {

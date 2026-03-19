@@ -7,6 +7,7 @@ import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
 import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { TooltipModule } from 'primeng/tooltip';
 import { ConfirmationService } from 'primeng/api';
 
 @Component({
@@ -17,7 +18,8 @@ import { ConfirmationService } from 'primeng/api';
     ButtonModule,
     CardModule,
     MessageModule,
-    ConfirmDialogModule
+    ConfirmDialogModule,
+    TooltipModule
   ],
   providers: [ConfirmationService],
   templateUrl: './participants.component.html',
@@ -32,6 +34,19 @@ export class ParticipantsComponent {
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
   readonly gameId = this.gameApiService.gameId;
+  readonly copiedId = signal<string | null>(null);
+
+  protected copyPlayerLink(playerId: string): void {
+    const gid = this.gameId();
+    if (!gid) return;
+
+    const url = `https://player-ui.onrender.com/?gameId=${gid}&participantId=${playerId}`;
+    navigator.clipboard.writeText(url).then(() => {
+      this.copiedId.set(playerId);
+      setTimeout(() => this.copiedId.set(null), 2000);
+    });
+  }
+
 
   constructor() {
     effect(() => {
