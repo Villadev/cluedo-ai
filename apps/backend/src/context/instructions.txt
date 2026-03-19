@@ -1,16 +1,38 @@
-Com jugar
+🕵️ El joc
 
-Cada jugador rep un personatge amb informació secreta.
-Durant la partida es revelaran pistes en diverses rondes.
-Parla amb els altres jugadors per compartir informació i descobrir contradiccions.
-Analitza les coartades, els rumors i les proves.
-Quan creguis saber la veritat, pots fer una acusació.
-Si l'acusació és correcta, resoldràs el cas.
-Si t'equivoques, no podràs tornar a acusar durant dues rondes.
+Aquest és un joc d’investigació tipus Cluedo. Cada partida és única i generada dinàmicament: hi ha un assassí, una arma i un lloc que hauràs de descobrir. L'assassí pot estar entre nosaltres!
 
-Objectiu del joc
+💬 El xat
 
-Descobrir:
-• Qui és l'assassí
-• Amb quina arma
-• On es va produir el crim
+Tota l’activitat del joc passa al xat. Podràs fer preguntes i el narrador et respondrà amb pistes que t’ajudaran a avançar en la investigació. Les pistes són progressives i es tornen més clares a mesura que avança la partida.
+
+📖 La història
+
+La introducció de la història la trobaràs a la pantalla d' "Introducció". Pots tornar-hi en qualsevol moment des del menú.
+
+👥 Participants
+
+A la pantalla de "Participants" trobaràs la informació del teu personatge i una breu descripció de la resta de personatges.
+
+📝 Llibret del detectiu
+
+Disposes d’un llibret per prendre notes personals. Fes-lo servir per apuntar pistes, sospites i construir la teva teoria.
+
+📢 Acusació
+
+Quan estiguis preparat, pots fer una acusació des de la pantalla d' "Acusació" al menú per intentar resoldre el cas.
+
+🔁 Desenvolupament i Guanyador
+
+La partida es desenvolupa per rondes. A cada ronda, cada jugador pot triar entre fer una pregunta al narrador o realitzar una acusació.
+
+⚠️ Si t'equivoques en una acusació, no podràs tornar a acusar durant les següents 2 rondes.
+
+Si s'esgoten totes les rondes sense que ningú hagi trobat el culpable, l'assassí serà el guanyador.
+
+🎯 Objectiu
+
+Has de descobrir tres elements clau:
+- Qui és l'assassí.
+- Amb quina arma.
+- A quin lloc.
