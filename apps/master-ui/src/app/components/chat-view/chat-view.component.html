@@ -1,0 +1,23 @@
+<p-card header="Historial del Xat">
+  <div #chatList class="chat-list" style="max-height: 400px; overflow-y: auto;">
+    @for (message of messages(); track message.id) {
+      <article class="chat-message mb-3 p-2 border-round" [class]="'chat-' + message.type">
+        @if (message.sender || message.type === 'clue' || message.type === 'response' || message.type === 'narrator') {
+          <strong class="block mb-1 text-primary">
+            {{ message.sender || (message.type === 'clue' || message.type === 'response' || message.type === 'narrator' ? 'Narrador 🕵️' : 'Sistema ⚙️') }}
+            @if (message.round) { <small class="ml-2">(R{{ message.round }})</small> } :
+          </strong>
+        }
+        <p class="m-0 white-space-pre-wrap">{{ message.message }}</p>
+        <div class="flex justify-content-end mt-1">
+          <small class="text-500">{{ message.timestamp | date: 'shortTime' }}</small>
+        </div>
+      </article>
+    } @empty {
+      <div class="flex flex-column align-items-center justify-content-center py-5 text-500">
+        <i class="pi pi-comments text-4xl mb-2"></i>
+        <p>Encara no hi ha missatges.</p>
+      </div>
+    }
+  </div>
+</p-card>

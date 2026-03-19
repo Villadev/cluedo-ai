@@ -135,4 +135,10 @@
   @if (error()) {
     <p-message severity="error" [text]="error()!"></p-message>
   }
+
+  @if (gameId() && (gameState() === 'PLAYING' || gameState() === 'FINISHED')) {
+    <div class="mt-4">
+      <app-chat-view [gameId]="gameId()!"></app-chat-view>
+    </div>
+  }
 </div>

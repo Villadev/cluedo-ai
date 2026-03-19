@@ -293,7 +293,6 @@ export class GameEngine {
       description: `${player.nickname} ha fet una pregunta.`
     });
 
-    await this.nextTurn(game.id);
     this.store.save(game);
     return { response, game };
   }
@@ -343,7 +342,6 @@ export class GameEngine {
       game.tensionLevel = Math.min(100, game.tensionLevel + 15);
     }
 
-    await this.nextTurn(game.id);
     this.store.save(game);
     return game;
   }

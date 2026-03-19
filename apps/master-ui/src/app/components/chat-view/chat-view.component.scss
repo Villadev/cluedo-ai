@@ -1,0 +1,27 @@
+.chat-list {
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.chat-message {
+  border: 1px solid #e9ecef;
+  background-color: white;
+  position: relative;
+
+  &.chat-clue, &.chat-response, &.chat-narrator {
+    border-left: 4px solid #3b82f6;
+    background-color: #eff6ff;
+  }
+
+  &.chat-player, &.chat-question {
+    border-left: 4px solid #10b981;
+    background-color: #f0fdf4;
+  }
+
+  &.chat-system {
+    border-left: 4px solid #6b7280;
+    background-color: #f3f4f6;
+    font-style: italic;
+  }
+}
