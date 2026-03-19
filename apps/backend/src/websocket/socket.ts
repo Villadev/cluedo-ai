@@ -27,11 +27,9 @@ export const initSocket = (httpServer: HttpServer): Server => {
         const gameInfo = gameEngine.getGameStateInfo(gameId);
         socket.emit('game_state_update', {
           gameId,
-          status: gameInfo.state
+          ...gameInfo
         });
       } catch (error) {
-        // This might fail if gameId is for the other 'MAIN_GAME' logic,
-        // but we prioritize the new GameEngine logic.
         console.error('Error emitting initial state:', error);
       }
     }
@@ -77,7 +75,7 @@ export const initSocket = (httpServer: HttpServer): Server => {
         const updatedGame = gameEngine.getGameStateInfo(payload.gameId);
 
         // Also update game state for everyone
-        emitGameStateUpdate(payload.gameId, updatedGame.state);
+        emitGameStateUpdate(payload.gameId, updatedGame);
 
       } catch (error: any) {
         console.error('WS_ERROR processing question:', error);
@@ -105,11 +103,20 @@ export const emitPlayerJoined = (gameId: string, player: Player): void => {
   getSocketServer().to(gameId).emit('player_joined', player);
 };
 
-export const emitGameStateUpdate = (gameId: string, status: GameState | any): void => {
-  console.log(`WS_EMIT: game_state_update to room ${gameId}: ${status}`);
-  // Handle both GameState and GameStatePayload for compatibility
-  const finalStatus = typeof status === 'string' ? status : status?.game?.status;
-  getSocketServer().to(gameId).emit('game_state_update', { gameId, status: finalStatus });
+export const emitGameStateUpdate = (gameId: string, status: any): void => {
+  console.log(`WS_EMIT: game_state_update to room ${gameId}`);
+
+  // If we just got a string (legacy/direct call), wrap it in an object
+  const payload = typeof status === 'string'
+    ? { gameId, state: status }
+    : { gameId, ...status };
+
+  // Compatibility fix: frontends might expect 'status' property for the main state string
+  if (payload.state && !payload.status) {
+    payload.status = payload.state;
+  }
+
+  getSocketServer().to(gameId).emit('game_state_update', payload);
 };
 
 export const emitGameStarted = (gameId: string, payload: PublicGameView | any): void => {
