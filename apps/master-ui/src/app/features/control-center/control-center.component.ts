@@ -12,6 +12,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
+import { TooltipModule } from "primeng/tooltip";
 import { MessagesModule } from 'primeng/messages';
 
 @Component({
@@ -24,6 +25,7 @@ import { MessagesModule } from 'primeng/messages';
     InputTextModule,
     CardModule,
     MessageModule,
+    TooltipModule,
     MessagesModule
   ],
   templateUrl: './control-center.component.html',
@@ -47,6 +49,19 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   readonly gameState = this.gameStateService.state;
   readonly winnerType = signal<string | null>(null);
   readonly solutionStatus = signal<string>('Solution pending...');
+  readonly showCopyFeedback = signal<boolean>(false);
+
+  protected copyGameLink(): void {
+    const id = this.gameId();
+    if (!id) return;
+
+    const url = `https://player-ui.onrender.com/?gameId=${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      this.showCopyFeedback.set(true);
+      setTimeout(() => this.showCopyFeedback.set(false), 2000);
+    });
+  }
+
 
   constructor() {
     effect(() => {
