@@ -180,8 +180,3 @@ export const emitSystemChatMessage = (gameId: string, message: string, type: Cha
   }
 };
 
-// Legacy support for shared module
-export const emitPlayerAssignedCard = (playerId: string, card: any): void => {
-  console.log(`WS_EMIT: player_assigned_card to ${playerId}`);
-  getSocketServer().emit('player_assigned_card', { playerId, card });
-};
