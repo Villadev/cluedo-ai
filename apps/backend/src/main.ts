@@ -1,7 +1,7 @@
 import { createServer } from 'node:http';
 import { env } from './config/env.js';
 import { createApp } from './app.js';
-import { initSocket, emitSystemChatMessage } from './websocket/socket.js';
+import { initSocket, emitSystemChatMessage, emitGameStateUpdate } from './websocket/socket.js';
 import { gameEngine } from './models/dependencies.js';
 
 const bootstrap = (): void => {
@@ -14,6 +14,11 @@ const bootstrap = (): void => {
   // Wire up game engine events to websocket
   gameEngine.setSystemEventListener((gameId, message, type, roundNumber, sequenceId) => {
     emitSystemChatMessage(gameId, message, type, roundNumber, sequenceId);
+  });
+
+  gameEngine.setGameStateChangeListener((gameId, state) => {
+    const gameInfo = gameEngine.getGameStateInfo(gameId);
+    emitGameStateUpdate(gameId, gameInfo);
   });
 
   server.listen(env.PORT, () => {
