@@ -80,6 +80,15 @@ export class WebSocketService {
     }
   }
 
+  emit(event: string, payload: any): void {
+    if (this.socket?.connected) {
+      console.log("WS_EMIT:", event, payload);
+      this.socket.emit(event, payload);
+    } else {
+      console.warn("WS_EMIT: Not connected, ignoring", event, payload);
+    }
+  }
+
   resync(): void {
     if (this.socket?.connected && this.currentGameId) {
       console.log("WS_EMIT: resync_request", { gameId: this.currentGameId });

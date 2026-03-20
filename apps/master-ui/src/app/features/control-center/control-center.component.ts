@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { GameApiService, GameState } from '../../services/game-api.service';
+import { GameApiService, GameState, Difficulty } from '../../services/game-api.service';
 import { WebSocketService } from '../../services/websocket.service';
 import { GameStateService } from '../../services/game-state.service';
 
@@ -15,6 +15,7 @@ import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
 import { TooltipModule } from "primeng/tooltip";
 import { MessagesModule } from 'primeng/messages';
+import { SelectButtonModule } from 'primeng/selectbutton';
 
 @Component({
   selector: 'app-control-center',
@@ -28,7 +29,8 @@ import { MessagesModule } from 'primeng/messages';
     CardModule,
     MessageModule,
     TooltipModule,
-    MessagesModule
+    MessagesModule,
+    SelectButtonModule
   ],
   templateUrl: './control-center.component.html',
   styleUrls: [],
@@ -45,6 +47,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   readonly playerName = signal<string>('');
   readonly maxRounds = signal<number>(5);
   readonly currentRound = signal<number>(1);
+  readonly difficulty = signal<Difficulty>('hard');
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
 
@@ -52,6 +55,13 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   readonly winnerType = signal<string | null>(null);
   readonly solutionStatus = signal<string>('Solution pending...');
   readonly showCopyFeedback = signal<boolean>(false);
+
+  readonly difficultyOptions = [
+    { label: 'Fàcil', value: 'easy' },
+    { label: 'Mitjà', value: 'medium' },
+    { label: 'Difícil', value: 'hard' },
+    { label: 'Extrem', value: 'extreme' }
+  ];
 
   protected copyGameLink(): void {
     const id = this.gameId();
@@ -123,6 +133,10 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       this.maxRounds.set(payload.maxRounds);
     }
 
+    if (payload.difficulty !== undefined) {
+      this.difficulty.set(payload.difficulty as Difficulty);
+    }
+
     if (payload.winnerType !== undefined) {
       this.winnerType.set(payload.winnerType);
     }
@@ -141,6 +155,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
           this.gameStateService.setState(response.data.state as GameState);
           this.currentRound.set(response.data.roundNumber);
           this.maxRounds.set(response.data.maxRounds);
+          this.difficulty.set(response.data.difficulty);
           this.winnerType.set(response.data.winnerType);
         }
       },
@@ -172,6 +187,9 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       next: (response) => {
         if (!response.success) {
           this.error.set(response.error || 'Error al crear la partida');
+        } else {
+          // Send initial difficulty after creation if it's not the default or just to be sure
+          this.updateDifficulty(this.difficulty());
         }
         this.loading.set(false);
       },
@@ -259,5 +277,24 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
 
   protected onMaxRoundsChange(value: number): void {
     this.maxRounds.set(value);
+  }
+
+  protected onDifficultyChange(value: Difficulty): void {
+    if (!value) return;
+    this.difficulty.set(value);
+    const id = this.gameId();
+    if (id) {
+      this.updateDifficulty(value);
+    }
+  }
+
+  private updateDifficulty(difficulty: Difficulty): void {
+    const id = this.gameId();
+    if (!id) return;
+
+    this.websocketService.emit('update_difficulty', {
+      gameId: id,
+      difficulty: difficulty
+    });
   }
 }

@@ -36,6 +36,18 @@
             />
           </div>
 
+          <!-- Difficulty Selector -->
+          <div class="flex flex-column gap-2">
+            <label class="font-bold">Dificultat</label>
+            <p-selectButton
+              [options]="difficultyOptions"
+              [ngModel]="difficulty()"
+              (ngModelChange)="onDifficultyChange($event)"
+              [disabled]="gameState() === 'GENERATING' || gameState() === 'FINISHED' || loading()"
+              aria-labelledby="basic">
+            </p-selectButton>
+          </div>
+
           <div class="flex flex-wrap gap-2 pt-2">
             @if (gameState() === 'NONE') {
               <button
@@ -125,6 +137,10 @@
           <div class="flex justify-content-between">
             <span class="text-700">Ronda:</span>
             <span class="font-bold">{{ currentRound() }} / {{ maxRounds() }}</span>
+          </div>
+          <div class="flex justify-content-between">
+            <span class="text-700">Dificultat actual:</span>
+            <span class="font-bold text-primary">{{ difficulty() | titlecase }}</span>
           </div>
           <div class="flex justify-content-between">
             <span class="text-700">Solució:</span>

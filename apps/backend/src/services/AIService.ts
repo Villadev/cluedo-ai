@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { openaiClient } from '../config/openai.js';
 import { errorLogger } from '../utils/error-logger.js';
-import { FullCase } from '../types/game.types.js';
+import { FullCase, Difficulty } from '../types/game.types.js';
 import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 
 const resolveContextPath = (fileName: string): string => {
@@ -50,10 +50,27 @@ export class AIService {
     return GAME_INSTRUCTIONS;
   }
 
-  public async generateFullCase(playerCount: number): Promise<FullCase> {
+  private getDifficultyInstruction(difficulty: Difficulty): string {
+    switch (difficulty) {
+      case 'easy':
+        return 'Dificultat FÀCIL: Sigues molt explícit. Les pistes han de ser clares i directes, ajudant als jugadors a connectar els punts fàcilment.';
+      case 'medium':
+        return 'Dificultat MITJANA: Sigues equilibrat. Dona informació útil però manté un cert misteri.';
+      case 'hard':
+        return 'Dificultat DIFÍCIL: Sigues subtil. Les pistes han de requerir deducció i atenció als detalls. No donis res mastegat.';
+      case 'extreme':
+        return 'Dificultat EXTREMA: Sigues molt vague i indirecte. Les pistes han de ser críptiques i difícils de desxifrar, sovint basades en matisos o contradiccions molt fines.';
+      default:
+        return '';
+    }
+  }
+
+  public async generateFullCase(playerCount: number, difficulty: Difficulty = 'hard'): Promise<FullCase> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Respon sempre en català.
 
 Estàs creant un cas complet d'assassinat per un joc de misteri narratiu.
+${diffContext}
 
 L'objectiu és crear una història amb personatges connectats entre si, amb secrets, tensions i possibles motius per matar.
 
@@ -235,8 +252,10 @@ Retorna el resultat en JSON amb aquesta estructura:
     return true;
   }
 
-  public async respondToQuestion(publicGameState: string, question: string): Promise<string> {
+  public async respondToQuestion(publicGameState: string, question: string, difficulty: Difficulty = 'hard'): Promise<string> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Respon la pregunta de l'investigador de manera molt directa i breu (màxim 15 paraules).
+${diffContext}
 Regles:
 - No utilitzis metàfores ni descripcions poètiques.
 - Dona una pista subtil o un fet concret si és possible.
@@ -245,8 +264,11 @@ Regles:
     return this.generateNarrative({ instruction, publicGameState, question }, 80);
   }
 
-  public async generateClueNarration(publicGameState: string, clueDescription: string): Promise<string> {
-    const instruction = "Narra una pista o rumor de manera breu i directa (màxim 20 paraules). Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el lloc, però sigues concís. Respon en català.";
+  public async generateClueNarration(publicGameState: string, clueDescription: string, difficulty: Difficulty = 'hard'): Promise<string> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
+    const instruction = `Narra una pista o rumor de manera breu i directa (màxim 20 paraules).
+${diffContext}
+Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el lloc, però sigues concís. Respon en català.`;
     return this.generateNarrative({ instruction, publicGameState, clueDescription }, 100);
   }
   public async generatePrivateMessage(privateContext: string): Promise<string> {

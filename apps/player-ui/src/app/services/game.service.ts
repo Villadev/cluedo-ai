@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, map, Observable, Subscription } from 'rxjs';
-import { PublicGameView, PublicPlayerView, GameStateInfo, GameState } from '../models/player.model';
+import { PublicGameView, PublicPlayerView, GameStateInfo, GameState, Difficulty } from '../models/player.model';
 import { SessionService } from './session.service';
 import { WebSocketService } from './websocket.service';
 import { SocketGameEvent } from '../models/chat.models';
@@ -72,8 +72,13 @@ export class GameService implements OnDestroy {
             this.gameStateService.setState(event.payload.state as GameState);
           }
         } else if (event.event === 'game_state_update') {
-          if (event.payload && typeof event.payload === 'object' && 'status' in event.payload) {
-            this.gameStateService.setState(event.payload.status as GameState);
+          if (event.payload && typeof event.payload === 'object') {
+            if ('status' in event.payload) {
+              this.gameStateService.setState(event.payload.status as GameState);
+            }
+            if ('difficulty' in event.payload) {
+              this.gameStateService.setDifficulty(event.payload.difficulty as Difficulty);
+            }
           }
         }
       })

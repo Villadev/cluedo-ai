@@ -14,11 +14,14 @@ import type {
   PublicGameView,
   PublicParticipant,
   PublicCharacterView,
+  PublicPlayerView,
+  PublicClueView,
   AIServiceClue,
   FullCase,
   ChatMessage,
   Question,
-  GameState
+  GameState,
+  Difficulty
 } from '../types/game.types.js';
 import { GameStates } from '../types/game.types.js';
 import { HttpError } from '../utils/http-error.js';
@@ -67,6 +70,7 @@ export class GameEngine {
       currentTurnIndex: 0,
       roundNumber: 1,
       maxRounds,
+      difficulty: 'hard',
       tensionLevel: 0,
       winnerPlayerId: null,
       winnerType: null,
@@ -101,7 +105,7 @@ export class GameEngine {
       id: generateId(),
       nickname,
       characterId: null,
-      isReady: true,
+      isReady: false,
       isEliminated: false,
       hasAccused: false,
       askedThisRound: false,
@@ -111,8 +115,8 @@ export class GameEngine {
     };
 
     game.players.push(player);
+    game.updatedAt = nowIso();
 
-    console.log("Player joined:", nickname);
     this.recordTimelineEvent(game, {
       type: 'PLAYER_JOIN',
       playerId: player.id,
@@ -142,7 +146,7 @@ export class GameEngine {
 
     try {
       const requestedSuspectsCount = Math.max(game.players.length, MIN_SUSPECTS);
-      const fullCase = await this.aiService.generateFullCase(requestedSuspectsCount);
+      const fullCase = await this.aiService.generateFullCase(requestedSuspectsCount, game.difficulty);
 
       game.murder = {
         killerPlayerId: '', // To be assigned
@@ -205,31 +209,27 @@ export class GameEngine {
               type: 'npc'
             };
             game.players.push(npcPlayer);
-            if (character.id === game.assassinCharacterId) {
-              game.murder!.killerPlayerId = npcPlayer.id;
-              game.solution!.assassinId = npcPlayer.id;
-            }
           }
         }
       }
 
-      game.clues = [
-        ...fullCase.clues.round1.map(c => ({ ...c, id: generateId(), roundNumber: 1, createdAt: nowIso() })),
-        ...fullCase.clues.round2.map(c => ({ ...c, id: generateId(), roundNumber: 2, createdAt: nowIso() })),
-        ...fullCase.clues.round3.map(c => ({ ...c, id: generateId(), roundNumber: 3, createdAt: nowIso() })),
-        ...fullCase.clues.round4.map(c => ({ ...c, id: generateId(), roundNumber: 4, createdAt: nowIso() }))
-      ];
-
+      // Final Transition to READY state
       game.state = GameStates.READY;
       game.updatedAt = nowIso();
       this.store.save(game);
       this.emitStateChange(gameId, game.state);
 
+      console.log("[GAME STATE] GENERATING → READY (Cas generat)");
+
+      this.recordTimelineEvent(game, {
+        type: 'STATE_CHANGE',
+        description: 'Cas generat correctament. La partida està a punt per començar.'
+      });
+
       return game;
-    } catch (error) {
-      // Revert to LOBBY on failure
+    } catch (error: any) {
+      console.error("[GENERATION ERROR]", error);
       game.state = GameStates.LOBBY;
-      game.updatedAt = nowIso();
       this.store.save(game);
       this.emitStateChange(gameId, game.state);
       throw error;
@@ -239,25 +239,90 @@ export class GameEngine {
   public async startPlaying(gameId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     this.validateGameStateTransition(game.state, GameStates.PLAYING);
-
     game.state = GameStates.PLAYING;
     game.updatedAt = nowIso();
+    this.store.save(game);
+    this.emitStateChange(gameId, game.state);
+
+    console.log("[GAME STATE] READY → PLAYING (Investigació en curs)");
 
     this.recordTimelineEvent(game, {
       type: 'STATE_CHANGE',
-      description: 'La investigació ha començat oficialment.'
+      description: 'Investigació iniciada. Comença la ronda 1.'
     });
 
-    // Ensure turn index points to the first real player
-    const firstRealPlayerIndex = game.players.findIndex(p => p.type === 'real');
-    game.currentTurnIndex = firstRealPlayerIndex >= 0 ? firstRealPlayerIndex : 0;
-
-    // Reveal Round 1 clues
+    // Automatically reveal clues for round 1
     await this.revealCluesForRound(game, 1);
 
-    this.store.save(game);
-    this.emitStateChange(gameId, game.state);
     return game;
+  }
+
+  public getPublicState(gameId: string, requesterPlayerId?: string): PublicGameView {
+    const game = this.getGameOrThrow(gameId);
+
+    const publicPlayers: PublicPlayerView[] = game.players.map((p) => {
+      const character = game.characters.find((c) => c.id === p.characterId);
+      const isSelf = p.id === requesterPlayerId;
+      const isFinished = game.state === GameStates.FINISHED;
+
+      return {
+        id: p.id,
+        nickname: p.nickname,
+        character: character
+          ? {
+              id: character.id,
+              name: character.name,
+              profession: character.profession,
+              description: character.description,
+              personality: character.personality,
+              possibleMotive: character.possibleMotive,
+              secret: character.secret,
+              secretKnowledge: character.secretKnowledge,
+              coartada: character.coartada,
+              rumor: character.rumor,
+              relationships: character.relationships,
+              tensions: character.tensions
+            }
+          : undefined,
+        isReady: p.isReady,
+        isEliminated: p.isEliminated,
+        hasAccused: p.hasAccused,
+        askedThisRound: p.askedThisRound,
+        accusedThisRound: p.accusedThisRound,
+        accusationCooldown: p.accusationCooldown,
+        isAssassin: (isSelf || isFinished) ? (p.characterId === game.assassinCharacterId) : false,
+        type: p.type
+      };
+    });
+
+    const publicClues: PublicClueView[] = game.clues
+      .filter(c => c.roundNumber <= game.roundNumber)
+      .map((c) => ({
+        id: c.id,
+        playerId: c.playerId,
+        type: c.type,
+        text: c.text,
+        roundNumber: c.roundNumber,
+        createdAt: c.createdAt
+      }));
+
+    return {
+      id: game.id,
+      state: game.state,
+      players: publicPlayers,
+      clues: publicClues,
+      currentTurnPlayerId: game.players[game.currentTurnIndex]?.id || null,
+      roundNumber: game.roundNumber,
+      maxRounds: game.maxRounds,
+      tensionLevel: game.tensionLevel,
+      difficulty: game.difficulty,
+      winnerPlayerId: game.winnerPlayerId,
+      winnerType: game.winnerType,
+      createdAt: game.createdAt,
+      updatedAt: game.updatedAt,
+      nextSequenceId: game.nextSequenceId,
+      assassinId: (game.state === 'FINISHED' || (requesterPlayerId && game.players.find(p => p.id === requesterPlayerId)?.characterId === game.assassinCharacterId)) ? (game.players.find(p => p.characterId === game.assassinCharacterId)?.id) : undefined
+    };
   }
 
   public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ response: string; game: Game }> {
@@ -278,7 +343,8 @@ export class GameEngine {
 
     const response = await this.aiService.respondToQuestion(
       JSON.stringify(this.getPublicState(game.id, player.id)),
-      input.question
+      input.question,
+      game.difficulty
     );
 
     const question: Question = {
@@ -352,115 +418,48 @@ export class GameEngine {
       game.state = GameStates.FINISHED;
       game.winnerPlayerId = player.id;
       game.winnerType = 'INVESTIGATORS';
+      game.updatedAt = nowIso();
+
+      const msg = `L'acusació és CORRECTA! El jugador ${player.nickname} ha resolt el cas.`;
       this.recordTimelineEvent(game, {
         type: 'ACCUSATION',
         playerId: player.id,
         success: true,
-        description: `El jugador ${player.nickname} ha resolt el cas correctament!`
+        description: msg
       });
-      this.emitStateChange(gameId, game.state);
+
+      if (this.onSystemEvent) {
+        this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
+      }
     } else {
-      player.accusationCooldown = 2; // Penalty
+      player.accusationCooldown = 2; // Penalty rounds
+      const accusedNickname = game.players.find(p => p.id === input.accusedPlayerId)?.nickname || 'un desconegut';
+      const msg = `L'acusació contra ${accusedNickname} amb ${input.weapon} a ${input.location} és INCORRECTA. ${player.nickname} rep una penalització de 2 rondes.`;
+
       this.recordTimelineEvent(game, {
         type: 'ACCUSATION',
         playerId: player.id,
         success: false,
-        description: `El jugador ${player.nickname} ha fallat l'acusació.`
+        description: msg
       });
+
+      if (this.onSystemEvent) {
+        this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
+      }
     }
 
     game.updatedAt = nowIso();
     this.store.save(game);
+    if (isCorrect) {
+      this.emitStateChange(gameId, game.state);
+    }
     return game;
-  }
-
-  public getPublicState(gameId: string, requesterPlayerId?: string): PublicGameView {
-    const game = this.getGameOrThrow(gameId);
-    const requesterPlayer = requesterPlayerId ? game.players.find(p => p.id === requesterPlayerId) : undefined;
-    const isFinished = game.state === GameStates.FINISHED;
-
-    return {
-      id: game.id,
-      state: game.state,
-      players: game.players.map((p) => {
-        const character = game.characters.find((c) => c.id === p.characterId);
-        const isSelf = p.id === requesterPlayerId;
-        const shouldShowSecrets = isFinished || (isSelf && (p.id === game.murder?.killerPlayerId));
-
-        return {
-          id: p.id,
-          nickname: p.nickname,
-          isReady: p.isReady,
-          isEliminated: p.isEliminated,
-          hasAccused: p.hasAccused,
-          askedThisRound: p.askedThisRound,
-          accusedThisRound: p.accusedThisRound,
-          accusationCooldown: p.accusationCooldown,
-          isAssassin: shouldShowSecrets,
-          type: p.type,
-          character: character ? {
-            id: character.id,
-            name: character.name,
-            profession: character.profession,
-            description: character.description,
-            personality: character.personality,
-            possibleMotive: character.possibleMotive,
-            secret: isSelf || isFinished ? character.secret : '???',
-            secretKnowledge: isSelf || isFinished ? character.secretKnowledge : '???',
-            coartada: character.coartada,
-            rumor: character.rumor,
-            relationships: character.relationships,
-            tensions: character.tensions
-          } : undefined
-        };
-      }),
-      clues: game.clues.map((c) => ({
-        id: c.id,
-        playerId: c.playerId,
-        type: c.type,
-        text: c.text,
-        roundNumber: c.roundNumber,
-        createdAt: c.createdAt
-      })),
-      currentTurnPlayerId: game.players[game.currentTurnIndex]?.id || null,
-      roundNumber: game.roundNumber,
-      maxRounds: game.maxRounds,
-      tensionLevel: game.tensionLevel,
-      winnerPlayerId: game.winnerPlayerId,
-      winnerType: game.winnerType,
-      createdAt: game.createdAt,
-      updatedAt: game.updatedAt,
-      nextSequenceId: game.nextSequenceId,
-      assassinId: (requesterPlayer?.id === game.murder?.killerPlayerId || isFinished) ? game.murder?.killerPlayerId : undefined
-    };
-  }
-
-  public getParticipants(gameId: string): PublicParticipant[] {
-    const game = this.getGameOrThrow(gameId);
-    return game.players.map((p) => {
-       const character = game.characters.find(c => c.id === p.characterId);
-       return {
-         id: p.id,
-         publicCharacter: character ? `${character.name} (${character.profession})` : p.nickname
-       };
-    });
-  }
-
-  public getOptions(gameId: string): { weapons: string[], locations: string[] } {
-     return {
-       weapons: WEAPONS,
-       locations: LOCATIONS
-     };
-  }
-
-  public getInstructions(): string {
-     return "Instruccions del Cluedo AI...";
   }
 
   public getIntro(gameId: string): string {
     const game = this.getGameOrThrow(gameId);
     if (!game.introNarrative) {
-      throw new HttpError(404, 'La introducció encara no està disponible');
+      throw new HttpError(404, 'La introducció encara no s\'ha generat');
     }
     return game.introNarrative;
   }
@@ -654,7 +653,7 @@ export class GameEngine {
 
     for (const clue of roundClues) {
       try {
-        const narrative = await this.aiService.generateClueNarration(publicStateStr, clue.text);
+        const narrative = await this.aiService.generateClueNarration(publicStateStr, clue.text, game.difficulty);
 
         if (this.onSystemEvent) {
           this.onSystemEvent(game.id, narrative, 'clue', game.roundNumber, game.nextSequenceId++);
@@ -677,6 +676,51 @@ export class GameEngine {
     }
   }
 
+  public updateDifficulty(gameId: string, difficulty: Difficulty): Game {
+    const game = this.getGameOrThrow(gameId);
+    if (game.state === 'FINISHED') {
+       throw new HttpError(400, 'No es pot canviar la dificultat d\'una partida finalitzada');
+    }
+
+    game.difficulty = difficulty;
+    game.updatedAt = nowIso();
+
+    this.recordTimelineEvent(game, {
+      type: 'DIFFICULTY_CHANGED',
+      description: `S'ha canviat la dificultat a: ${difficulty}`
+    });
+
+    this.store.save(game);
+    return game;
+  }
+
+  public getOptions(gameId: string): { weapons: string[], locations: string[] } {
+    return {
+      weapons: WEAPONS,
+      locations: LOCATIONS
+    };
+  }
+
+  public getParticipants(gameId: string): PublicPlayerView[] {
+    const game = this.getGameOrThrow(gameId);
+    return game.players.map(p => ({
+      id: p.id,
+      nickname: p.nickname,
+      isReady: p.isReady,
+      isEliminated: p.isEliminated,
+      hasAccused: p.hasAccused,
+      askedThisRound: p.askedThisRound,
+      accusedThisRound: p.accusedThisRound,
+      accusationCooldown: p.accusationCooldown,
+      isAssassin: p.characterId === game.assassinCharacterId,
+      type: p.type
+    }));
+  }
+
+  public getInstructions(): string {
+    return this.aiService.getInstructionsContext();
+  }
+
   private shuffle<T>(array: T[]): T[] {
     const newArray = [...array];
     for (let i = newArray.length - 1; i > 0; i--) {
@@ -697,6 +741,9 @@ export class GameEngine {
     }
     if (game.winnerType === undefined) {
       game.winnerType = null;
+    }
+    if (game.difficulty === undefined) {
+      game.difficulty = 'hard';
     }
     return game;
   }
@@ -771,6 +818,7 @@ export class GameEngine {
       roundNumber: game.roundNumber,
       nextSequenceId: game.nextSequenceId,
       maxRounds: game.maxRounds,
+      difficulty: game.difficulty,
       winnerType: game.winnerType
     };
   }

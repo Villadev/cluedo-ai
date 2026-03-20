@@ -9,6 +9,7 @@ export const GameStates: Record<GameState, GameState> = {
 };
 
 export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'extreme';
 
 export interface TimelineEvent {
   timestamp: string;
@@ -27,7 +28,8 @@ export interface TimelineEvent {
     | 'CRIME_TIME_WINDOW_GENERATED'
     | 'ALIBI_NETWORK_GENERATED'
     | 'ALIBI_CONTRADICTION_CREATED'
-    | 'CHARACTER_COARTADA_ASSIGNED';
+    | 'CHARACTER_COARTADA_ASSIGNED'
+    | 'DIFFICULTY_CHANGED';
   playerId?: string;
   characterId?: string;
   roundNumber?: number;
@@ -144,6 +146,7 @@ export interface Game {
   roundNumber: number;
   maxRounds: number;
   tensionLevel: number;
+  difficulty: Difficulty;
   winnerPlayerId: string | null;
   winnerType: WinnerType | null;
   timeline: TimelineEvent[];
@@ -214,6 +217,7 @@ export interface PublicGameView {
   roundNumber: number;
   maxRounds: number;
   tensionLevel: number;
+  difficulty: Difficulty;
   winnerPlayerId: string | null;
   winnerType: WinnerType | null;
   createdAt: string;
@@ -264,6 +268,7 @@ export interface FullCase {
   characters: AIServiceCharacter[];
   introductionNarrative: string;
   solutionNarrative: string;
+  difficulty?: Difficulty;
   clues: {
     round1: AIServiceClue[];
     round2: AIServiceClue[];
