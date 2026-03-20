@@ -18,10 +18,8 @@ export class GameStatusIndicatorComponent {
 
   private readonly statusMap: Record<string, { label: string, color: string }> = {
     LOBBY: { label: 'Esperant jugadors', color: '#9e9e9e' },
-    WAITING: { label: 'Esperant jugadors', color: '#9e9e9e' },
     READY: { label: 'Preparant partida', color: '#ffc107' },
     PLAYING: { label: 'En joc', color: '#4caf50' },
-    STARTED: { label: 'En joc', color: '#4caf50' },
     FINISHED: { label: 'Partida finalitzada', color: '#f44336' },
     NONE: { label: 'Sense partida activa', color: '#9e9e9e' }
   };

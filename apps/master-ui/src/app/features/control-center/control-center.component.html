@@ -15,6 +15,7 @@
         (click)="copyGameLink()"
         [pTooltip]="'Copia l\u0027enllaç per als jugadors'"
         tooltipPosition="top"
+        [disabled]="loading()"
       ></button>
     </div>
   }
@@ -31,7 +32,7 @@
               type="number"
               [ngModel]="maxRounds()"
               (ngModelChange)="onMaxRoundsChange($event)"
-              [disabled]="gameState() !== 'NONE' && gameState() !== 'LOBBY'"
+              [disabled]="(gameState() !== 'NONE' && gameState() !== 'LOBBY') || loading()"
             />
           </div>
 
@@ -43,6 +44,7 @@
                 icon="pi pi-plus"
                 (click)="createGame()"
                 [loading]="loading()"
+                [disabled]="loading()"
               ></button>
             } @else if (gameState() === 'LOBBY') {
               <button
@@ -52,6 +54,7 @@
                 severity="success"
                 (click)="startGame()"
                 [loading]="loading()"
+                [disabled]="loading()"
               ></button>
             } @else if (gameState() === 'READY') {
               <button
@@ -61,6 +64,7 @@
                 severity="success"
                 (click)="startPlaying()"
                 [loading]="loading()"
+                [disabled]="loading()"
               ></button>
             }
 
@@ -72,6 +76,7 @@
                 severity="danger"
                 (click)="cancelGame()"
                 [loading]="loading()"
+                [disabled]="loading()"
               ></button>
             }
           </div>
@@ -94,6 +99,7 @@
                 (ngModelChange)="onPlayerNameChange($event)"
                 placeholder="Ex: Joan"
                 (keyup.enter)="addPlayer()"
+                [disabled]="loading()"
               />
             </div>
             <button
@@ -102,7 +108,7 @@
               icon="pi pi-user-plus"
               (click)="addPlayer()"
               [loading]="loading()"
-              [disabled]="!playerName().trim()"
+              [disabled]="!playerName().trim() || loading()"
             ></button>
           </div>
         </p-card>
