@@ -69,7 +69,7 @@ export class WebSocketService {
       'clue',
       'system_event',
       'error',
-      'resync_data'
+      'resync_data', 'game_deleted'
     ];
 
     for (const eventName of listenableEvents) {

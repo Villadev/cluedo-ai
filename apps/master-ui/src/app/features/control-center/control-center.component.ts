@@ -91,6 +91,9 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
           if (event.payload?.gameState) {
             this.handleStateUpdate(event.payload.gameState);
           }
+        } else if (event.event === 'game_deleted') {
+           this.gameApiService.setGameId(null);
+           this.router.navigate(['/control-center']);
         }
       })
     );
@@ -126,7 +129,9 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
 
     // Always refresh for more details if needed
     const id = this.gameId();
-    if (id) this.fetchInitialGameData(id);
+    if (id && payload.type === 'STATE_CHANGE') {
+       this.fetchInitialGameData(id);
+    }
   }
 
   private fetchInitialGameData(id: string): void {
@@ -220,26 +225,6 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     });
   }
 
-  protected startPlaying(): void {
-    const id = this.gameId();
-    if (!id) return;
-
-    this.loading.set(true);
-    this.error.set(null);
-    this.gameApiService.startPlaying(id).subscribe({
-      next: (response) => {
-        if (!response.success) {
-          this.error.set(response.error || 'Error en començar a jugar');
-        }
-        this.loading.set(false);
-      },
-      error: (err) => {
-        this.error.set('Error en el servidor en començar a jugar');
-        this.loading.set(false);
-      }
-    });
-  }
-
   protected cancelGame(): void {
     const id = this.gameId();
     if (!id) {
@@ -250,7 +235,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
 
     this.loading.set(true);
     this.error.set(null);
-    this.gameApiService.resetGame(id).subscribe({
+    this.gameApiService.deleteGame(id).subscribe({
       next: (response) => {
         if (response.success) {
           this.router.navigate(['/control-center']);

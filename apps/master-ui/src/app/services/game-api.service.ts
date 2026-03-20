@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 
-export type GameState = 'LOBBY' | 'GENERATING' | 'READY' | 'PLAYING' | 'FINISHED';
+export type GameState = 'WAITING' | 'GENERATING' | 'INTRO' | 'PLAYER_INFO' | 'IN_GAME' | 'FINISHED' | 'NONE';
 export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
 
 export interface Coartada {
@@ -157,13 +157,13 @@ export class GameApiService {
   private readonly baseUrl = 'https://backend-veq8.onrender.com';
 
   // Reactive gameId signal
-  readonly gameId = signal<string | null>(localStorage.getItem('gameId'));
+  readonly gameId = signal<string | null>(sessionStorage.getItem('gameId'));
 
   setGameId(id: string | null): void {
     if (id) {
-      localStorage.setItem('gameId', id);
+      sessionStorage.setItem('gameId', id);
     } else {
-      localStorage.removeItem('gameId');
+      sessionStorage.removeItem('gameId');
     }
     this.gameId.set(id);
   }
@@ -188,12 +188,8 @@ export class GameApiService {
     return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/start`, {});
   }
 
-  startPlaying(gameId: string): Observable<ApiResponse<PublicGameView>> {
-    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/play`, {});
-  }
-
-  resetGame(gameId: string): Observable<ApiResponse<GameResponse>> {
-    return this.http.post<ApiResponse<GameResponse>>(`${this.baseUrl}/game/${gameId}/reset`, {}).pipe(
+  deleteGame(gameId: string): Observable<ApiResponse<any>> {
+    return this.http.delete<ApiResponse<any>>(`${this.baseUrl}/game/${gameId}`).pipe(
       tap(response => {
         if (response.success) {
           this.setGameId(null);
