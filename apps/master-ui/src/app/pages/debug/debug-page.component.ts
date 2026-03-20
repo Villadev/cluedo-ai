@@ -100,7 +100,7 @@ export class DebugPageComponent implements OnInit {
   loadDebugData(): void {
     const gameId = this.gameApi.gameId();
     if (!gameId) {
-      this.error.set('No s\'ha trobat cap ID de partida al localStorage');
+      this.error.set('No s\'ha trobat cap ID de partida al sessionStorage');
       return;
     }
 
