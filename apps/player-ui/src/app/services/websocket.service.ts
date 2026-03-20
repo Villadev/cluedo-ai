@@ -71,7 +71,8 @@ export class WebSocketService {
       'system_message',
       'round_start',
       'round_end',
-      'resync_data'
+      'resync_data',
+      'game_deleted'
     ];
 
     for (const eventName of listenableEvents) {
