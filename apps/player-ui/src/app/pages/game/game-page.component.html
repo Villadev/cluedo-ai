@@ -17,7 +17,7 @@
       </p-card>
     }
 
-    @if (gameState() === 'LOBBY' || gameState() === 'READY' || gameState() === 'NONE') {
+    @if (gameState() === 'LOBBY' || gameState() === 'GENERATING' || gameState() === 'NONE') {
       <p-card header="Sala d'espera" styleClass="text-center py-6">
         <div class="flex flex-column align-items-center gap-4">
           <p-progressSpinner ariaLabel="Carregant..."></p-progressSpinner>

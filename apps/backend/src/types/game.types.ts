@@ -1,9 +1,9 @@
-export type GameState = 'LOBBY' | 'GENERATING' | 'READY' | 'PLAYING' | 'FINISHED';
+export type GameState = 'LOBBY' | 'GENERATING' | 'PLAYER_INFO' | 'PLAYING' | 'FINISHED';
 
 export const GameStates: Record<GameState, GameState> = {
   LOBBY: 'LOBBY',
   GENERATING: 'GENERATING',
-  READY: 'READY',
+  PLAYER_INFO: 'PLAYER_INFO',
   PLAYING: 'PLAYING',
   FINISHED: 'FINISHED'
 };

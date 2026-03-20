@@ -96,7 +96,7 @@ export class DetectiveNotebookComponent implements OnInit {
   }
 
   private loadNotes(): void {
-    const saved = localStorage.getItem(this.storageKey);
+    const saved = sessionStorage.getItem(this.storageKey);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -112,6 +112,6 @@ export class DetectiveNotebookComponent implements OnInit {
   }
 
   private saveNotes(): void {
-    localStorage.setItem(this.storageKey, JSON.stringify(this.notes()));
+    sessionStorage.setItem(this.storageKey, JSON.stringify(this.notes()));
   }
 }

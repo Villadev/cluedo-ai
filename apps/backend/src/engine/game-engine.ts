@@ -213,13 +213,13 @@ export class GameEngine {
         }
       }
 
-      // Final Transition to READY state
-      game.state = GameStates.READY;
+      // Final Transition to PLAYER_INFO state
+      game.state = GameStates.PLAYER_INFO;
       game.updatedAt = nowIso();
       this.store.save(game);
       this.emitStateChange(gameId, game.state);
 
-      console.log("[GAME STATE] GENERATING → READY (Cas generat)");
+      console.log("[GAME STATE] GENERATING → PLAYER_INFO (Cas generat)");
 
       this.recordTimelineEvent(game, {
         type: 'STATE_CHANGE',
@@ -244,7 +244,7 @@ export class GameEngine {
     this.store.save(game);
     this.emitStateChange(gameId, game.state);
 
-    console.log("[GAME STATE] READY → PLAYING (Investigació en curs)");
+    console.log("[GAME STATE] PLAYER_INFO → PLAYING (Investigació en curs)");
 
     this.recordTimelineEvent(game, {
       type: 'STATE_CHANGE',
@@ -787,9 +787,9 @@ export class GameEngine {
 
   private validateGameStateTransition(currentState: string, nextState: string): void {
     const allowedTransitions: Record<string, string[]> = {
-      [GameStates.LOBBY]: [GameStates.READY, GameStates.LOBBY, GameStates.GENERATING],
-      [GameStates.GENERATING]: [GameStates.READY, GameStates.LOBBY],
-      [GameStates.READY]: [GameStates.PLAYING, GameStates.LOBBY],
+      [GameStates.LOBBY]: [GameStates.PLAYER_INFO, GameStates.LOBBY, GameStates.GENERATING],
+      [GameStates.GENERATING]: [GameStates.PLAYER_INFO, GameStates.LOBBY],
+      [GameStates.PLAYER_INFO]: [GameStates.PLAYING, GameStates.LOBBY],
       [GameStates.PLAYING]: [GameStates.FINISHED, GameStates.LOBBY],
       [GameStates.FINISHED]: [GameStates.LOBBY]
     };

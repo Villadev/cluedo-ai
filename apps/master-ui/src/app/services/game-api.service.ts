@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 
-export type GameState = 'LOBBY' | 'GENERATING' | 'READY' | 'PLAYING' | 'FINISHED' | 'NONE';
+export type GameState = 'LOBBY' | 'GENERATING' | 'PLAYER_INFO' | 'PLAYING' | 'FINISHED' | 'NONE';
 export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'extreme';
 
