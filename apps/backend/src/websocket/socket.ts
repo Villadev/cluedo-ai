@@ -2,7 +2,7 @@ import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { corsOrigins } from '../config/env.js';
 import { gameEngine } from '../models/dependencies.js';
-import { Player, PublicGameView, ChatMessage, GameState } from '../types/game.types.js';
+import { Player, PublicGameView, ChatMessage, GameState, Difficulty } from '../types/game.types.js';
 
 let io: Server | null = null;
 
@@ -52,6 +52,18 @@ export const initSocket = (httpServer: HttpServer): Server => {
       } catch (error: any) {
         console.error('WS_RESYNC_ERROR:', error);
         socket.emit('error', { message: 'Error en la resincronització' });
+      }
+    });
+
+    socket.on('update_difficulty', (payload: { gameId: string; difficulty: Difficulty }) => {
+      console.log('WS_EVENT: update_difficulty', payload);
+      try {
+        const game = gameEngine.updateDifficulty(payload.gameId, payload.difficulty);
+        const gameInfo = gameEngine.getGameStateInfo(payload.gameId);
+        emitGameStateUpdate(payload.gameId, gameInfo);
+      } catch (error: any) {
+        console.error('WS_ERROR updating difficulty:', error);
+        socket.emit('error', { message: error.message || 'Error updating difficulty' });
       }
     });
 
@@ -179,4 +191,3 @@ export const emitSystemChatMessage = (gameId: string, message: string, type: Cha
     // Might fail for 'MAIN_GAME' which doesn't exist in gameEngine
   }
 };
-

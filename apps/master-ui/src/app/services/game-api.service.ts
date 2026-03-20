@@ -4,6 +4,7 @@ import { Observable, tap } from 'rxjs';
 
 export type GameState = 'WAITING' | 'GENERATING' | 'INTRO' | 'PLAYER_INFO' | 'IN_GAME' | 'FINISHED' | 'NONE';
 export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
+export type Difficulty = 'easy' | 'medium' | 'hard' | 'extreme';
 
 export interface Coartada {
   location: string;
@@ -57,6 +58,7 @@ export interface PublicGameView {
   roundNumber: number;
   maxRounds: number;
   tensionLevel: number;
+  difficulty: Difficulty;
   winnerPlayerId: string | null;
   winnerType: WinnerType | null;
   createdAt: string;
@@ -124,6 +126,7 @@ export interface GameStateInfo {
   charactersCount: number;
   roundNumber: number;
   maxRounds: number;
+  difficulty: Difficulty;
   winnerType: WinnerType | null;
 }
 
