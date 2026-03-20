@@ -72,10 +72,12 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   constructor() {
     effect(() => {
       const newState = this.gameState();
-      if (newState === 'PLAYING') {
+      if (newState === 'PLAYER_INFO' || newState === 'PLAYING') {
         const hasSeenIntro = sessionStorage.getItem(`intro_seen_${this.gameId}`);
         if (!hasSeenIntro) {
           void this.router.navigate(['/game', this.gameId, 'introduction']);
+        } else if (newState === 'PLAYER_INFO' && this.router.url.endsWith('/' + this.gameId)) {
+          void this.router.navigate(['/game', this.gameId, 'participants']);
         }
       }
     });

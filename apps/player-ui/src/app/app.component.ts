@@ -28,6 +28,7 @@ export class AppComponent implements OnInit {
     { label: 'Informació de partida', icon: 'pi pi-info-circle', command: () => this.navigateToGameSection('info') },
     { label: 'Participants', icon: 'pi pi-users', command: () => this.navigateToGameSection('participants') },
     { label: 'Instruccions', icon: 'pi pi-list', command: () => this.navigateToGameSection('instructions') },
+    { label: 'Veure introducció', icon: 'pi pi-map', command: () => this.navigateToGameSection('introduction') },
     { label: 'Llibreta de Detectiu', icon: 'pi pi-book', command: () => this.navigateToGameSection('notebook') },
     { label: 'Acusació', icon: 'pi pi-megaphone', command: () => this.navigateToGameSection('accusation') },
     { label: 'Sortir de la partida', icon: 'pi pi-sign-out', command: () => this.leaveGame() }

@@ -92,6 +92,13 @@ export class IntroductionComponent implements OnInit, OnDestroy {
   protected continueToGame(): void {
     this.stopIntroduction();
     sessionStorage.setItem(`intro_seen_${this.gameId}`, 'true');
-    void this.router.navigate(['/game', this.gameId]);
+
+    this.gameService.getGame(this.gameId).subscribe(response => {
+      if (response.success && response.data?.state === 'PLAYER_INFO') {
+        void this.router.navigate(['/game', this.gameId, 'participants']);
+      } else {
+        void this.router.navigate(['/game', this.gameId]);
+      }
+    });
   }
 }

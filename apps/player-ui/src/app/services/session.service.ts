@@ -6,16 +6,16 @@ export class SessionService {
   private readonly playerIdKey = 'cluedo_player_id';
 
   setSession(gameId: string, playerId?: string): void {
-    localStorage.setItem(this.gameIdKey, gameId);
-    localStorage.setItem(this.playerIdKey, playerId ?? '');
+    sessionStorage.setItem(this.gameIdKey, gameId);
+    sessionStorage.setItem(this.playerIdKey, playerId ?? '');
   }
 
   getGameId(): string {
-    return localStorage.getItem(this.gameIdKey) ?? '';
+    return sessionStorage.getItem(this.gameIdKey) ?? '';
   }
 
   getPlayerId(): string {
-    return localStorage.getItem(this.playerIdKey) ?? '';
+    return sessionStorage.getItem(this.playerIdKey) ?? '';
   }
 
   hasSession(): boolean {
@@ -23,7 +23,7 @@ export class SessionService {
   }
 
   clearSession(): void {
-    localStorage.removeItem(this.gameIdKey);
-    localStorage.removeItem(this.playerIdKey);
+    sessionStorage.removeItem(this.gameIdKey);
+    sessionStorage.removeItem(this.playerIdKey);
   }
 }

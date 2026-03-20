@@ -97,7 +97,7 @@ export class GameController {
   }
 
   /**
-   * Comença a jugar la partida (canvi d'estat de READY a PLAYING).
+   * Comença a jugar la partida (canvi d'estat de PLAYER_INFO a PLAYING).
    */
   public async startPlaying(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
