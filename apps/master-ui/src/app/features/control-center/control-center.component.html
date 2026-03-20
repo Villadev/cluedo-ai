@@ -32,7 +32,7 @@
               type="number"
               [ngModel]="maxRounds()"
               (ngModelChange)="onMaxRoundsChange($event)"
-              [disabled]="(gameState() !== 'NONE' && gameState() !== 'WAITING') || loading() || gameState() === 'GENERATING'"
+              [disabled]="(gameState() !== 'NONE' && gameState() !== 'LOBBY') || loading() || gameState() === 'GENERATING'"
             />
           </div>
 
@@ -58,7 +58,7 @@
                 [loading]="loading()"
                 [disabled]="loading()"
               ></button>
-            } @else if (gameState() === 'WAITING') {
+            } @else if (gameState() === 'LOBBY') {
               <button
                 pButton
                 label="Començar Partida (Generar Cas)"
@@ -76,6 +76,16 @@
                 severity="warning"
                 [loading]="true"
                 [disabled]="true"
+              ></button>
+            } @else if (gameState() === 'READY') {
+                <button
+                pButton
+                label="Començar a Jugar"
+                icon="pi pi-play"
+                severity="success"
+                (click)="startPlaying()"
+                [loading]="loading()"
+                [disabled]="loading()"
               ></button>
             } @else {
                <div class="p-3 bg-green-50 border-round border-1 border-green-200 w-full mb-2">
@@ -100,7 +110,7 @@
     </div>
 
     <!-- Gestió de Jugadors -->
-    @if (gameState() === 'WAITING') {
+    @if (gameState() === 'LOBBY') {
       <div class="col-12 md:col-6">
         <p-card header="Afegir Jugador">
           <div class="flex flex-column gap-3">
@@ -161,7 +171,7 @@
     <p-message severity="error" [text]="error()!"></p-message>
   }
 
-  @if (gameId() && (gameState() === 'IN_GAME' || gameState() === 'FINISHED')) {
+  @if (gameId() && (gameState() === 'PLAYING' || gameState() === 'FINISHED')) {
     <div class="mt-4">
       <app-chat-view [gameId]="gameId()!"></app-chat-view>
     </div>

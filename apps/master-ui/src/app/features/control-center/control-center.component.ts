@@ -243,6 +243,26 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     });
   }
 
+  protected startPlaying(): void {
+    const id = this.gameId();
+    if (!id) return;
+
+    this.loading.set(true);
+    this.error.set(null);
+    this.gameApiService.startPlaying(id).subscribe({
+      next: (response) => {
+        if (!response.success) {
+          this.error.set(response.error || 'Error en començar a jugar');
+        }
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.error.set('Error en el servidor en començar a jugar');
+        this.loading.set(false);
+      }
+    });
+  }
+
   protected cancelGame(): void {
     const id = this.gameId();
     if (!id) {
