@@ -32,7 +32,7 @@
               type="number"
               [ngModel]="maxRounds()"
               (ngModelChange)="onMaxRoundsChange($event)"
-              [disabled]="(gameState() !== 'NONE' && gameState() !== 'LOBBY') || loading() || gameState() === 'GENERATING'"
+              [disabled]="(gameState() !== 'NONE' && gameState() !== 'WAITING') || loading() || gameState() === 'GENERATING'"
             />
           </div>
 
@@ -46,10 +46,10 @@
                 [loading]="loading()"
                 [disabled]="loading()"
               ></button>
-            } @else if (gameState() === 'LOBBY') {
+            } @else if (gameState() === 'WAITING') {
               <button
                 pButton
-                label="Generar Cas (READY)"
+                label="Començar Partida (Generar Cas)"
                 icon="pi pi-play"
                 severity="success"
                 (click)="startGame()"
@@ -65,22 +65,16 @@
                 [loading]="true"
                 [disabled]="true"
               ></button>
-            } @else if (gameState() === 'READY') {
-              <button
-                pButton
-                label="Començar a Jugar (PLAYING)"
-                icon="pi pi-bolt"
-                severity="success"
-                (click)="startPlaying()"
-                [loading]="loading()"
-                [disabled]="loading()"
-              ></button>
+            } @else {
+               <div class="p-3 bg-green-50 border-round border-1 border-green-200 w-full mb-2">
+                 <span class="text-green-700 font-bold">La partida està en curs (Estat: {{ gameState() }})</span>
+               </div>
             }
 
             @if (gameState() !== 'NONE') {
               <button
                 pButton
-                label="Cancel·lar/Reset"
+                label="Eliminar Partida"
                 icon="pi pi-trash"
                 severity="danger"
                 (click)="cancelGame()"
@@ -94,7 +88,7 @@
     </div>
 
     <!-- Gestió de Jugadors -->
-    @if (gameState() === 'LOBBY') {
+    @if (gameState() === 'WAITING') {
       <div class="col-12 md:col-6">
         <p-card header="Afegir Jugador">
           <div class="flex flex-column gap-3">
@@ -151,7 +145,7 @@
     <p-message severity="error" [text]="error()!"></p-message>
   }
 
-  @if (gameId() && (gameState() === 'PLAYING' || gameState() === 'FINISHED')) {
+  @if (gameId() && (gameState() === 'IN_GAME' || gameState() === 'FINISHED')) {
     <div class="mt-4">
       <app-chat-view [gameId]="gameId()!"></app-chat-view>
     </div>
