@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, signal } from '@angular/core';
 import { Observable, tap } from 'rxjs';
 
-export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
+export type GameState = 'LOBBY' | 'GENERATING' | 'READY' | 'PLAYING' | 'FINISHED';
 export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
 
 export interface Coartada {

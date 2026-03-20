@@ -15,7 +15,7 @@
         (click)="copyGameLink()"
         [pTooltip]="'Copia l\u0027enllaç per als jugadors'"
         tooltipPosition="top"
-        [disabled]="loading()"
+        [disabled]="loading() || gameState() === 'GENERATING'"
       ></button>
     </div>
   }
@@ -32,7 +32,7 @@
               type="number"
               [ngModel]="maxRounds()"
               (ngModelChange)="onMaxRoundsChange($event)"
-              [disabled]="(gameState() !== 'NONE' && gameState() !== 'LOBBY') || loading()"
+              [disabled]="(gameState() !== 'NONE' && gameState() !== 'LOBBY') || loading() || gameState() === 'GENERATING'"
             />
           </div>
 
@@ -56,6 +56,15 @@
                 [loading]="loading()"
                 [disabled]="loading()"
               ></button>
+            } @else if (gameState() === 'GENERATING') {
+               <button
+                pButton
+                label="Generant Cas..."
+                icon="pi pi-spin pi-spinner"
+                severity="warning"
+                [loading]="true"
+                [disabled]="true"
+              ></button>
             } @else if (gameState() === 'READY') {
               <button
                 pButton
@@ -76,7 +85,7 @@
                 severity="danger"
                 (click)="cancelGame()"
                 [loading]="loading()"
-                [disabled]="loading()"
+                [disabled]="loading() || gameState() === 'GENERATING'"
               ></button>
             }
           </div>

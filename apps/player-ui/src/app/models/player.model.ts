@@ -1,4 +1,4 @@
-export type GameState = 'LOBBY' | 'READY' | 'PLAYING' | 'FINISHED';
+export type GameState = 'LOBBY' | 'GENERATING' | 'READY' | 'PLAYING' | 'FINISHED';
 export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
 
 export interface Coartada {

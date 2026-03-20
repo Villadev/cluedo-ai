@@ -17,7 +17,8 @@ import type {
   AIServiceClue,
   FullCase,
   ChatMessage,
-  Question
+  Question,
+  GameState
 } from '../types/game.types.js';
 import { GameStates } from '../types/game.types.js';
 import { HttpError } from '../utils/http-error.js';
@@ -28,6 +29,7 @@ const MIN_SUSPECTS = 4;
 
 export class GameEngine {
   private onSystemEvent?: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number) => void;
+  private onGameStateChange?: (gameId: string, state: GameState) => void;
 
   constructor(
     private readonly store: GameStoreService,
@@ -36,6 +38,16 @@ export class GameEngine {
 
   public setSystemEventListener(listener: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number) => void): void {
     this.onSystemEvent = listener;
+  }
+
+  public setGameStateChangeListener(listener: (gameId: string, state: GameState) => void): void {
+    this.onGameStateChange = listener;
+  }
+
+  private emitStateChange(gameId: string, state: GameState): void {
+    if (this.onGameStateChange) {
+      this.onGameStateChange(gameId, state);
+    }
   }
 
   public createGame(maxRounds: number = 5): Game {
@@ -114,98 +126,114 @@ export class GameEngine {
 
   public async startGame(gameId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
-    this.validateGameStateTransition(game.state, GameStates.READY);
+    this.validateGameStateTransition(game.state, GameStates.GENERATING);
 
     if (game.players.length < 2) {
       throw new HttpError(400, 'Es necessiten almenys 2 jugadors per començar');
     }
 
-    console.log("[GAME STATE] LOBBY → READY (Generant cas...)");
+    // Transition to GENERATING state
+    game.state = GameStates.GENERATING;
+    game.updatedAt = nowIso();
+    this.store.save(game);
+    this.emitStateChange(gameId, game.state);
 
-    const requestedSuspectsCount = Math.max(game.players.length, MIN_SUSPECTS);
-    const fullCase = await this.aiService.generateFullCase(requestedSuspectsCount);
+    console.log("[GAME STATE] LOBBY → GENERATING (Generant cas...)");
 
-    game.murder = {
-      killerPlayerId: '', // To be assigned
-      weapon: fullCase.weapon,
-      location: fullCase.location,
-      victim: fullCase.victim,
-      crimeWindow: fullCase.crimeWindow
-    };
+    try {
+      const requestedSuspectsCount = Math.max(game.players.length, MIN_SUSPECTS);
+      const fullCase = await this.aiService.generateFullCase(requestedSuspectsCount);
 
-    game.introNarrative = fullCase.introductionNarrative;
-    game.solution = {
-      assassin: fullCase.assassin,
-      weapon: fullCase.weapon,
-      location: fullCase.location,
-      victimName: fullCase.victim,
-      finalNarrative: fullCase.solutionNarrative,
-      assassinId: ''
-    };
+      game.murder = {
+        killerPlayerId: '', // To be assigned
+        weapon: fullCase.weapon,
+        location: fullCase.location,
+        victim: fullCase.victim,
+        crimeWindow: fullCase.crimeWindow
+      };
 
-    game.characters = fullCase.characters.map((c) => ({
-      ...c,
-      id: generateId(),
-      isAssassin: c.name === fullCase.assassin
-    }));
+      game.introNarrative = fullCase.introductionNarrative;
+      game.solution = {
+        assassin: fullCase.assassin,
+        weapon: fullCase.weapon,
+        location: fullCase.location,
+        victimName: fullCase.victim,
+        finalNarrative: fullCase.solutionNarrative,
+        assassinId: ''
+      };
 
-    const assassinCharacter = game.characters.find(c => c.isAssassin);
-    if (assassinCharacter) {
-       game.assassinCharacterId = assassinCharacter.id;
-    }
+      game.characters = fullCase.characters.map((c) => ({
+        ...c,
+        id: generateId(),
+        isAssassin: c.name === fullCase.assassin
+      }));
 
-    const shuffledCharacters = this.shuffle(game.characters);
-
-    // Assign characters to real players first
-    game.players.forEach((player, index) => {
-      const character = shuffledCharacters[index];
-      if (character) {
-        player.characterId = character.id;
-        if (character.id === game.assassinCharacterId) {
-          game.murder!.killerPlayerId = player.id;
-          game.solution!.assassinId = player.id;
-        }
+      const assassinCharacter = game.characters.find(c => c.isAssassin);
+      if (assassinCharacter) {
+         game.assassinCharacterId = assassinCharacter.id;
       }
-    });
 
-    // Create NPC players for remaining characters
-    if (shuffledCharacters.length > game.players.length) {
-      for (let i = game.players.length; i < shuffledCharacters.length; i++) {
-        const character = shuffledCharacters[i];
+      const shuffledCharacters = this.shuffle(game.characters);
+
+      // Assign characters to real players first
+      game.players.forEach((player, index) => {
+        const character = shuffledCharacters[index];
         if (character) {
-          const npcPlayer: Player = {
-            id: generateId(),
-            nickname: character.name,
-            characterId: character.id,
-            isReady: true,
-            isEliminated: false,
-            hasAccused: false,
-            askedThisRound: false,
-            accusedThisRound: false,
-            accusationCooldown: 0,
-            type: 'npc'
-          };
-          game.players.push(npcPlayer);
+          player.characterId = character.id;
           if (character.id === game.assassinCharacterId) {
-            game.murder!.killerPlayerId = npcPlayer.id;
-            game.solution!.assassinId = npcPlayer.id;
+            game.murder!.killerPlayerId = player.id;
+            game.solution!.assassinId = player.id;
+          }
+        }
+      });
+
+      // Create NPC players for remaining characters
+      if (shuffledCharacters.length > game.players.length) {
+        for (let i = game.players.length; i < shuffledCharacters.length; i++) {
+          const character = shuffledCharacters[i];
+          if (character) {
+            const npcPlayer: Player = {
+              id: generateId(),
+              nickname: character.name,
+              characterId: character.id,
+              isReady: true,
+              isEliminated: false,
+              hasAccused: false,
+              askedThisRound: false,
+              accusedThisRound: false,
+              accusationCooldown: 0,
+              type: 'npc'
+            };
+            game.players.push(npcPlayer);
+            if (character.id === game.assassinCharacterId) {
+              game.murder!.killerPlayerId = npcPlayer.id;
+              game.solution!.assassinId = npcPlayer.id;
+            }
           }
         }
       }
+
+      game.clues = [
+        ...fullCase.clues.round1.map(c => ({ ...c, id: generateId(), roundNumber: 1, createdAt: nowIso() })),
+        ...fullCase.clues.round2.map(c => ({ ...c, id: generateId(), roundNumber: 2, createdAt: nowIso() })),
+        ...fullCase.clues.round3.map(c => ({ ...c, id: generateId(), roundNumber: 3, createdAt: nowIso() })),
+        ...fullCase.clues.round4.map(c => ({ ...c, id: generateId(), roundNumber: 4, createdAt: nowIso() }))
+      ];
+
+      game.state = GameStates.READY;
+      game.updatedAt = nowIso();
+      this.store.save(game);
+      this.emitStateChange(gameId, game.state);
+
+      return game;
+    } catch (error) {
+      // Revert to LOBBY on failure
+      game.state = GameStates.LOBBY;
+      game.updatedAt = nowIso();
+      this.store.save(game);
+      this.emitStateChange(gameId, game.state);
+      throw error;
     }
-
-    game.clues = [
-      ...fullCase.clues.round1.map(c => ({ ...c, id: generateId(), roundNumber: 1, createdAt: nowIso() })),
-      ...fullCase.clues.round2.map(c => ({ ...c, id: generateId(), roundNumber: 2, createdAt: nowIso() })),
-      ...fullCase.clues.round3.map(c => ({ ...c, id: generateId(), roundNumber: 3, createdAt: nowIso() })),
-      ...fullCase.clues.round4.map(c => ({ ...c, id: generateId(), roundNumber: 4, createdAt: nowIso() }))
-    ];
-
-    game.state = GameStates.READY;
-    game.updatedAt = nowIso();
-    this.store.save(game);
-
-    return game;
   }
 
   public async startPlaying(gameId: string): Promise<Game> {
@@ -228,6 +256,7 @@ export class GameEngine {
     await this.revealCluesForRound(game, 1);
 
     this.store.save(game);
+    this.emitStateChange(gameId, game.state);
     return game;
   }
 
@@ -251,199 +280,181 @@ export class GameEngine {
       JSON.stringify(this.getPublicState(game.id, player.id)),
       input.question
     );
-    const sequenceId = game.nextSequenceId++;
 
-    game.turns.push({
-      id: generateId(),
-      playerId: player.id,
-      question: input.question,
-      answer: response,
-      createdAt: nowIso()
-    });
-
-    player.askedThisRound = true;
-
-    const timestamp = Date.now();
-    game.questionHistory.push({
+    const question: Question = {
       playerId: player.id,
       playerName: player.nickname,
       question: input.question,
-      timestamp,
+      timestamp: Date.now(),
       roundNumber: game.roundNumber,
-      sequenceId
-    });
+      sequenceId: game.nextSequenceId++
+    };
 
-    // Record in chat history
+    game.questionHistory.push(question);
     game.chatHistory.push({
       type: 'player',
       playerId: player.id,
       playerName: player.nickname,
-      message: input.question,
-      timestamp,
       roundNumber: game.roundNumber,
-      sequenceId
+      sequenceId: question.sequenceId,
+      message: input.question,
+      timestamp: question.timestamp
     });
 
     game.chatHistory.push({
       type: 'narrator',
       playerName: 'Narrador 🕵️',
-      message: response,
-      timestamp: Date.now(),
       roundNumber: game.roundNumber,
-      sequenceId
+      sequenceId: game.nextSequenceId++,
+      message: response,
+      timestamp: Date.now()
     });
+
+    player.askedThisRound = true;
+    game.updatedAt = nowIso();
+    this.store.save(game);
 
     this.recordTimelineEvent(game, {
       type: 'QUESTION',
       playerId: player.id,
-      text: input.question,
-      description: `${player.nickname} ha fet una pregunta.`
+      description: `El jugador ${player.nickname} ha preguntat: ${input.question}`
     });
 
-    this.store.save(game);
     return { response, game };
   }
 
   public async handleAccusation(gameId: string, input: AccusationInput): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
-    const player = this.getPlayerOrThrow(game, input.playerId);
-    if (player.type !== 'real') {
-       throw new HttpError(403, 'Només els jugadors reals poden fer acusacions');
+    if (game.state !== 'PLAYING') {
+      throw new HttpError(409, 'La partida no està en curs');
     }
+
+    const player = this.getPlayerOrThrow(game, input.playerId);
     this.assertActivePlayer(player);
 
-    if (player.hasAccused && player.accusationCooldown > 0) {
-      throw new HttpError(409, `Has d'esperar ${player.accusationCooldown} rondes per tornar a acusar`);
+    if (player.askedThisRound || player.accusedThisRound) {
+       throw new HttpError(409, 'Ja has realitzat la teva acció en aquesta ronda');
     }
 
-    const accusedPlayer = this.getPlayerOrThrow(game, input.accusedPlayerId);
-    const accusedCharacter = game.characters.find(c => c.id === accusedPlayer.characterId);
+    if (player.accusationCooldown > 0) {
+       throw new HttpError(403, `Has d'esperar ${player.accusationCooldown} rondes per tornar a acusar`);
+    }
 
-        const isCorrect =
-      accusedCharacter?.id === game.assassinCharacterId &&
+    const isCorrect =
+      input.accusedPlayerId === game.murder?.killerPlayerId &&
       input.weapon === game.murder?.weapon &&
       input.location === game.murder?.location;
 
-    player.hasAccused = true;
     player.accusedThisRound = true;
-
-    this.recordTimelineEvent(game, {
-      type: 'ACCUSATION',
-      playerId: player.id,
-      targetCharacterId: accusedCharacter?.id,
-      success: isCorrect,
-      description: `${player.nickname} ha acusat a ${accusedCharacter?.name || 'algú'}.`
-    });
+    player.hasAccused = true;
 
     if (isCorrect) {
       game.state = GameStates.FINISHED;
       game.winnerPlayerId = player.id;
       game.winnerType = 'INVESTIGATORS';
       this.recordTimelineEvent(game, {
-        type: 'GAME_END',
-        winnerPlayerId: player.id,
-        description: `Enhorabona! ${player.nickname} ha resolt el cas!`
+        type: 'ACCUSATION',
+        playerId: player.id,
+        success: true,
+        description: `El jugador ${player.nickname} ha resolt el cas correctament!`
       });
+      this.emitStateChange(gameId, game.state);
     } else {
-      player.accusationCooldown = 2;
-      game.tensionLevel = Math.min(100, game.tensionLevel + 15);
+      player.accusationCooldown = 2; // Penalty
+      this.recordTimelineEvent(game, {
+        type: 'ACCUSATION',
+        playerId: player.id,
+        success: false,
+        description: `El jugador ${player.nickname} ha fallat l'acusació.`
+      });
     }
 
+    game.updatedAt = nowIso();
     this.store.save(game);
     return game;
   }
 
   public getPublicState(gameId: string, requesterPlayerId?: string): PublicGameView {
     const game = this.getGameOrThrow(gameId);
-    const currentTurnPlayer = this.getCurrentTurnPlayer(game);
-
-    const isRequesterAssassin = requesterPlayerId && game.murder?.killerPlayerId === requesterPlayerId;
-    const revealAssassin = isRequesterAssassin || game.state === 'FINISHED';
-
-    console.log(`[DEBUG] getPublicState: gameId=${gameId}, requester=${requesterPlayerId}, revealAssassin=${revealAssassin}, assassinId=${game.murder?.killerPlayerId}`);
+    const requesterPlayer = requesterPlayerId ? game.players.find(p => p.id === requesterPlayerId) : undefined;
+    const isFinished = game.state === GameStates.FINISHED;
 
     return {
-      assassinId: revealAssassin ? game.murder?.killerPlayerId : undefined,
       id: game.id,
       state: game.state,
-      players: game.players.map((player) => {
-        const character = game.characters.find((c) => c.id === player.characterId);
-
-        const canSeePrivateInfo = requesterPlayerId === player.id || game.state === 'FINISHED';
-        const isAssassin = character?.id === game.assassinCharacterId;
-
-        const publicCharacter: PublicCharacterView | undefined = character ? {
-          id: character.id,
-          name: character.name,
-          profession: character.profession,
-          description: character.description,
-          personality: character.personality,
-          possibleMotive: character.possibleMotive,
-          secret: canSeePrivateInfo ? character.secret : '???',
-          secretKnowledge: canSeePrivateInfo ? character.secretKnowledge : '???',
-          coartada: character.coartada,
-          rumor: character.rumor,
-          relationships: character.relationships,
-          tensions: character.tensions
-        } : undefined;
+      players: game.players.map((p) => {
+        const character = game.characters.find((c) => c.id === p.characterId);
+        const isSelf = p.id === requesterPlayerId;
+        const shouldShowSecrets = isFinished || (isSelf && (p.id === game.murder?.killerPlayerId));
 
         return {
-          id: player.id,
-          nickname: player.nickname,
-          character: publicCharacter,
-          isReady: player.isReady,
-          isEliminated: player.isEliminated,
-          hasAccused: player.hasAccused,
-          askedThisRound: player.askedThisRound,
-          accusedThisRound: player.accusedThisRound,
-          accusationCooldown: player.accusationCooldown,
-          isAssassin: canSeePrivateInfo ? isAssassin : false,
-          type: player.type
+          id: p.id,
+          nickname: p.nickname,
+          isReady: p.isReady,
+          isEliminated: p.isEliminated,
+          hasAccused: p.hasAccused,
+          askedThisRound: p.askedThisRound,
+          accusedThisRound: p.accusedThisRound,
+          accusationCooldown: p.accusationCooldown,
+          isAssassin: shouldShowSecrets,
+          type: p.type,
+          character: character ? {
+            id: character.id,
+            name: character.name,
+            profession: character.profession,
+            description: character.description,
+            personality: character.personality,
+            possibleMotive: character.possibleMotive,
+            secret: isSelf || isFinished ? character.secret : '???',
+            secretKnowledge: isSelf || isFinished ? character.secretKnowledge : '???',
+            coartada: character.coartada,
+            rumor: character.rumor,
+            relationships: character.relationships,
+            tensions: character.tensions
+          } : undefined
         };
       }),
-      clues: game.clues
-        .filter(c => c.roundNumber <= game.roundNumber)
-        .map(c => ({
-          id: c.id,
-          playerId: c.playerId,
-          type: c.type,
-          text: c.text,
-          roundNumber: c.roundNumber,
-          createdAt: c.createdAt
-        })),
-      currentTurnPlayerId: currentTurnPlayer?.id ?? null,
+      clues: game.clues.map((c) => ({
+        id: c.id,
+        playerId: c.playerId,
+        type: c.type,
+        text: c.text,
+        roundNumber: c.roundNumber,
+        createdAt: c.createdAt
+      })),
+      currentTurnPlayerId: game.players[game.currentTurnIndex]?.id || null,
       roundNumber: game.roundNumber,
-      nextSequenceId: game.nextSequenceId,
       maxRounds: game.maxRounds,
       tensionLevel: game.tensionLevel,
       winnerPlayerId: game.winnerPlayerId,
       winnerType: game.winnerType,
       createdAt: game.createdAt,
-      updatedAt: game.updatedAt
-    };
-  }
-
-
-  public getOptions(_gameId: string): { weapons: string[], locations: string[] } {
-    return {
-      weapons: WEAPONS,
-      locations: LOCATIONS
+      updatedAt: game.updatedAt,
+      nextSequenceId: game.nextSequenceId,
+      assassinId: (requesterPlayer?.id === game.murder?.killerPlayerId || isFinished) ? game.murder?.killerPlayerId : undefined
     };
   }
 
   public getParticipants(gameId: string): PublicParticipant[] {
     const game = this.getGameOrThrow(gameId);
-    return game.players.map((player) => {
-      const character = game.characters.find((c) => c.id === player.characterId);
-      return {
-        id: player.id,
-        publicCharacter: character ? character.name : 'Sospitós'
-      };
+    return game.players.map((p) => {
+       const character = game.characters.find(c => c.id === p.characterId);
+       return {
+         id: p.id,
+         publicCharacter: character ? `${character.name} (${character.profession})` : p.nickname
+       };
     });
   }
 
+  public getOptions(gameId: string): { weapons: string[], locations: string[] } {
+     return {
+       weapons: WEAPONS,
+       locations: LOCATIONS
+     };
+  }
+
   public getInstructions(): string {
-    return this.aiService.getInstructionsContext();
+     return "Instruccions del Cluedo AI...";
   }
 
   public getIntro(gameId: string): string {
@@ -521,6 +532,7 @@ export class GameEngine {
     }
     game.updatedAt = nowIso();
     this.store.save(game);
+    this.emitStateChange(gameId, game.state);
     return game;
   }
 
@@ -546,6 +558,7 @@ export class GameEngine {
     game.nextSequenceId = 1;
     game.updatedAt = nowIso();
     this.store.save(game);
+    this.emitStateChange(gameId, game.state);
     return game;
   }
 
@@ -580,6 +593,7 @@ export class GameEngine {
           this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
         }
         this.store.save(game);
+        this.emitStateChange(gameId, game.state);
         return;
       }
 
@@ -726,7 +740,8 @@ export class GameEngine {
 
   private validateGameStateTransition(currentState: string, nextState: string): void {
     const allowedTransitions: Record<string, string[]> = {
-      [GameStates.LOBBY]: [GameStates.READY, GameStates.LOBBY],
+      [GameStates.LOBBY]: [GameStates.READY, GameStates.LOBBY, GameStates.GENERATING],
+      [GameStates.GENERATING]: [GameStates.READY, GameStates.LOBBY],
       [GameStates.READY]: [GameStates.PLAYING, GameStates.LOBBY],
       [GameStates.PLAYING]: [GameStates.FINISHED, GameStates.LOBBY],
       [GameStates.FINISHED]: [GameStates.LOBBY]
