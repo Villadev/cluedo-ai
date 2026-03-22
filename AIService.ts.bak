@@ -260,8 +260,7 @@ Regles:
 - No utilitzis metàfores ni descripcions poètiques.
 - Dona una pista subtil o un fet concret si és possible.
 - Sigues enigmàtic però concís.
-- Respon sempre en català.
-- Si ho creus oportú per la ronda actual, afegeix una pista addicional separada per '---'.`;
+- Respon sempre en català.`;
     return this.generateNarrative({ instruction, publicGameState, question }, 80);
   }
 
