@@ -206,6 +206,16 @@ Retorna el resultat en JSON amb aquesta estructura:
 
         fullCase = JSON.parse(responseText) as FullCase;
 
+        // Ensure clues and rounds are initialized
+        if (!fullCase.clues) {
+          (fullCase as any).clues = { round1: [], round2: [], round3: [], round4: [] };
+        } else {
+          fullCase.clues.round1 = fullCase.clues.round1 || [];
+          fullCase.clues.round2 = fullCase.clues.round2 || [];
+          fullCase.clues.round3 = fullCase.clues.round3 || [];
+          fullCase.clues.round4 = fullCase.clues.round4 || [];
+        }
+
         if (this.isValidIntro(fullCase.introductionNarrative, fullCase.weapon, fullCase.location)) {
           console.log(`[OPENAI] Case generated successfully on attempt ${attempts}`);
           return fullCase;
