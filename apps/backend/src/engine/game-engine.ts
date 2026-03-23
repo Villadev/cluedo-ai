@@ -181,7 +181,8 @@ export class GameEngine {
       const rounds: (keyof typeof caseData.clues)[] = ['round1', 'round2', 'round3', 'round4'];
       rounds.forEach((roundKey, index) => {
         const roundNum = index + 1;
-        caseData.clues[roundKey].forEach((c: AIServiceClue) => {
+        const cluesForRound = (caseData.clues && caseData.clues[roundKey]) || [];
+        cluesForRound.forEach((c: AIServiceClue) => {
           allClues.push({
             id: generateId(),
             type: c.type,
