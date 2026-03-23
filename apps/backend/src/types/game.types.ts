@@ -7,6 +7,13 @@ export const GameStates: Record<GameState, GameState> = {
   PLAYING: 'PLAYING',
   FINISHED: 'FINISHED'
 };
+export interface GameResult {
+  winner: WinnerType;
+  killer: string;
+  weapon: string;
+  location: string;
+}
+
 
 export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'extreme';
@@ -208,6 +215,7 @@ export interface PublicPlayerView {
 }
 
 export interface PublicGameView {
+  result?: GameResult;
   assassinId?: string;
   id: string;
   state: GameState;

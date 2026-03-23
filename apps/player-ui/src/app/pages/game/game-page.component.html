@@ -116,3 +116,37 @@
 
   <app-game-status-indicator [gameId]="gameId"></app-game-status-indicator>
 </section>
+
+<p-dialog
+  header="PARTIDA FINALITZADA"
+  [(visible)]="showEndModal"
+  [modal]="true"
+  [closable]="false"
+  [draggable]="false"
+  [resizable]="false"
+  styleClass="p-fluid shadow-4"
+  [style]="{ width: '90vw', maxWidth: '450px' }">
+
+  <div class="flex flex-column align-items-center gap-4 py-3">
+    @if (winnerType() === 'ASSASSIN') {
+      <i class="pi pi-times-circle text-6xl text-orange-600"></i>
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-orange-600 mb-2">L'assassí ha escapat...</h2>
+        <p class="text-gray-600 m-0">No s'ha pogut resoldre el cas a temps.</p>
+      </div>
+    } @else {
+      <i class="pi pi-check-circle text-6xl text-green-600"></i>
+      <div class="text-center">
+        <h2 class="text-2xl font-bold text-green-600 mb-2">🎉 Cas resolt!</h2>
+        <p class="text-gray-600 m-0">Heu descobert la veritat.</p>
+      </div>
+    }
+
+    <button
+      pButton
+      label="Veure resolució"
+      icon="pi pi-search"
+      class="mt-3"
+      (click)="navigateToSolution()"></button>
+  </div>
+</p-dialog>
