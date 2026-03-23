@@ -4,6 +4,7 @@ import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
+import { forkJoin } from 'rxjs';
 import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
 
@@ -41,22 +42,27 @@ export class DetectiveNotebookComponent implements OnInit {
   ngOnInit(): void {
     const gameId = this.sessionService.getGameId();
     if (gameId) {
-      this.gameService.getParticipants(gameId).subscribe(response => {
-        if (response.success && response.data) {
-          const names = response.data.map(p => p.character?.name || p.nickname);
+      forkJoin({
+        participants: this.gameService.getParticipants(gameId),
+        options: this.gameService.getOptions(gameId)
+      }).subscribe(({ participants, options }) => {
+        if (participants.success && participants.data) {
+          const names = participants.data.map(p => p.character?.name || p.nickname);
           this.suspects.set(names);
           this.initializeNotesIfMissing('suspects', names);
         }
+
+        if (options.success && options.data) {
+          this.weapons.set(options.data.weapons);
+          this.initializeNotesIfMissing('weapons', options.data.weapons);
+
+          this.locations.set(options.data.locations);
+          this.initializeNotesIfMissing('locations', options.data.locations);
+        }
+
+        this.loadNotes();
       });
     }
-
-    this.weapons.set(this.gameService.getPossibleWeapons());
-    this.initializeNotesIfMissing('weapons', this.weapons());
-
-    this.locations.set(this.gameService.getPossibleLocations());
-    this.initializeNotesIfMissing('locations', this.locations());
-
-    this.loadNotes();
   }
 
   private initializeNotesIfMissing(category: keyof NotebookData, items: string[]): void {

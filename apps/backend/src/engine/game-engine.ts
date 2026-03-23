@@ -130,6 +130,27 @@ export class GameEngine {
   public async startGame(gameId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     this.validateGameStateTransition(game.state, GameStates.GENERATING);
+    // Ensure minimum number of players with NPCs if needed
+    const currentPlayersCount = game.players.length;
+    if (currentPlayersCount < MIN_SUSPECTS) {
+      const npcsNeeded = MIN_SUSPECTS - currentPlayersCount;
+      for (let i = 0; i < npcsNeeded; i++) {
+        const npc: Player = {
+          id: generateId(),
+          nickname: `Investigador NPC ${i + 1}`,
+          characterId: null,
+          isReady: true,
+          isEliminated: false,
+          hasAccused: false,
+          askedThisRound: false,
+          accusedThisRound: false,
+          accusationCooldown: 0,
+          type: "npc"
+        };
+        game.players.push(npc);
+      }
+    }
+
 
     game.state = GameStates.GENERATING;
     this.emitStateChange(gameId, game.state);
@@ -530,7 +551,7 @@ export class GameEngine {
       game.tensionLevel = Math.min(100, game.tensionLevel + 10);
 
       const msg = `Comença la ronda ${game.roundNumber}.`;
-      console.log("Starting round:", game.roundNumber);
+      console.log("[ROUND START] Sending clues for round:", game.roundNumber);
       this.recordTimelineEvent(game, {
         type: 'ROUND_START',
         roundNumber: game.roundNumber,
