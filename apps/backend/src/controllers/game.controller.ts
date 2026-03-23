@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { gameEngine } from '../models/dependencies.js';
 import { successResponse } from '../utils/api-response.js';
-import { emitGameStateUpdate, emitPlayerJoined, emitGameStarted, emitSystemChatMessage } from '../websocket/socket.js';
+import { emitGameStateUpdate, emitPlayerJoined, emitGameStarted, sendNarratorMessage } from '../websocket/socket.js';
 
 const createSchema = z.object({
   maxRounds: z.number().int().min(1).max(20).optional().default(5)
@@ -91,7 +91,7 @@ export class GameController {
     const state = gameEngine.getPublicState(game.id);
     emitGameStarted(gameId, state);
     emitGameStateUpdate(gameId, game.state);
-    emitSystemChatMessage(gameId, 'La partida ha començat.');
+    sendNarratorMessage(gameId, 'La partida ha començat.');
 
     res.status(200).json(successResponse(state));
   }
@@ -135,7 +135,7 @@ export class GameController {
     const player = game.players.find(p => p.id === parsed.playerId);
     const accusedPlayer = game.players.find(p => p.id === parsed.accusedPlayerId);
     if (player && accusedPlayer) {
-      emitSystemChatMessage(gameId, `${player.nickname} ha acusat a ${accusedPlayer.nickname}.`);
+      sendNarratorMessage(gameId, `${player.nickname} ha acusat a ${accusedPlayer.nickname}.`);
     }
 
     // WS Emit

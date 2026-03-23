@@ -346,7 +346,7 @@ export class GameEngine {
     };
   }
 
-  public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ response: string; game: Game }> {
+  public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ response: string; clue?: string; game: Game }> {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== 'PLAYING') {
       throw new HttpError(409, 'La partida no està en curs');
@@ -362,12 +362,11 @@ export class GameEngine {
       throw new HttpError(409, 'Ja has realitzat la teva acció en aquesta ronda');
     }
 
-    const response = await this.aiService.respondToQuestion(
+    const { response, clue } = await this.aiService.respondToQuestion(
       JSON.stringify(this.getPublicState(game.id, player.id)),
       input.question,
       game.difficulty
     );
-    console.log("NARRATOR RESULT:", response);
 
     const question: Question = {
       playerId: player.id,
@@ -398,6 +397,17 @@ export class GameEngine {
       timestamp: Date.now()
     });
 
+    if (clue) {
+      game.chatHistory.push({
+        type: 'clue',
+        playerName: 'Narrador 🕵️',
+        roundNumber: game.roundNumber,
+        sequenceId: game.nextSequenceId++,
+        message: clue,
+        timestamp: Date.now()
+      });
+    }
+
     player.askedThisRound = true;
     game.updatedAt = nowIso();
     this.store.save(game);
@@ -408,7 +418,7 @@ export class GameEngine {
       description: `El jugador ${player.nickname} ha preguntat: ${input.question}`
     });
 
-    return { response, game };
+    return { response, clue, game };
   }
 
   public async handleAccusation(gameId: string, input: AccusationInput): Promise<Game> {
