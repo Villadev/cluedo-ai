@@ -293,7 +293,7 @@ export class GameEngine {
     };
   }
 
-  public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ response: string; clue?: string; game: Game }> {
+  public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ response: string; game: Game }> {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== 'PLAYING') {
       throw new HttpError(409, 'La partida no està en curs');
@@ -346,29 +346,14 @@ export class GameEngine {
     };
     game.chatHistory.push(responseEntry);
 
-    // 3. Optional Clue
-    if (result.clue) {
-      const clueEntry: ChatMessage = {
-        type: 'clue',
-        playerName: 'Narrador 🕵️',
-        message: result.clue,
-        timestamp: timestamp + 2,
-        roundNumber: game.roundNumber,
-        sequenceId: game.nextSequenceId++
-      };
-      game.chatHistory.push(clueEntry);
-    }
-
     game.updatedAt = nowIso();
     this.store.save(game);
 
     return {
       response: result.response,
-      clue: result.clue,
       game
     };
   }
-
   public async handleAccusation(gameId: string, input: AccusationInput): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== 'PLAYING') {

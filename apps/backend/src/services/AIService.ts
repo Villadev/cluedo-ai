@@ -263,7 +263,7 @@ Retorna el resultat en JSON amb aquesta estructura:
     return true;
   }
 
-  public async respondToQuestion(publicGameState: string, question: string, difficulty: Difficulty = 'hard'): Promise<{ response: string; clue?: string }> {
+  public async respondToQuestion(publicGameState: string, question: string, difficulty: Difficulty = 'hard'): Promise<{ response: string }> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Respon la pregunta de l'investigador de manera molt directa i breu (màxim 15 paraules).
 ${diffContext}
@@ -272,11 +272,10 @@ Regles:
 - Dona una pista subtil o un fet concret si és possible.
 - Sigues enigmàtic però concís.
 - Respon siempre en català.
-- Retorna la resposta i una pista addicional opcional en JSON.
+- Retorna la resposta en JSON.
 Estructura JSON:
 {
-  "response": "...",
-  "clue": "..."
+  "response": "..."
 }`;
     const result = await this.generateNarrative({ instruction, publicGameState, question, json: true }, 150);
     try {
