@@ -14,6 +14,6 @@ RUN pnpm --filter @cluedo/backend build
 
 WORKDIR /app/apps/backend
 
-EXPOSE 3000
+EXPOSE 10000
 
 CMD ["node", "dist/main.js"]
