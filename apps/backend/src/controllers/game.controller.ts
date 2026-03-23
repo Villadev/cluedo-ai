@@ -54,7 +54,13 @@ const logEventSchema = z.object({
 
 export class GameController {
   /**
-   * Crea una nova partida.
+   * @openapi
+   * /game:
+   *   post:
+   *     summary: Crea una nova partida.
+   *     responses:
+   *       200:
+   *         description: Partida creada.
    */
   public async createGame(req: Request, res: Response): Promise<void> {
     const { maxRounds } = createSchema.parse(req.body || {});
@@ -63,7 +69,13 @@ export class GameController {
   }
 
   /**
-   * Permet a un jugador unir-se a una partida.
+   * @openapi
+   * /game/{id}/join:
+   *   post:
+   *     summary: Permet a un jugador unir-se a una partida.
+   *     responses:
+   *       200:
+   *         description: Jugador unit.
    */
   public async joinGame(req: Request, res: Response): Promise<void> {
     const parsed = joinSchema.parse(req.body);
@@ -75,13 +87,19 @@ export class GameController {
     if (player) {
       emitPlayerJoined(gameId, player);
     }
-    emitGameStateUpdate(gameId, game.state);
+    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
 
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
   /**
-   * Inicia la partida generant el cas i la narrativa.
+   * @openapi
+   * /game/{id}/start:
+   *   post:
+   *     summary: Inicia la partida generant el cas i la narrativa.
+   *     responses:
+   *       200:
+   *         description: Partida iniciada.
    */
   public async startGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -90,27 +108,39 @@ export class GameController {
     // WS Emit
     const state = gameEngine.getPublicState(game.id);
     emitGameStarted(gameId, state);
-    emitGameStateUpdate(gameId, game.state);
+    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
     sendNarratorMessage(gameId, 'La partida ha començat.');
 
     res.status(200).json(successResponse(state));
   }
 
   /**
-   * Comença a jugar la partida (canvi d'estat de PLAYER_INFO a PLAYING).
+   * @openapi
+   * /game/{id}/play:
+   *   post:
+   *     summary: Començar a jugar la partida (canvi d'estat de PLAYER_INFO a PLAYING).
+   *     responses:
+   *       200:
+   *         description: Partida jugant.
    */
   public async startPlaying(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const game = await gameEngine.startPlaying(gameId);
 
     // WS Emit
-    emitGameStateUpdate(gameId, game.state);
+    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
 
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
   /**
-   * Realitza una pregunta al mestre del joc.
+   * @openapi
+   * /game/{id}/ask:
+   *   post:
+   *     summary: Realitza una pregunta al mestre del joc.
+   *     responses:
+   *       200:
+   *         description: Pregunta realitzada.
    */
   public async ask(req: Request, res: Response): Promise<void> {
     const parsed = askSchema.parse(req.body);
@@ -125,7 +155,13 @@ export class GameController {
   }
 
   /**
-   * Realitza una acusació per intentar guanyar la partida.
+   * @openapi
+   * /game/{id}/accuse:
+   *   post:
+   *     summary: Realitza una acusació per intentar guanyar la partida.
+   *     responses:
+   *       200:
+   *         description: Acusació realitzada.
    */
   public async accuse(req: Request, res: Response): Promise<void> {
     const parsed = accusationSchema.parse(req.body);
@@ -139,10 +175,11 @@ export class GameController {
     }
 
     // WS Emit
-    await gameEngine.nextTurn(gameId);
-    emitGameStateUpdate(gameId, game.state);
+    if (game.state !== 'FINISHED') {
+       await gameEngine.nextTurn(gameId);
+    }
+    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
 
-    const currentPlayer = game.players.find(p => p.id === parsed.playerId);
     const isCorrect = game.winnerPlayerId === parsed.playerId;
 
     res.status(200).json(successResponse({
@@ -153,13 +190,28 @@ export class GameController {
   }
 
   /**
-   * Retorna les opcions d'armes i llocs per a l'acusació.
+   * @openapi
+   * /game/{id}/options:
+   *   get:
+   *     summary: Retorna les opcions d'armes i llocs per a l'acusació.
+   *     responses:
+   *       200:
+   *         description: Opcions retornades.
    */
   public async getOptions(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     res.status(200).json(successResponse(gameEngine.getOptions(gameId)));
   }
 
+  /**
+   * @openapi
+   * /game/{id}:
+   *   get:
+   *     summary: Retorna l'estat de la partida.
+   *     responses:
+   *       200:
+   *         description: Estat retornat.
+   */
   public async getGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const requesterPlayerId = typeof req.query.playerId === 'string' ? req.query.playerId : undefined;
@@ -168,7 +220,13 @@ export class GameController {
   }
 
   /**
-   * Retorna informació resumida de l'estat de la partida per a polling.
+   * @openapi
+   * /game/{id}/state:
+   *   get:
+   *     summary: Retorna informació resumida de l'estat de la partida per a polling.
+   *     responses:
+   *       200:
+   *         description: Estat retornat.
    */
   public async getState(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -176,7 +234,13 @@ export class GameController {
   }
 
   /**
-   * Retorna l'estat complet per a depuració.
+   * @openapi
+   * /game/{id}/debug:
+   *   get:
+   *     summary: Retorna l'estat complet per a depuració.
+   *     responses:
+   *       200:
+   *         description: Dades de debug retornades.
    */
   public async debug(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -184,7 +248,13 @@ export class GameController {
   }
 
   /**
-   * Retorna l'historial d'esdeveniments de la partida.
+   * @openapi
+   * /game/{id}/timeline:
+   *   get:
+   *     summary: Retorna l'historial d'esdeveniments de la partida.
+   *     responses:
+   *       200:
+   *         description: Timeline retornat.
    */
   public async timeline(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -192,7 +262,13 @@ export class GameController {
   }
 
   /**
-   * Retorna l'historial del xat de la partida.
+   * @openapi
+   * /game/{id}/chat:
+   *   get:
+   *     summary: Retorna l'historial del xat de la partida.
+   *     responses:
+   *       200:
+   *         description: Chat retornat.
    */
   public async getChat(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -200,7 +276,13 @@ export class GameController {
   }
 
   /**
-   * Retorna l'historial de preguntes de la partida.
+   * @openapi
+   * /game/{id}/questions:
+   *   get:
+   *     summary: Retorna l'historial de preguntes de la partida.
+   *     responses:
+   *       200:
+   *         description: Preguntes retornades.
    */
   public async getQuestions(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -208,7 +290,13 @@ export class GameController {
   }
 
   /**
-   * Retorna la llista de participants de la partida.
+   * @openapi
+   * /game/{id}/players:
+   *   get:
+   *     summary: Retorna la llista de participants de la partida.
+   *     responses:
+   *       200:
+   *         description: Jugadors retornats.
    */
   public async getPlayers(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -216,7 +304,13 @@ export class GameController {
   }
 
   /**
-   * Retorna les instruccions del joc.
+   * @openapi
+   * /game/{id}/instructions:
+   *   get:
+   *     summary: Retorna les instruccions del joc.
+   *     responses:
+   *       200:
+   *         description: Instruccions retornades.
    */
   public async getInstructions(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -225,7 +319,13 @@ export class GameController {
   }
 
   /**
-   * Retorna la introducció narrativa de la partida.
+   * @openapi
+   * /game/{id}/intro:
+   *   get:
+   *     summary: Retorna la introducció narrativa de la partida.
+   *     responses:
+   *       200:
+   *         description: Intro retornada.
    */
   public async getIntro(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -233,7 +333,13 @@ export class GameController {
   }
 
   /**
-   * Retorna la llista de pistes per a una ronda específica.
+   * @openapi
+   * /game/{id}/clues/round/{roundNumber}:
+   *   get:
+   *     summary: Retorna la llista de pistes per a una ronda específica.
+   *     responses:
+   *       200:
+   *         description: Pistes retornades.
    */
   public async getCluesByRound(req: Request, res: Response): Promise<void> {
     const { id: gameId, roundNumber } = roundParamsSchema.parse(req.params);
@@ -242,7 +348,13 @@ export class GameController {
   }
 
   /**
-   * Retorna la informació secreta d'un jugador.
+   * @openapi
+   * /game/{id}/players/{playerId}/secret:
+   *   get:
+   *     summary: Retorna la informació secreta d'un jugador.
+   *     responses:
+   *       200:
+   *         description: Secret retornat.
    */
   public async getPlayerSecret(req: Request, res: Response): Promise<void> {
     const { id: gameId, playerId } = playerSecretParamsSchema.parse(req.params);
@@ -251,7 +363,13 @@ export class GameController {
   }
 
   /**
-   * Registra un esdeveniment personalitzat al timeline.
+   * @openapi
+   * /game/{id}/timeline/log:
+   *   post:
+   *     summary: Registra un esdeveniment personalitzat al timeline.
+   *     responses:
+   *       200:
+   *         description: Event registrat.
    */
   public async logTimelineEvent(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -261,7 +379,13 @@ export class GameController {
   }
 
   /**
-   * Retorna la solució de la partida.
+   * @openapi
+   * /game/{id}/solution:
+   *   get:
+   *     summary: Retorna la solució de la partida.
+   *     responses:
+   *       200:
+   *         description: Solució retornada.
    */
   public async getSolution(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -269,7 +393,13 @@ export class GameController {
   }
 
   /**
-   * Finalitza una partida en curs.
+   * @openapi
+   * /game/{id}/end:
+   *   post:
+   *     summary: Finalitza una partida en curs.
+   *     responses:
+   *       200:
+   *         description: Partida finalitzada.
    */
   public async endGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -277,7 +407,7 @@ export class GameController {
     const game = gameEngine.endGame(gameId, parsed.winnerPlayerId);
 
     // WS Emit
-    emitGameStateUpdate(gameId, game.state);
+    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
 
     res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
@@ -285,14 +415,20 @@ export class GameController {
   }
 
   /**
-   * Reinicia completament una partida.
+   * @openapi
+   * /game/{id}/reset:
+   *   post:
+   *     summary: Reinicia completament una partida.
+   *     responses:
+   *       200:
+   *         description: Partida reiniciada.
    */
   public async resetGame(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const game = gameEngine.resetGame(gameId);
 
     // WS Emit
-    emitGameStateUpdate(gameId, game.state);
+    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
 
     res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
@@ -300,7 +436,13 @@ export class GameController {
   }
 
   /**
-   * Retorna la llista de jugadors actuals.
+   * @openapi
+   * /game/{id}/users:
+   *   get:
+   *     summary: Retorna la llista de jugadors actuals.
+   *     responses:
+   *       200:
+   *         description: Usuaris retornats.
    */
   public async getUsers(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
@@ -311,14 +453,20 @@ export class GameController {
   }
 
   /**
-   * Elimina un jugador de la partida.
+   * @openapi
+   * /game/{id}/users/{userId}:
+   *   delete:
+   *     summary: Elimina un jugador de la partida.
+   *     responses:
+   *       200:
+   *         description: Usuari eliminat.
    */
   public async deleteUser(req: Request, res: Response): Promise<void> {
     const { id: gameId, userId } = userParamsSchema.parse(req.params);
     const game = gameEngine.deletePlayer(gameId, userId);
 
     // WS Emit
-    emitGameStateUpdate(gameId, game.state);
+    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
 
     res.status(200).json(successResponse({
       gameState: gameEngine.getPublicState(game.id)
