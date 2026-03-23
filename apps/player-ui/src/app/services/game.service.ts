@@ -195,4 +195,11 @@ export class GameService implements OnDestroy {
     };
     return this.http.post<ApiResponse<{ correct: boolean, penaltyRounds: number, game: PublicGameView }>>(`${this.baseUrl}/game/${gameId}/accuse`, payload);
   }
+
+  askQuestion(gameId: string, playerId: string, question: string) {
+    return this.http.post<ApiResponse<{ response: string }>>(`${this.baseUrl}/game/${gameId}/question`, {
+      playerId,
+      message: question
+    });
+  }
 }

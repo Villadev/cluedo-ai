@@ -80,9 +80,8 @@ export const initSocket = (httpServer: HttpServer): Server => {
         // Player message is emitted directly as it's not a 'system' message
 
         const chatHistory = result.game.chatHistory;
-        const questionEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - (result.clue ? 3 : 2));
-        const responseEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - (result.clue ? 2 : 1));
-        const clueEntry = result.clue ? chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 1) : null;
+        const questionEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 2);
+        const responseEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 1);
 
         // 1. Emit Player Question
         const chatMsg = {
@@ -104,18 +103,6 @@ export const initSocket = (httpServer: HttpServer): Server => {
           result.game.roundNumber,
           responseEntry?.sequenceId
         );
-
-        // 3. Emit Clue if it exists via unified pipeline
-        if (result.clue) {
-          sendNarratorMessage(
-            payload.gameId,
-            result.clue,
-            'clue',
-            result.game.roundNumber,
-            clueEntry?.sequenceId
-          );
-        }
-
         // Delay to ensure messages are processed in order before round transition
         await new Promise(res => setTimeout(res, 50));
 
