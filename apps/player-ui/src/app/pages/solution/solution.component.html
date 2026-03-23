@@ -1,0 +1,71 @@
+<div class="p-4">
+  <div class="flex justify-content-between align-items-center mb-4">
+    <h1 class="text-3xl font-bold m-0">🔍 Resolució del cas</h1>
+    <p-button
+      label="Tornar a la partida"
+      icon="pi pi-arrow-left"
+      severity="secondary"
+      (click)="goBack()">
+    </p-button>
+  </div>
+
+  @if (error()) {
+    <div class="mb-4">
+      <p-message severity="error" [text]="error() || ''"></p-message>
+    </div>
+  }
+
+  @if (result()) {
+    <p-card header="EL MISTERI RESOLT" styleClass="p-fluid shadow-4">
+      <div class="flex flex-column gap-4">
+        <div class="grid">
+          <div class="col-12 md:col-6">
+            <h3 class="font-bold text-red-700 mb-2">RESULTAT:</h3>
+            <div class="text-2xl p-3 border-round bg-gray-50 font-bold text-gray-900 border-1 border-gray-200">
+              @if (result()?.winner === 'INVESTIGATORS') {
+                🎉 Cas resolt pels investigadors!
+              } @else if (result()?.winner === 'ASSASSIN') {
+                💀 L'assassí ha escapat!
+              } @else {
+                Misteri sense resoldre
+              }
+            </div>
+          </div>
+          <div class="col-12 md:col-6">
+            <h3 class="font-bold text-red-700 mb-2">ASSASSÍ:</h3>
+            <div class="text-2xl p-3 border-round bg-red-50 font-bold text-red-900 border-1 border-red-200">
+              {{ result()?.killer || 'Desconegut' }}
+            </div>
+          </div>
+        </div>
+
+        <p-divider></p-divider>
+
+        <div class="grid">
+          <div class="col-12 md:col-6 text-center">
+            <h3 class="font-bold text-gray-700"><i class="pi pi-hammer mr-2"></i>ARMA:</h3>
+            <p class="text-xl font-medium">{{ result()?.weapon || 'Desconeguda' }}</p>
+          </div>
+          <div class="col-12 md:col-6 text-center">
+            <h3 class="font-bold text-gray-700"><i class="pi pi-map-marker mr-2"></i>LLOC DEL CRIM:</h3>
+            <p class="text-xl font-medium">{{ result()?.location || 'Desconegut' }}</p>
+          </div>
+        </div>
+
+        <p-divider></p-divider>
+
+        <div class="text-center mt-2">
+          <p class="text-gray-500 italic">
+            Aquest ha estat el desenllaç de la història. Gràcies per participar en aquesta investigació!
+          </p>
+        </div>
+      </div>
+    </p-card>
+  }
+
+  @if (loading()) {
+    <div class="flex justify-content-center p-4">
+      <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
+    </div>
+  }
+</div>

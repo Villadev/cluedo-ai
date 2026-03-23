@@ -2,6 +2,13 @@ export type GameState = 'LOBBY' | 'GENERATING' | 'PLAYER_INFO' | 'PLAYING' | 'FI
 export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'extreme';
 
+export interface GameResult {
+  winner: WinnerType;
+  killer: string;
+  weapon: string;
+  location: string;
+}
+
 export interface Coartada {
   location: string;
   timeStart: string;
@@ -49,6 +56,7 @@ export interface PublicPlayerView {
 }
 
 export interface PublicGameView {
+  result?: GameResult;
   assassinId?: string;
   id: string;
   state: GameState;
@@ -73,4 +81,5 @@ export interface GameStateInfo {
   maxRounds: number;
   difficulty: Difficulty;
   winnerType: WinnerType | null;
+  result?: GameResult;
 }

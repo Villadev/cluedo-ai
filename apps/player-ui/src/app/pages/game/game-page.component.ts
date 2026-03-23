@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription, tap } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
+import { DialogModule } from "primeng/dialog";
 import { CardModule } from 'primeng/card';
 import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
@@ -28,7 +29,8 @@ import { SocketGameEvent } from '../../models/chat.models';
     GameStatusIndicatorComponent,
     InputTextareaModule,
     ButtonModule,
-    ProgressSpinnerModule
+    ProgressSpinnerModule,
+    DialogModule
   ],
   templateUrl: './game-page.component.html',
   styleUrl: './game-page.component.scss',
@@ -60,6 +62,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   protected readonly currentRound = signal<number>(1);
   protected readonly maxRounds = signal<number>(5);
   protected readonly winnerType = signal<string | null>(null);
+  protected readonly showEndModal = signal<boolean>(false);
   protected gameId = '';
   protected playerId = '';
 
@@ -142,7 +145,14 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
     if (!payload) return;
 
     if (payload.state) {
-      this.gameStateService.setState(payload.state as GameState);
+      const oldState = this.gameState();
+      const newState = payload.state as GameState;
+      this.gameStateService.setState(newState);
+
+      // Trigger modal ONLY on transition to FINISHED
+      if (newState === "FINISHED" && oldState !== "FINISHED") {
+        this.showEndModal.set(true);
+      }
     }
 
     if (payload.roundNumber !== undefined) {
@@ -227,6 +237,10 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.chatService.sendQuestion(this.gameId, this.playerId, question);
     this.questionForm.reset();
     this.askedThisRound.set(true);
+  }
+
+  protected navigateToSolution(): void {
+    void this.router.navigate(["/game", this.gameId, "solution"]);
   }
 
   protected toggleSpeech(messageId: string, text: string): void {

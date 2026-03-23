@@ -37,6 +37,11 @@ export const appRoutes: Routes = [
     loadComponent: () => import('./pages/accusation/accusation.component').then((m) => m.AccusationComponent)
   },
   {
+    path: 'game/:gameId/solution',
+    canActivate: [playerSessionGuard],
+    loadComponent: () => import('./pages/solution/solution.component').then((m) => m.SolutionComponent)
+  },
+  {
     path: 'game/:gameId',
     canActivate: [playerSessionGuard],
     loadComponent: () => import('./pages/game/game-page.component').then((m) => m.GamePageComponent)
