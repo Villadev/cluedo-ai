@@ -551,7 +551,7 @@ export class GameEngine {
       game.tensionLevel = Math.min(100, game.tensionLevel + 10);
 
       const msg = `Comença la ronda ${game.roundNumber}.`;
-      console.log("[ROUND START] Sending clues for round:", game.roundNumber);
+      console.log("[ROUND START DETECTED]", game.roundNumber);
       this.recordTimelineEvent(game, {
         type: 'ROUND_START',
         roundNumber: game.roundNumber,
@@ -596,7 +596,10 @@ export class GameEngine {
 
   private async revealCluesForRound(game: Game, roundNumber: number): Promise<void> {
     const roundClues = game.clues.filter(c => c.roundNumber === roundNumber);
-    if (roundClues.length === 0) return;
+    if (roundClues.length === 0) {
+      console.log(`[ROUND START] No clues found to reveal for round ${roundNumber}`);
+      return;
+    }
 
     console.log(`Revealing ${roundClues.length} clues for round ${roundNumber}`);
 
@@ -605,8 +608,10 @@ export class GameEngine {
     for (const clue of roundClues) {
       try {
         const narrative = await this.aiService.generateClueNarration(publicStateStr, clue.text, game.difficulty);
+        console.log(`[CLUE GENERATED]`, narrative);
 
         if (this.onSystemEvent) {
+          console.log(`[CLUE ENQUEUED]`);
           this.onSystemEvent(game.id, narrative, 'clue', game.roundNumber, game.nextSequenceId++);
         }
 
@@ -621,6 +626,8 @@ export class GameEngine {
         console.error("Error generating clue narration:", error);
         // Fallback to raw clue text if AI fails
         if (this.onSystemEvent) {
+          console.log(`[CLUE GENERATED] (fallback)`, clue.text);
+          console.log(`[CLUE ENQUEUED]`);
           this.onSystemEvent(game.id, clue.text, 'clue', game.roundNumber, game.nextSequenceId++);
         }
       }

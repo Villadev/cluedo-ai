@@ -6,6 +6,22 @@ import { Player, PublicGameView, ChatMessage, GameState, Difficulty } from '../t
 
 let io: Server | null = null;
 
+// Message Queue
+interface QueueItem {
+  gameId: string;
+  message: string;
+  type: ChatMessage['type'];
+  roundNumber?: number;
+  sequenceId?: number;
+  playerId?: string;
+  playerNameOverride?: string;
+}
+
+const messageQueue: QueueItem[] = [];
+let isProcessingQueue = false;
+
+const processingQuestions = new Set<string>();
+
 export const initSocket = (httpServer: HttpServer): Server => {
   io = new Server(httpServer, {
     cors: {
@@ -68,16 +84,23 @@ export const initSocket = (httpServer: HttpServer): Server => {
     });
 
     socket.on('question', async (payload: { gameId: string; playerId: string; message: string }) => {
-      console.log('WS_MESSAGE_RECEIVED: question', payload);
+      const questionId = `${payload.gameId}-${payload.playerId}-${payload.message}`;
+
+      if (processingQuestions.has(questionId)) {
+        console.log(`[QUESTION DUPLICATE PREVENTED] ${questionId}`);
+        return;
+      }
+
+      console.log(`[QUESTION RECEIVED] ${questionId}`);
+      processingQuestions.add(questionId);
+
       try {
         const result = await gameEngine.askQuestion(payload.gameId, {
           playerId: payload.playerId,
           question: payload.message
         });
 
-        // The question, response, and (optional) clue are entries in history
-        // We use the unified sendNarratorMessage for narrator outputs
-        // Player message is emitted directly as it's not a 'system' message
+        console.log(`[ANSWER GENERATED] ${questionId}`);
 
         const chatHistory = result.game.chatHistory;
         const questionEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 2);
@@ -103,8 +126,11 @@ export const initSocket = (httpServer: HttpServer): Server => {
           result.game.roundNumber,
           responseEntry?.sequenceId
         );
+
+        console.log(`[ANSWER ENQUEUED] ${questionId}`);
+
         // Delay to ensure messages are processed in order before round transition
-        await new Promise(res => setTimeout(res, 50));
+        await new Promise(res => setTimeout(res, 100));
 
         // Advance round if everyone has acted
         await gameEngine.nextTurn(payload.gameId);
@@ -117,6 +143,9 @@ export const initSocket = (httpServer: HttpServer): Server => {
       } catch (error: any) {
         console.error('WS_ERROR processing question:', error);
         socket.emit('error', { message: error.message || 'Error processing question' });
+      } finally {
+        // Clear from processing after a reasonable time to allow future questions
+        setTimeout(() => processingQuestions.delete(questionId), 5000);
       }
     });
 
@@ -161,6 +190,78 @@ export const emitGameStarted = (gameId: string, payload: PublicGameView | any): 
   getSocketServer().to(gameId).emit('game_started', payload);
 };
 
+export const enqueueMessage = (
+  gameId: string,
+  message: string,
+  options: {
+    type?: ChatMessage['type'];
+    roundNumber?: number;
+    sequenceId?: number;
+    playerId?: string;
+    playerNameOverride?: string;
+  } = {}
+): void => {
+  messageQueue.push({
+    gameId,
+    message,
+    type: options.type || 'system',
+    roundNumber: options.roundNumber,
+    sequenceId: options.sequenceId,
+    playerId: options.playerId,
+    playerNameOverride: options.playerNameOverride
+  });
+
+  console.log(`[QUEUE] Message enqueued for game ${gameId}. Queue size: ${messageQueue.length}`);
+  processQueue();
+};
+
+const processQueue = async (): Promise<void> => {
+  if (isProcessingQueue || messageQueue.length === 0) return;
+
+  isProcessingQueue = true;
+
+  while (messageQueue.length > 0) {
+    const item = messageQueue.shift();
+    if (!item) continue;
+
+    const { gameId, message, type, roundNumber, sequenceId, playerId, playerNameOverride } = item;
+    const timestamp = Date.now();
+    const playerName = playerNameOverride || (type === 'clue' || type === 'narrator' ? 'Narrador 🕵️' : 'Sistema ⚙️');
+
+    const systemMsg = {
+      type,
+      playerName,
+      message,
+      timestamp,
+      roundNumber,
+      sequenceId,
+      playerId
+    };
+
+    console.log(`[QUEUE WORKER] Emitting ${type} to room ${gameId}: ${message.substring(0, 30)}...`);
+    getSocketServer().to(gameId).emit('chat_message', systemMsg);
+
+    // Also persist to chat history
+    try {
+      gameEngine.recordChatMessage(gameId, {
+        type,
+        playerName,
+        message,
+        timestamp,
+        roundNumber,
+        sequenceId
+      });
+    } catch (e) {
+      console.warn(`[QUEUE WORKER] Could not persist message to history for game ${gameId}`);
+    }
+
+    // Small delay between messages to ensure order in frontend
+    await new Promise(res => setTimeout(res, 150));
+  }
+
+  isProcessingQueue = false;
+};
+
 export const sendNarratorMessage = (
   gameId: string,
   message: string,
@@ -170,34 +271,11 @@ export const sendNarratorMessage = (
   playerId?: string,
   playerNameOverride?: string
 ): void => {
-  const timestamp = Date.now();
-  const playerName = playerNameOverride || (type === 'clue' || type === 'narrator' ? 'Narrador 🕵️' : 'Sistema ⚙️');
-
-  const systemMsg = {
+  enqueueMessage(gameId, message, {
     type,
-    playerName,
-    message,
-    timestamp,
     roundNumber,
     sequenceId,
-    playerId
-  };
-
-  console.log(`[PIPELINE] Enqueuing narrator message for game ${gameId}`);
-  console.log(`[PIPELINE] Emitting ${type} to room: ${message}`);
-  getSocketServer().to(gameId).emit('chat_message', systemMsg);
-
-  // Also persist to chat history
-  try {
-    gameEngine.recordChatMessage(gameId, {
-      type,
-      playerName,
-      message,
-      timestamp,
-      roundNumber,
-      sequenceId
-    });
-  } catch (e) {
-    // Might fail for 'MAIN_GAME' which doesn't exist in gameEngine
-  }
+    playerId,
+    playerNameOverride
+  });
 };
