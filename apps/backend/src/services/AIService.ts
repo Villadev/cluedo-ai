@@ -43,6 +43,7 @@ interface OpenAICallInput {
   question?: string;
   clueDescription?: string;
   privateContext?: string;
+  json?: boolean;
 }
 
 export class AIService {
@@ -252,7 +253,7 @@ Retorna el resultat en JSON amb aquesta estructura:
     return true;
   }
 
-  public async respondToQuestion(publicGameState: string, question: string, difficulty: Difficulty = 'hard'): Promise<string> {
+  public async respondToQuestion(publicGameState: string, question: string, difficulty: Difficulty = 'hard'): Promise<{ response: string; clue?: string }> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Respon la pregunta de l'investigador de manera molt directa i breu (màxim 15 paraules).
 ${diffContext}
@@ -260,8 +261,19 @@ Regles:
 - No utilitzis metàfores ni descripcions poètiques.
 - Dona una pista subtil o un fet concret si és possible.
 - Sigues enigmàtic però concís.
-- Respon sempre en català.`;
-    return this.generateNarrative({ instruction, publicGameState, question }, 80);
+- Respon siempre en català.
+- Retorna la resposta i una pista addicional opcional en JSON.
+Estructura JSON:
+{
+  "response": "...",
+  "clue": "..."
+}`;
+    const result = await this.generateNarrative({ instruction, publicGameState, question, json: true }, 150);
+    try {
+      return JSON.parse(result);
+    } catch (e) {
+      return { response: result };
+    }
   }
 
   public async generateClueNarration(publicGameState: string, clueDescription: string, difficulty: Difficulty = 'hard'): Promise<string> {
@@ -304,7 +316,8 @@ Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el 
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userContent }
-        ]
+        ],
+        response_format: payload.json ? { type: "json_object" } : undefined
       });
 
       const outputText = completion.choices[0]?.message.content?.trim();

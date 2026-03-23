@@ -75,11 +75,16 @@ export const initSocket = (httpServer: HttpServer): Server => {
           question: payload.message
         });
 
-        // The question and response are the last two entries in history
-        const questionEntry = result.game.chatHistory[result.game.chatHistory.length - 2];
-        const responseEntry = result.game.chatHistory[result.game.chatHistory.length - 1];
+        // The question, response, and (optional) clue are entries in history
+        // We use the unified sendNarratorMessage for narrator outputs
+        // Player message is emitted directly as it's not a 'system' message
 
-        // Broadcast the question and response to all players in the game
+        const chatHistory = result.game.chatHistory;
+        const questionEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - (result.clue ? 3 : 2));
+        const responseEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - (result.clue ? 2 : 1));
+        const clueEntry = result.clue ? chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 1) : null;
+
+        // 1. Emit Player Question
         const chatMsg = {
           type: 'player',
           playerId: payload.playerId,
@@ -89,18 +94,27 @@ export const initSocket = (httpServer: HttpServer): Server => {
           roundNumber: result.game.roundNumber,
           sequenceId: questionEntry?.sequenceId
         };
+        getSocketServer().to(payload.gameId).emit('chat_message', chatMsg);
 
-        const responseMsg = {
-          type: 'narrator',
-          playerName: responseEntry?.playerName || 'Narrador 🕵️',
-          message: result.response,
-          timestamp: responseEntry?.timestamp || Date.now(),
-          roundNumber: result.game.roundNumber,
-          sequenceId: responseEntry?.sequenceId
-        };
+        // 2. Emit Narrator Response via unified pipeline
+        sendNarratorMessage(
+          payload.gameId,
+          result.response,
+          'narrator',
+          result.game.roundNumber,
+          responseEntry?.sequenceId
+        );
 
-        io?.to(payload.gameId).emit('chat_message', chatMsg);
-        io?.to(payload.gameId).emit('chat_message', responseMsg);
+        // 3. Emit Clue if it exists via unified pipeline
+        if (result.clue) {
+          sendNarratorMessage(
+            payload.gameId,
+            result.clue,
+            'clue',
+            result.game.roundNumber,
+            clueEntry?.sequenceId
+          );
+        }
 
         // Delay to ensure messages are processed in order before round transition
         await new Promise(res => setTimeout(res, 50));
@@ -113,7 +127,6 @@ export const initSocket = (httpServer: HttpServer): Server => {
 
         // Also update game state for everyone
         emitGameStateUpdate(payload.gameId, updatedGame);
-
       } catch (error: any) {
         console.error('WS_ERROR processing question:', error);
         socket.emit('error', { message: error.message || 'Error processing question' });
@@ -161,9 +174,17 @@ export const emitGameStarted = (gameId: string, payload: PublicGameView | any): 
   getSocketServer().to(gameId).emit('game_started', payload);
 };
 
-export const emitSystemChatMessage = (gameId: string, message: string, type: ChatMessage['type'] = 'system', roundNumber?: number, sequenceId?: number): void => {
+export const sendNarratorMessage = (
+  gameId: string,
+  message: string,
+  type: ChatMessage['type'] = 'system',
+  roundNumber?: number,
+  sequenceId?: number,
+  playerId?: string,
+  playerNameOverride?: string
+): void => {
   const timestamp = Date.now();
-  const playerName = type === 'clue' || type === 'narrator' ? 'Narrador 🕵️' : 'Sistema ⚙️';
+  const playerName = playerNameOverride || (type === 'clue' || type === 'narrator' ? 'Narrador 🕵️' : 'Sistema ⚙️');
 
   const systemMsg = {
     type,
@@ -171,10 +192,12 @@ export const emitSystemChatMessage = (gameId: string, message: string, type: Cha
     message,
     timestamp,
     roundNumber,
-    sequenceId
+    sequenceId,
+    playerId
   };
 
-  console.log(`WS_EMIT: ${type} chat message to room ${gameId}: ${message}`);
+  console.log(`[PIPELINE] Enqueuing narrator message for game ${gameId}`);
+  console.log(`[PIPELINE] Emitting ${type} to room: ${message}`);
   getSocketServer().to(gameId).emit('chat_message', systemMsg);
 
   // Also persist to chat history
