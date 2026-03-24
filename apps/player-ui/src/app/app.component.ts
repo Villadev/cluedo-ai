@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { MenuItem } from 'primeng/api';
 import { catchError, of } from 'rxjs';
@@ -7,6 +7,7 @@ import { AppLayoutComponent } from './layout/app-layout.component';
 import { GameService } from './services/game.service';
 import { SessionService } from './services/session.service';
 import { WebSocketService } from './services/websocket.service';
+import { GameStateService } from './services/game-state.service';
 
 @Component({
   selector: 'app-root',
@@ -20,19 +21,33 @@ export class AppComponent implements OnInit {
   private readonly gameService = inject(GameService);
   private readonly sessionService = inject(SessionService);
   private readonly websocketService = inject(WebSocketService);
+  private readonly gameStateService = inject(GameStateService);
 
   protected isLoading = signal(true);
 
-  protected menuItems: MenuItem[] = [
-    { label: 'Xat', icon: 'pi pi-comments', command: () => this.navigateToGameSection('') },
-    { label: 'Informació de partida', icon: 'pi pi-info-circle', command: () => this.navigateToGameSection('info') },
-    { label: 'Participants', icon: 'pi pi-users', command: () => this.navigateToGameSection('participants') },
-    { label: 'Instruccions', icon: 'pi pi-list', command: () => this.navigateToGameSection('instructions') },
-    { label: 'Veure introducció', icon: 'pi pi-map', command: () => this.navigateToGameSection('introduction') },
-    { label: 'Llibreta de Detectiu', icon: 'pi pi-book', command: () => this.navigateToGameSection('notebook') },
-    { label: 'Acusació', icon: 'pi pi-megaphone', command: () => this.navigateToGameSection('accusation') },
-    { label: 'Sortir de la partida', icon: 'pi pi-sign-out', command: () => this.leaveGame() }
-  ];
+  protected menuItems = computed<MenuItem[]>(() => {
+    const state = this.gameStateService.state();
+    const items: MenuItem[] = [
+      { label: 'Xat', icon: 'pi pi-comments', command: () => this.navigateToGameSection('') },
+      { label: 'Informació de partida', icon: 'pi pi-info-circle', command: () => this.navigateToGameSection('info') },
+      { label: 'Participants', icon: 'pi pi-users', command: () => this.navigateToGameSection('participants') },
+      { label: 'Instruccions', icon: 'pi pi-list', command: () => this.navigateToGameSection('instructions') },
+      { label: 'Veure introducció', icon: 'pi pi-map', command: () => this.navigateToGameSection('introduction') },
+      { label: 'Llibreta de Detectiu', icon: 'pi pi-book', command: () => this.navigateToGameSection('notebook') }
+    ];
+
+    if (state === 'PLAYING') {
+      items.push({ label: 'Acusació', icon: 'pi pi-megaphone', command: () => this.navigateToGameSection('accusation') });
+    }
+
+    if (state === 'FINISHED') {
+      items.push({ label: 'Veure Resolució', icon: 'pi pi-search', command: () => this.navigateToGameSection('solution') });
+    }
+
+    items.push({ label: 'Sortir de la partida', icon: 'pi pi-sign-out', command: () => this.leaveGame() });
+
+    return items;
+  });
 
   ngOnInit(): void {
     // Splash screen timeout
