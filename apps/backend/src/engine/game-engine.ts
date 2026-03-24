@@ -636,8 +636,8 @@ export class GameEngine {
 
   public updateDifficulty(gameId: string, difficulty: Difficulty): Game {
     const game = this.getGameOrThrow(gameId);
-    if (game.state === 'FINISHED') {
-       throw new HttpError(400, 'No es pot canviar la dificultat d\'una partida finalitzada');
+    if (game.state !== 'LOBBY') {
+       throw new HttpError(400, "Només es pot canviar la dificultat a la sala d'espera");
     }
 
     game.difficulty = difficulty;
@@ -776,7 +776,8 @@ export class GameEngine {
       winner: game.winnerType,
       killer: game.solution.assassin,
       weapon: game.solution.weapon,
-      location: game.solution.location
+      location: game.solution.location,
+      finalNarrative: game.solution.finalNarrative
     };
   }
 

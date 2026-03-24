@@ -7,13 +7,14 @@ export const GameStates: Record<GameState, GameState> = {
   PLAYING: 'PLAYING',
   FINISHED: 'FINISHED'
 };
+
 export interface GameResult {
   winner: WinnerType;
   killer: string;
   weapon: string;
   location: string;
+  finalNarrative?: string;
 }
-
 
 export type WinnerType = 'INVESTIGATORS' | 'ASSASSIN';
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'extreme';
