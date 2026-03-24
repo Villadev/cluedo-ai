@@ -12,6 +12,7 @@ export class WebSocketService {
   private readonly baseUrl = 'https://backend-veq8.onrender.com';
   private socket: Socket | null = null;
   private currentGameId: string | null = null;
+  private pendingEvents: { event: string; payload: any }[] = [];
 
   private readonly connectedSubject = new BehaviorSubject<boolean>(false);
   readonly connected$ = this.connectedSubject.asObservable();
@@ -23,10 +24,15 @@ export class WebSocketService {
   readonly events$ = this.eventsSubject.asObservable();
 
   connect(gameId: string): void {
+    if (this.socket && this.currentGameId === gameId) {
+      console.log("WS_CONNECT: Already connected/connecting to", gameId);
+      return;
+    }
+
     this.disconnect();
     this.currentGameId = gameId;
 
-    console.log("WS_CONNECTING");
+    console.log("WS_CONNECTING", gameId);
     this.socket = io(this.baseUrl, {
       query: {
         gameId
@@ -40,6 +46,7 @@ export class WebSocketService {
       console.log("WS_CONNECTED");
       this.connectedSubject.next(true);
       this.reconnectingSubject.next(false);
+      this.flushPendingEvents();
       this.resync();
     });
 
@@ -85,8 +92,24 @@ export class WebSocketService {
       console.log("WS_EMIT:", event, payload);
       this.socket.emit(event, payload);
     } else {
-      console.warn("WS_EMIT: Not connected, ignoring", event, payload);
+      console.warn("WS_EMIT: Not connected, queueing", event, payload);
+      if (event === 'update_difficulty') {
+        // Keep only the latest difficulty update in the queue
+        this.pendingEvents = this.pendingEvents.filter(e => e.event !== 'update_difficulty');
+      }
+      this.pendingEvents.push({ event, payload });
     }
+  }
+
+  private flushPendingEvents(): void {
+    if (!this.socket?.connected || this.pendingEvents.length === 0) return;
+
+    console.log("WS_FLUSH_PENDING_EVENTS", this.pendingEvents.length);
+    for (const item of this.pendingEvents) {
+      console.log("WS_EMIT_PENDING:", item.event, item.payload);
+      this.socket.emit(item.event, item.payload);
+    }
+    this.pendingEvents = [];
   }
 
   resync(): void {
@@ -98,6 +121,8 @@ export class WebSocketService {
 
   disconnect(): void {
     if (!this.socket) {
+      this.currentGameId = null;
+      this.pendingEvents = [];
       return;
     }
 
@@ -107,5 +132,6 @@ export class WebSocketService {
     this.connectedSubject.next(false);
     this.reconnectingSubject.next(false);
     this.currentGameId = null;
+    this.pendingEvents = [];
   }
 }
