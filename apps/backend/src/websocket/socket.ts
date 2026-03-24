@@ -241,16 +241,18 @@ const processQueue = async (): Promise<void> => {
     console.log(`[QUEUE WORKER] Emitting ${type} to room ${gameId}: ${message.substring(0, 30)}...`);
     getSocketServer().to(gameId).emit('chat_message', systemMsg);
 
-    // Also persist to chat history
+    // Also persist to chat history, unless it is a narrator message (already persisted in askQuestion)
     try {
-      gameEngine.recordChatMessage(gameId, {
-        type,
-        playerName,
-        message,
-        timestamp,
-        roundNumber,
-        sequenceId
-      });
+      if (type !== 'narrator') {
+        gameEngine.recordChatMessage(gameId, {
+          type,
+          playerName,
+          message,
+          timestamp,
+          roundNumber,
+          sequenceId
+        });
+      }
     } catch (e) {
       console.warn(`[QUEUE WORKER] Could not persist message to history for game ${gameId}`);
     }

@@ -459,6 +459,19 @@ export class GameEngine {
 
   public recordChatMessage(gameId: string, message: ChatMessage): void {
     const game = this.getGameOrThrow(gameId);
+
+    // Defensive check to avoid duplicate messages in history
+    const isDuplicate = game.chatHistory.some(m =>
+      m.sequenceId !== undefined &&
+      m.sequenceId === message.sequenceId &&
+      m.type === message.type
+    );
+
+    if (isDuplicate) {
+      console.warn(`[DUPLICATE MESSAGE DETECTED] Skipping recordChatMessage for sequenceId ${message.sequenceId}`);
+      return;
+    }
+
     game.chatHistory.push(message);
     this.store.save(game);
   }

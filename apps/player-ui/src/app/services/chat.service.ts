@@ -44,7 +44,17 @@ export class ChatService implements OnDestroy {
   loadHistory(gameId: string): void {
     this.gameService.getChatHistory(gameId).subscribe(response => {
       if (response.success && response.data) {
-        const historyMessages: ChatMessage[] = response.data.map((msg: ChatHistoryMessage) => {
+        const historyMessages: ChatMessage[] = [];
+        const seenSequenceIds = new Set<number>();
+
+        response.data.forEach((msg: ChatHistoryMessage) => {
+          if (msg.sequenceId !== undefined && seenSequenceIds.has(msg.sequenceId)) {
+            return;
+          }
+          if (msg.sequenceId !== undefined) {
+            seenSequenceIds.add(msg.sequenceId);
+          }
+
           const typeMap: Record<string, ChatMessageType> = {
             'player': 'question',
             'narrator': 'response',
@@ -52,7 +62,7 @@ export class ChatService implements OnDestroy {
             'clue': 'clue'
           };
 
-          return {
+          historyMessages.push({
             id: crypto.randomUUID(),
             type: typeMap[msg.type] || 'system',
             sender: msg.playerName,
@@ -60,7 +70,7 @@ export class ChatService implements OnDestroy {
             timestamp: new Date(msg.timestamp),
             round: msg.roundNumber,
             sequenceId: msg.sequenceId
-          };
+          });
         });
         this.messagesSubject.next(historyMessages);
       }
@@ -107,15 +117,27 @@ export class ChatService implements OnDestroy {
       'clue': 'clue'
     };
 
-    const messages: ChatMessage[] = history.map((msg) => ({
-      id: crypto.randomUUID(),
-      type: typeMap[msg.type] || 'system',
-      sender: msg.playerName,
-      message: msg.message,
-      timestamp: new Date(msg.timestamp),
-      round: msg.roundNumber,
-      sequenceId: msg.sequenceId
-    }));
+    const messages: ChatMessage[] = [];
+    const seenSequenceIds = new Set<number>();
+
+    history.forEach((msg) => {
+      if (msg.sequenceId !== undefined && seenSequenceIds.has(msg.sequenceId)) {
+        return;
+      }
+      if (msg.sequenceId !== undefined) {
+        seenSequenceIds.add(msg.sequenceId);
+      }
+
+      messages.push({
+        id: crypto.randomUUID(),
+        type: typeMap[msg.type] || 'system',
+        sender: msg.playerName,
+        message: msg.message,
+        timestamp: new Date(msg.timestamp),
+        round: msg.roundNumber,
+        sequenceId: msg.sequenceId
+      });
+    });
 
     this.messagesSubject.next(messages);
   }
