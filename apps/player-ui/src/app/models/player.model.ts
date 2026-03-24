@@ -7,6 +7,7 @@ export interface GameResult {
   killer: string;
   weapon: string;
   location: string;
+  finalNarrative?: string;
 }
 
 export interface Coartada {

@@ -43,7 +43,7 @@
               [options]="difficultyOptions"
               [ngModel]="difficulty()"
               (ngModelChange)="onDifficultyChange($event)"
-              [disabled]="gameState() === 'GENERATING' || gameState() === 'FINISHED' || loading()"
+              [disabled]="(gameState() !== 'LOBBY' && gameState() !== 'NONE') || loading()"
               aria-labelledby="basic">
             </p-selectButton>
           </div>
