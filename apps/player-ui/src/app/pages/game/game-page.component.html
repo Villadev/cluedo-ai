@@ -102,6 +102,16 @@
                 Hauràs d'esperar la següent.
               </span>
             }
+            @if (sttService.isSupported()) {
+              <button
+                pButton
+                type="button"
+                [icon]="sttService.isListening() ? 'pi pi-stop' : 'pi pi-microphone'"
+                [class]="sttService.isListening() ? 'p-button-danger' : 'p-button-secondary'"
+                (click)="toggleVoice()"
+                [disabled]="askedThisRound() || !(connected$ | async)"
+                [title]="sttService.isListening() ? 'Aturar veu' : 'Utilitzar veu'"></button>
+            }
             <button
               pButton
               type="submit"
