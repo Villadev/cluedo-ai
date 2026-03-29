@@ -101,13 +101,18 @@
                 Ja has fet una pregunta en aquesta ronda.
                 Hauràs d'esperar la següent.
               </span>
+            } @else if (sttService.isListening()) {
+              <span class="listening-indicator">
+                <span class="recording-dot"></span>
+                Escoltant...
+              </span>
             }
             @if (sttService.isSupported()) {
               <button
                 pButton
                 type="button"
-                [icon]="sttService.isListening() ? 'pi pi-stop' : 'pi pi-microphone'"
-                [class]="sttService.isListening() ? 'p-button-danger' : 'p-button-secondary'"
+                [icon]="sttService.isListening() ? 'pi pi-stop' : 'pi pi-play'"
+                [class]="sttService.isListening() ? 'p-button-danger stt-pulse' : 'p-button-secondary'"
                 (click)="toggleVoice()"
                 [disabled]="askedThisRound() || !(connected$ | async)"
                 [title]="sttService.isListening() ? 'Aturar veu' : 'Utilitzar veu'"></button>
