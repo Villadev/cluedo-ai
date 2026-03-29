@@ -67,6 +67,7 @@ export class AIService {
   }
 
   public async generateFullCase(playerCount: number, difficulty: Difficulty = 'hard'): Promise<FullCase> {
+    const expectedCount = Math.max(playerCount, 4);
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Respon sempre en català.
 
@@ -78,7 +79,7 @@ L'objectiu és crear una història amb personatges connectats entre si, amb secr
 Context del poble:
 ${VILLAGE_CONTEXT}
 
-Crea un cas complet d'assassinat amb exactament ${Math.max(playerCount, 4)} personatges sospitosos.
+Crea un cas complet d'assassinat amb exactament ${expectedCount} personatges sospitosos.
 
 Crea:
 - diversos personatges sospitosos
@@ -120,8 +121,8 @@ Regles per a la coartada (coartada):
 - L'assassí pot tenir una coartada falsa, incompleta o un testimoni que no la pot confirmar.
 
 Regles importants per a cada personatge:
-- cada personatge rep una secretKnowledge diferent.
-- la secretKnowledge pot revelar informació parcial peró never directament qui és l'assassí.
+- cada personatge rebrà una secretKnowledge diferent.
+- la secretKnowledge pot revelar informació parcial però mai directament qui és l'assassí.
 - els personatges s'han de conèixer entre ells.
 - diversos personatges han de tenir conflictes amb la víctima.
 
@@ -184,7 +185,6 @@ Retorna el resultat en JSON amb aquesta estructura:
     try {
       console.log("[OPENAI] Sending request for full case");
 
-      let fullCase: FullCase | null = null;
       let attempts = 0;
       const maxAttempts = 3;
 
@@ -204,7 +204,7 @@ Retorna el resultat en JSON amb aquesta estructura:
           throw new Error('Resposta buida del model');
         }
 
-        fullCase = JSON.parse(responseText) as FullCase;
+        const fullCase = JSON.parse(responseText) as FullCase;
 
         // Ensure clues and rounds are initialized
         if (!fullCase.clues) {
@@ -216,28 +216,82 @@ Retorna el resultat en JSON amb aquesta estructura:
           fullCase.clues.round4 = fullCase.clues.round4 || [];
         }
 
-        if (this.isValidIntro(fullCase.introductionNarrative, fullCase.weapon, fullCase.location)) {
+        const validationErrors = this.validateCaseData(fullCase, expectedCount);
+        const isValidIntro = this.isValidIntro(fullCase.introductionNarrative, fullCase.weapon, fullCase.location);
+
+        if (validationErrors.length === 0 && isValidIntro) {
           console.log(`[OPENAI] Case generated successfully on attempt ${attempts}`);
           return fullCase;
         }
 
-        console.warn(`[OPENAI] Intro validation failed (attempt ${attempts}). Location or weapon mentioned in introduction. Regenerating...`);
+        if (validationErrors.length > 0) {
+          console.warn(`[OPENAI] Case validation failed (attempt ${attempts}):\n- ${validationErrors.join('\n- ')}`);
+        }
+        if (!isValidIntro) {
+          console.warn(`[OPENAI] Intro validation failed (attempt ${attempts}). Location or weapon mentioned in introduction.`);
+        }
+        console.warn(`[OPENAI] Regenerating...`);
       }
 
-      return fullCase!;
+      throw new Error(`No s'ha pogut generar un cas vàlid després de ${maxAttempts} intents.`);
     } catch (error: any) {
       console.error("[OPENAI ERROR]", error.message || error);
       errorLogger.push("OPENAI", error);
-      throw new Error('Error en generar el cas. Servei narratiu no disponible temporalment.');
+      throw new Error(error.message || 'Error en generar el cas. Servei narratiu no disponible temporalment.');
     }
   }
 
+  private validateCaseData(caseData: FullCase, expectedCount: number): string[] {
+    const errors: string[] = [];
+
+    if (!caseData.characters || !Array.isArray(caseData.characters)) {
+      errors.push("L'objecte 'characters' no és un array vàlid.");
+      return errors;
+    }
+
+    if (caseData.characters.length !== expectedCount) {
+      errors.push(`Nombre de personatges incorrecte: s'esperaven ${expectedCount}, s'han rebut ${caseData.characters.length}.`);
+    }
+
+    const assassinFound = caseData.characters.some(c => c.name === caseData.assassin);
+    if (!assassinFound) {
+      errors.push(`L'assassí especificat (${caseData.assassin}) no es troba entre els personatges.`);
+    }
+
+    caseData.characters.forEach((char, idx) => {
+      const charId = char.name || `índex ${idx}`;
+      if (!char.name) errors.push(`Al personatge ${idx} li falta el nom.`);
+      if (!char.profession) errors.push(`Al personatge ${charId} li falta la professió.`);
+      if (!char.description) errors.push(`Al personatge ${charId} li falta la descripció.`);
+      if (!char.secretKnowledge) errors.push(`Al personatge ${charId} li falta la informació secreta (secretKnowledge).`);
+    });
+
+    if (!WEAPONS.includes(caseData.weapon)) {
+      errors.push(`L'arma '${caseData.weapon}' no és a la llista oficial.`);
+    }
+
+    if (!LOCATIONS.includes(caseData.location)) {
+      errors.push(`El lloc '${caseData.location}' no és a la llista oficial.`);
+    }
+
+    if (!caseData.introductionNarrative || caseData.introductionNarrative.length < 100) {
+      errors.push("L'introducció és massa curta o inexistent.");
+    }
+
+    if (!caseData.solutionNarrative || caseData.solutionNarrative.length < 100) {
+      errors.push("La solució narrativa és massa curta o inexistent.");
+    }
+
+    return errors;
+  }
+
   private isValidIntro(intro: string, weapon: string, location: string): boolean {
+    if (!intro) return false;
     const lowerIntro = intro.toLowerCase();
 
     // Check for the specific weapon and location chosen for this case
-    if (lowerIntro.includes(weapon.toLowerCase())) return false;
-    if (lowerIntro.includes(location.toLowerCase())) return false;
+    if (weapon && lowerIntro.includes(weapon.toLowerCase())) return false;
+    if (location && lowerIntro.includes(location.toLowerCase())) return false;
 
     // Common mystery location keywords that should not appear in introduction
     const genericForbidden = [

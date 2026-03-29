@@ -202,6 +202,13 @@ export class GameEngine {
         }
       });
 
+      // Verification: ensure ALL players have a character
+      const playersWithoutCharacter = game.players.filter(p => !p.characterId);
+      if (playersWithoutCharacter.length > 0) {
+        const names = playersWithoutCharacter.map(p => p.nickname).join(', ');
+        throw new Error(`Error en l'assignació: els jugadors següents no tenen personatge: ${names}`);
+      }
+
       // Handle clues
       const allClues: Clue[] = [];
       const rounds: (keyof typeof caseData.clues)[] = ['round1', 'round2', 'round3', 'round4'];
