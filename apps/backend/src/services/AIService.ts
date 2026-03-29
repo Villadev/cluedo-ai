@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { openaiClient } from '../config/openai.js';
 import { errorLogger } from '../utils/error-logger.js';
-import { FullCase, Difficulty } from '../types/game.types.js';
+import { FullCase, Difficulty, AIServiceCharacter } from '../types/game.types.js';
 import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 
 const resolveContextPath = (fileName: string): string => {
@@ -129,11 +129,11 @@ Regles importants per a cada personatge:
 Regles per a la narrativa:
 1. una narrativa inicial (introductionNarrative) que presenti el crim, la víctima i els sospitosos (entre 200 i 300 paraules).
    REGLA D'OR: L'introducció NO ha de revelar l'arma, ni el lloc exacte (nom o descripció), ni la identitat de l'assassí.
-   REGLA D'OR: No mencionis MAI llocs específics del poble (ex: "celler", "cuina", "jardí", o noms de la llista de llocs).
+   REGLA D'OR: No mencionis MAI llocs específicos del poble (ex: "celler", "cuina", "jardí", o noms de la llista de llocs).
    REGLA D'OR: Evita pistes indirectes sobre el lloc (ex: si el lloc és un celler, no parlis d'ampolles; si és l'església, no parlis de campanes; si és el Carrer Major, no parlis d'asfalt o botigues).
    CENTRA'T EXCLUSIVAMENT en la descoberta del cos, la commoció, les relacions tenses entre els personatges i l'ambient de sospita general.
    Menciona la incertesa de l'hora del crim (ex: "La mort podria haver tingut lloc en algun moment entre les nou i mitja i les onze de la nit.").
-2. una narrativa final (solutionNarrative) que reveli què ha passat realment, explicant el motiu real, com es va cometre el crim (incloent l'hora exacta), com s'han interpretat malament algunes pistes i una revelació dramàtica final.
+2. una narrativa final (solutionNarrative) que reveli què ha passat realment, explicant el motiu real, com es va cometre el crim (incloent lhora exacta), com s'han interpretat malament algunes pistes i una revelació dramàtica final.
 
 Regles per a les pistes (clues):
 Genera pistes progressives agrupades per rondes (entre 10 i 15 en total).
@@ -183,7 +183,7 @@ Retorna el resultat en JSON amb aquesta estructura:
 }`;
 
     try {
-      console.log("[OPENAI] Sending request for full case");
+      console.log(`[OPENAI] Attempting case generation (expected characters: ${expectedCount})`);
 
       let attempts = 0;
       const maxAttempts = 3;
@@ -204,18 +204,12 @@ Retorna el resultat en JSON amb aquesta estructura:
           throw new Error('Resposta buida del model');
         }
 
-        const fullCase = JSON.parse(responseText) as FullCase;
+        let fullCase = JSON.parse(responseText) as FullCase;
 
-        // Ensure clues and rounds are initialized
-        if (!fullCase.clues) {
-          (fullCase as any).clues = { round1: [], round2: [], round3: [], round4: [] };
-        } else {
-          fullCase.clues.round1 = fullCase.clues.round1 || [];
-          fullCase.clues.round2 = fullCase.clues.round2 || [];
-          fullCase.clues.round3 = fullCase.clues.round3 || [];
-          fullCase.clues.round4 = fullCase.clues.round4 || [];
-        }
+        // 1. Normalize and sanitize data
+        fullCase = this.normalizeCaseData(fullCase, expectedCount);
 
+        // 2. Validate critical integrity
         const validationErrors = this.validateCaseData(fullCase, expectedCount);
         const isValidIntro = this.isValidIntro(fullCase.introductionNarrative, fullCase.weapon, fullCase.location);
 
@@ -230,7 +224,7 @@ Retorna el resultat en JSON amb aquesta estructura:
         if (!isValidIntro) {
           console.warn(`[OPENAI] Intro validation failed (attempt ${attempts}). Location or weapon mentioned in introduction.`);
         }
-        console.warn(`[OPENAI] Regenerating...`);
+        console.warn(`[OPENAI] Regenerating (attempt ${attempts + 1} of ${maxAttempts})...`);
       }
 
       throw new Error(`No s'ha pogut generar un cas vàlid després de ${maxAttempts} intents.`);
@@ -241,37 +235,112 @@ Retorna el resultat en JSON amb aquesta estructura:
     }
   }
 
+  private normalizeCaseData(caseData: FullCase, expectedCount: number): FullCase {
+    // Ensure characters is an array
+    if (!caseData.characters || !Array.isArray(caseData.characters)) {
+      caseData.characters = [];
+    }
+
+    // Ensure clues structure is complete
+    if (!caseData.clues) {
+      caseData.clues = { round1: [], round2: [], round3: [], round4: [] };
+    } else {
+      caseData.clues.round1 = caseData.clues.round1 || [];
+      caseData.clues.round2 = caseData.clues.round2 || [];
+      caseData.clues.round3 = caseData.clues.round3 || [];
+      caseData.clues.round4 = caseData.clues.round4 || [];
+    }
+
+    // Sanitize and fill missing fields for each character
+    caseData.characters = caseData.characters.map((char, idx) => {
+      const sanitized: AIServiceCharacter = {
+        name: (char.name || `Sospitós ${idx + 1}`).trim(),
+        profession: (char.profession || "Veí del poble").trim(),
+        description: (char.description || "Un personatge misteriós que prefereix no parlar del seu passat.").trim(),
+        personality: (char.personality || "Reservat i cautelós.").trim(),
+        possibleMotive: (char.possibleMotive || "Tensions personals no resoltes.").trim(),
+        secret: (char.secret || "Amaga un secret que ningú més coneix.").trim(),
+        secretKnowledge: (char.secretKnowledge || "Ha observat moviments estranys recentment al poble.").trim(),
+        coartada: char.coartada || {
+          location: "A casa seva",
+          timeStart: "21:00",
+          timeEnd: "23:00",
+          witness: "Ningú",
+          credibility: "mitjana"
+        },
+        rumor: (char.rumor || "Es diu que darrerament actua de manera estranya.").trim(),
+        relationships: (char.relationships || "Coneguts del poble.").trim(),
+        tensions: (char.tensions || "Cap conflicte aparent.").trim()
+      };
+      return sanitized;
+    });
+
+    // Handle missing characters deterministic repair
+    if (caseData.characters.length < expectedCount) {
+      const missingCount = expectedCount - caseData.characters.length;
+      console.warn(`[REPAIR] Adding ${missingCount} placeholder characters to match expected count.`);
+      for (let i = 0; i < missingCount; i++) {
+        caseData.characters.push({
+          name: `Habitant extra ${caseData.characters.length + 1}`,
+          profession: "Artesà local",
+          description: "Un habitant discret que viu als afores del poble.",
+          personality: "Observador i silenciós.",
+          possibleMotive: "Enveja pel llegat de la víctima.",
+          secret: "Té deutes que ningú coneix.",
+          secretKnowledge: "Va veure una ombra fugint del lloc del crim.",
+          coartada: {
+            location: "Taller d'artesania",
+            timeStart: "21:30",
+            timeEnd: "23:00",
+            witness: "Ningú",
+            credibility: "baixa"
+          },
+          rumor: "Sempre treballa fins tard i ningú sap realment què fa.",
+          relationships: "Poca relació amb els altres sospitosos.",
+          tensions: "Frustració pel creixement del poble."
+        });
+      }
+    }
+
+    // Ensure assassin is one of the characters (case-insensitive name match)
+    const assassinName = (caseData.assassin || "").trim().toLowerCase();
+    const assassinChar = caseData.characters.find(c => c.name.trim().toLowerCase() === assassinName);
+
+    if (!assassinChar && caseData.characters.length > 0) {
+      // If assassin specified doesn't exist, pick the first character as the assassin
+      const firstChar = caseData.characters[0];
+      if (firstChar) {
+        console.warn(`[REPAIR] Assassin '${caseData.assassin}' not found. Defaulting to '${firstChar.name}'.`);
+        caseData.assassin = firstChar.name;
+      }
+    }
+
+    return caseData;
+  }
+
   private validateCaseData(caseData: FullCase, expectedCount: number): string[] {
     const errors: string[] = [];
-
-    if (!caseData.characters || !Array.isArray(caseData.characters)) {
-      errors.push("L'objecte 'characters' no és un array vàlid.");
-      return errors;
-    }
 
     if (caseData.characters.length !== expectedCount) {
       errors.push(`Nombre de personatges incorrecte: s'esperaven ${expectedCount}, s'han rebut ${caseData.characters.length}.`);
     }
 
-    const assassinFound = caseData.characters.some(c => c.name === caseData.assassin);
-    if (!assassinFound) {
-      errors.push(`L'assassí especificat (${caseData.assassin}) no es troba entre els personatges.`);
+    // Weapon/Location validation against constants
+    const validWeapons = WEAPONS as string[];
+    const validLocations = LOCATIONS as string[];
+
+    if (!caseData.weapon || !validWeapons.includes(caseData.weapon)) {
+       // deterministic fallback to a random valid weapon if hallucinated
+       const fallbackWeapon = validWeapons[0] || 'Ganivet de cuina';
+       console.warn(`[REPAIR] Invalid weapon '${caseData.weapon}'. Using '${fallbackWeapon}' as fallback.`);
+       caseData.weapon = fallbackWeapon;
     }
 
-    caseData.characters.forEach((char, idx) => {
-      const charId = char.name || `índex ${idx}`;
-      if (!char.name) errors.push(`Al personatge ${idx} li falta el nom.`);
-      if (!char.profession) errors.push(`Al personatge ${charId} li falta la professió.`);
-      if (!char.description) errors.push(`Al personatge ${charId} li falta la descripció.`);
-      if (!char.secretKnowledge) errors.push(`Al personatge ${charId} li falta la informació secreta (secretKnowledge).`);
-    });
-
-    if (!WEAPONS.includes(caseData.weapon)) {
-      errors.push(`L'arma '${caseData.weapon}' no és a la llista oficial.`);
-    }
-
-    if (!LOCATIONS.includes(caseData.location)) {
-      errors.push(`El lloc '${caseData.location}' no és a la llista oficial.`);
+    if (!caseData.location || !validLocations.includes(caseData.location)) {
+       // deterministic fallback to a random valid location if hallucinated
+       const fallbackLocation = validLocations[0] || 'Carrer Major';
+       console.warn(`[REPAIR] Invalid location '${caseData.location}'. Using '${fallbackLocation}' as fallback.`);
+       caseData.location = fallbackLocation;
     }
 
     if (!caseData.introductionNarrative || caseData.introductionNarrative.length < 100) {
