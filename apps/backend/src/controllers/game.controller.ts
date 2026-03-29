@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import { z } from 'zod';
 import { gameEngine } from '../models/dependencies.js';
 import { successResponse } from '../utils/api-response.js';
-import { emitGameStateUpdate, emitPlayerJoined, emitGameStarted, sendNarratorMessage } from '../websocket/socket.js';
+import { emitGameStateUpdate, emitPlayerJoined, sendNarratorMessage } from '../websocket/socket.js';
+import { Player } from '../types/game.types.js';
 
 const createSchema = z.object({
   maxRounds: z.number().int().min(1).max(20).optional().default(5)
@@ -48,7 +49,7 @@ const playerSecretParamsSchema = z.object({
 });
 
 const logEventSchema = z.object({
-  type: z.enum(['PLAYER_JOIN', 'CHARACTER_ASSIGNED', 'ROUND_START', 'QUESTION', 'CLUE', 'ACCUSATION', 'GAME_END', 'STATE_CHANGE', 'TTS_PLAYED', 'CLUE_ROUND_REVEALED', 'PLAYER_SECRET_ASSIGNED']),
+  type: z.enum(['DIFFICULTY_CHANGED', 'PLAYER_JOIN', 'CHARACTER_ASSIGNED', 'ROUND_START', 'QUESTION', 'CLUE', 'ACCUSATION', 'GAME_END', 'STATE_CHANGE', 'TTS_PLAYED', 'CLUE_ROUND_REVEALED', 'PLAYER_SECRET_ASSIGNED']),
   description: z.string().min(1)
 });
 
@@ -106,28 +107,6 @@ export class GameController {
     const game = await gameEngine.startGame(gameId);
 
     // WS Emit
-    const state = gameEngine.getPublicState(game.id);
-    emitGameStarted(gameId, state);
-    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
-    sendNarratorMessage(gameId, 'La partida ha començat.');
-
-    res.status(200).json(successResponse(state));
-  }
-
-  /**
-   * @openapi
-   * /game/{id}/play:
-   *   post:
-   *     summary: Començar a jugar la partida (canvi d'estat de PLAYER_INFO a PLAYING).
-   *     responses:
-   *       200:
-   *         description: Partida jugant.
-   */
-  public async startPlaying(req: Request, res: Response): Promise<void> {
-    const gameId = this.getGameId(req);
-    const game = await gameEngine.startPlaying(gameId);
-
-    // WS Emit
     emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
 
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
@@ -137,17 +116,16 @@ export class GameController {
    * @openapi
    * /game/{id}/ask:
    *   post:
-   *     summary: Realitza una pregunta al mestre del joc.
+   *     summary: Permet a un jugador fer una pregunta al narrador.
    *     responses:
    *       200:
-   *         description: Pregunta realitzada.
+   *         description: Resposta generada.
    */
-  public async ask(req: Request, res: Response): Promise<void> {
+  public async askQuestion(req: Request, res: Response): Promise<void> {
     const parsed = askSchema.parse(req.body);
     const gameId = this.getGameId(req);
     const result = await gameEngine.askQuestion(gameId, parsed);
 
-    await gameEngine.nextTurn(gameId);
     res.status(200).json(successResponse({
       response: result.response,
       game: gameEngine.getPublicState(result.game.id, parsed.playerId)
@@ -158,18 +136,19 @@ export class GameController {
    * @openapi
    * /game/{id}/accuse:
    *   post:
-   *     summary: Realitza una acusació per intentar guanyar la partida.
+   *     summary: Permet a un jugador fer una acusació.
    *     responses:
    *       200:
-   *         description: Acusació realitzada.
+   *         description: Resultat de l'acusació.
    */
-  public async accuse(req: Request, res: Response): Promise<void> {
+  public async handleAccusation(req: Request, res: Response): Promise<void> {
     const parsed = accusationSchema.parse(req.body);
     const gameId = this.getGameId(req);
-    const game = await gameEngine.handleAccusation(gameId, parsed);
+    const result = await gameEngine.makeAccusation(gameId, parsed);
+    const game = result.game;
 
-    const player = game.players.find(p => p.id === parsed.playerId);
-    const accusedPlayer = game.players.find(p => p.id === parsed.accusedPlayerId);
+    const player = game.players.find((p: Player) => p.id === parsed.playerId);
+    const accusedPlayer = game.players.find((p: Player) => p.id === parsed.accusedPlayerId);
     if (player && accusedPlayer) {
       sendNarratorMessage(gameId, `${player.nickname} ha acusat a ${accusedPlayer.nickname}.`);
     }
@@ -404,28 +383,6 @@ export class GameController {
   public async forceNextRound(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const game = await gameEngine.forceNextRound(gameId);
-
-    // WS Emit
-    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
-
-    res.status(200).json(successResponse({
-      gameState: gameEngine.getPublicState(game.id)
-    }));
-  }
-
-  /**
-   * @openapi
-   * /game/{id}/end:
-   *   post:
-   *     summary: Finalitza una partida en curs.
-   *     responses:
-   *       200:
-   *         description: Partida finalitzada.
-   */
-  public async endGame(req: Request, res: Response): Promise<void> {
-    const gameId = this.getGameId(req);
-    const parsed = endSchema.parse(req.body);
-    const game = gameEngine.endGame(gameId, parsed.winnerPlayerId);
 
     // WS Emit
     emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));

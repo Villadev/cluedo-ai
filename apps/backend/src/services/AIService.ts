@@ -7,9 +7,9 @@ import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 
 const resolveContextPath = (fileName: string): string => {
   const candidatePaths = [
-    path.resolve(__dirname, `../context/${fileName}`),
-    path.resolve(__dirname, `../src/context/${fileName}`),
-    path.resolve(process.cwd(), `src/context/${fileName}`)
+    path.resolve(process.cwd(), `apps/backend/src/context/${fileName}`),
+    path.resolve(process.cwd(), `src/context/${fileName}`),
+    path.resolve(process.cwd(), `context/${fileName}`)
   ];
 
   const foundPath = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath));
@@ -56,7 +56,7 @@ export class AIService {
       case 'easy':
         return 'Dificultat FÀCIL: Sigues molt explícit. Les pistes han de ser clares i directes, ajudant als jugadors a connectar els punts fàcilment.';
       case 'medium':
-        return 'Dificultat MITJANA: Sigues equilibrat. Dona informació útil però manté un cert misteri.';
+        return 'Dificultat MITJANA: Sigues equilibrat. Dona informació útil peró manté un cert misteri.';
       case 'hard':
         return 'Dificultat DIFÍCIL: Sigues subtil. Les pistes han de requerir deducció i atenció als detalls. No donis res mastegat.';
       case 'extreme':
@@ -66,53 +66,7 @@ export class AIService {
     }
   }
 
-  public async generateFullCase(playerCount: number, difficulty: Difficulty = 'hard', maxRounds: number = 5): Promise<FullCase> {
-    const expectedCount = Math.max(playerCount, 4);
-    console.log(`[ORCHESTRATOR] Starting multi-step case generation (Players: ${expectedCount}, Rounds: ${maxRounds})`);
-
-    // 1. Case Skeleton
-    let fullCase = await this.generateCaseSkeleton(difficulty);
-
-    // 2. Characters
-    fullCase.characters = await this.generateCharacters(fullCase as FullCase, expectedCount, difficulty);
-    fullCase = this.normalizeCaseData(fullCase as FullCase, expectedCount);
-
-    // 3. Narratives
-    const narratives = await this.generateNarratives(fullCase as FullCase, difficulty);
-    fullCase.introductionNarrative = narratives.introductionNarrative;
-    fullCase.solutionNarrative = narratives.solutionNarrative;
-
-    // 4. Clues
-    fullCase.clues = await this.generateCluesByRounds(fullCase as FullCase, maxRounds, difficulty);
-
-    // 5. Missing Clues Recovery
-    let missingRounds = this.validateClueCoverage(fullCase as FullCase, maxRounds);
-    if (missingRounds.length > 0) {
-      console.warn(`[ORCHESTRATOR] Missing clues for rounds: ${missingRounds.join(', ')}. Attempting recovery...`);
-      fullCase = await this.recoverMissingClues(fullCase as FullCase, missingRounds, difficulty);
-      missingRounds = this.validateClueCoverage(fullCase as FullCase, maxRounds);
-    }
-
-    if (missingRounds.length > 0) {
-      console.warn(`[ORCHESTRATOR] Clue recovery failed for: ${missingRounds.join(', ')}. Applying fallbacks.`);
-      fullCase = this.applyFallbackClues(fullCase as FullCase, missingRounds);
-    }
-
-    // Final Validation
-    const errors = this.validateCaseData(fullCase as FullCase, expectedCount);
-    if (errors.length > 0) {
-      console.error("[ORCHESTRATOR] Final case validation failed:", errors);
-      // We try to return it anyway if it's mostly usable, or throw if critical
-      if (errors.some(e => e.includes('personatges'))) {
-        throw new Error("Critical validation failure: " + errors.join("; "));
-      }
-    }
-
-    console.log("[ORCHESTRATOR] Case generation complete.");
-    return fullCase as FullCase;
-  }
-
-  private async generateCaseSkeleton(difficulty: Difficulty): Promise<Partial<FullCase>> {
+  public async generateCaseSkeleton(difficulty: Difficulty): Promise<Partial<FullCase>> {
     const instruction = `Crea l'esquelet d'un cas d'assassinat en català.
 Retorna un JSON amb:
 - victim: Nom de la víctima.
@@ -130,7 +84,7 @@ Regles:
     });
   }
 
-  private async generateCharacters(caseBible: FullCase, expectedCount: number, difficulty: Difficulty): Promise<AIServiceCharacter[]> {
+  public async generateCharacters(caseBible: FullCase, expectedCount: number, difficulty: Difficulty): Promise<AIServiceCharacter[]> {
     const instruction = `Crea exactament ${expectedCount} personatges sospitosos per a un cas d'assassinat en català.
 L'assassí ha de ser ${caseBible.assassin}. La víctima és ${caseBible.victim}. El crim va passar entre les ${caseBible.crimeWindow.start} i les ${caseBible.crimeWindow.end} a ${caseBible.location} amb ${caseBible.weapon}.
 
@@ -156,7 +110,7 @@ Retorna un JSON amb una llista "characters".`;
     return result.characters;
   }
 
-  private async generateNarratives(caseBible: FullCase, difficulty: Difficulty): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
+  public async generateNarratives(caseBible: FullCase, difficulty: Difficulty): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
     const instruction = `Genera dues narratives per al cas d'assassinat en català.
 Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
 
@@ -178,7 +132,7 @@ Retorna un JSON amb "introductionNarrative" i "solutionNarrative".`;
     });
   }
 
-  private async generateCluesByRounds(caseBible: FullCase, maxRounds: number, difficulty: Difficulty): Promise<Record<string, AIServiceClue[]>> {
+  public async generateCluesByRounds(caseBible: FullCase, maxRounds: number, difficulty: Difficulty): Promise<Record<string, AIServiceClue[]>> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Genera pistes progressives per a ${maxRounds} rondes en català.
 ${diffContext}
@@ -197,6 +151,45 @@ Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
     });
 
     return result.clues;
+  }
+
+  public validateClueCoverage(caseData: FullCase, maxRounds: number): string[] {
+    const missing: string[] = [];
+    if (!caseData.clues) return Array.from({ length: maxRounds }, (_, i) => `round${i + 1}`);
+    for (let i = 1; i <= maxRounds; i++) {
+      const roundKey = `round${i}`;
+      if (!caseData.clues[roundKey] || caseData.clues[roundKey].length === 0) {
+        missing.push(roundKey);
+      }
+    }
+    return missing;
+  }
+
+  public async recoverMissingClues(caseData: FullCase, missingRounds: string[], difficulty: Difficulty): Promise<FullCase> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
+    const caseSummary = `Víctima: ${caseData.victim}, Arma: ${caseData.weapon}, Lloc: ${caseData.location}, Assassí: ${caseData.assassin}.`;
+
+    const instruction = `Respon en català. Falten pistes per a les rondes: ${missingRounds.join(', ')}.
+${diffContext}
+Resum del cas: ${caseSummary}
+Genera almenys 2 pistes per a cadascuna d'aquestes rondes.
+Retorna JSON: { "clues": { "roundX": [...] } }`;
+
+    try {
+      const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "recovery", (data) => {
+        return !!data.clues;
+      }, 2);
+
+      for (const round of missingRounds) {
+        if (result.clues[round]) {
+          caseData.clues[round] = result.clues[round];
+        }
+      }
+    } catch (error) {
+      console.error("[OPENAI RECOVERY ERROR]", error);
+    }
+
+    return caseData;
   }
 
   private async callOpenAIWithRetry<T>(instruction: string, stepName: string, validator: (data: T) => boolean, maxRetries: number = 3): Promise<T> {
@@ -228,162 +221,6 @@ Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
       }
     }
     throw new Error(`Failed step ${stepName} after ${maxRetries} attempts`);
-  }
-
-  private validateClueCoverage(caseData: FullCase, maxRounds: number): string[] {
-    const missing: string[] = [];
-    if (!caseData.clues) return Array.from({ length: maxRounds }, (_, i) => `round${i + 1}`);
-    for (let i = 1; i <= maxRounds; i++) {
-      const roundKey = `round${i}`;
-      if (!caseData.clues[roundKey] || caseData.clues[roundKey].length === 0) {
-        missing.push(roundKey);
-      }
-    }
-    return missing;
-  }
-
-  private async recoverMissingClues(caseData: FullCase, missingRounds: string[], difficulty: Difficulty): Promise<FullCase> {
-    const diffContext = this.getDifficultyInstruction(difficulty);
-    const caseSummary = `Víctima: ${caseData.victim}, Arma: ${caseData.weapon}, Lloc: ${caseData.location}, Assassí: ${caseData.assassin}.`;
-
-    const instruction = `Respon en català. Falten pistes per a les rondes: ${missingRounds.join(', ')}.
-${diffContext}
-Resum del cas: ${caseSummary}
-Genera almenys 2 pistes per a cadascuna d'aquestes rondes.
-Retorna JSON: { "clues": { "roundX": [...] } }`;
-
-    try {
-      const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "recovery", (data) => {
-        return !!data.clues;
-      }, 2);
-
-      for (const round of missingRounds) {
-        if (result.clues[round]) {
-          caseData.clues[round] = result.clues[round];
-        }
-      }
-    } catch (error) {
-      console.error("[OPENAI RECOVERY ERROR]", error);
-    }
-
-    return caseData;
-  }
-
-  private applyFallbackClues(caseData: FullCase, missingRounds: string[]): FullCase {
-    const fallbacks: Record<string, AIServiceClue[]> = {
-      "round1": [{ type: "rumor", text: "Es diu que la víctima tenia enemics silenciosos al poble.", isTrue: true }],
-      "round2": [{ type: "witness", text: "Algú va sentir una conversa pujada de to prop del lloc del crim.", isTrue: true }],
-      "round3": [{ type: "evidence", text: "S'ha trobat una taca estranya que podria estar relacionada amb l'arma.", isTrue: true }],
-      "round4": [{ type: "contradiction", text: "Un dels sospitosos no sembla recordar exactament on era a l'hora del crim.", isTrue: true }],
-      "round5": [{ type: "evidence", text: "Una pista d'última hora apunta directament a una contradicció en el relat de l'assassí.", isTrue: true }]
-    };
-
-    for (const round of missingRounds) {
-      caseData.clues[round] = fallbacks[round] || [
-        { type: "rumor", text: `Encara s'estan investigant els detalls de la ronda ${round.replace('round', '')}.`, isTrue: true }
-      ];
-    }
-
-    return caseData;
-  }
-
-  private normalizeCaseData(caseData: FullCase, expectedCount: number): FullCase {
-    if (!caseData.characters || !Array.isArray(caseData.characters)) {
-      caseData.characters = [];
-    }
-
-    if (!caseData.clues) {
-      caseData.clues = {};
-    }
-
-    caseData.characters = caseData.characters.map((char, idx) => {
-      const sanitized: AIServiceCharacter = {
-        name: (char.name || `Sospitós ${idx + 1}`).trim(),
-        profession: (char.profession || "Veí del poble").trim(),
-        description: (char.description || "Un personatge misteriós que prefereix no parlar del seu passat.").trim(),
-        personality: (char.personality || "Reservat i cautelós.").trim(),
-        possibleMotive: (char.possibleMotive || "Tensions personals no resoltes.").trim(),
-        secret: (char.secret || "Amaga un secret que ningú més coneix.").trim(),
-        secretKnowledge: (char.secretKnowledge || "Ha observat moviments estranys recentment al poble.").trim(),
-        coartada: char.coartada || {
-          location: "A casa seva",
-          timeStart: "21:00",
-          timeEnd: "23:00",
-          witness: "Ningú",
-          credibility: "mitjana"
-        },
-        rumor: (char.rumor || "Es diu que darrerament actua de manera estranya.").trim(),
-        relationships: (char.relationships || "Coneguts del poble.").trim(),
-        tensions: (char.tensions || "Cap conflicte aparent.").trim()
-      };
-      return sanitized;
-    });
-
-    if (caseData.characters.length < expectedCount) {
-      const missingCount = expectedCount - caseData.characters.length;
-      for (let i = 0; i < missingCount; i++) {
-        caseData.characters.push({
-          name: `Habitant extra ${caseData.characters.length + 1}`,
-          profession: "Artesà local",
-          description: "Un habitant discret que viu als afores del poble.",
-          personality: "Observador i silenciós.",
-          possibleMotive: "Enveja pel llegat de la víctima.",
-          secret: "Té deutes que ningú coneix.",
-          secretKnowledge: "Va veure una ombra fugint del lloc del crim.",
-          coartada: {
-            location: "Taller d'artesania",
-            timeStart: "21:30",
-            timeEnd: "23:00",
-            witness: "Ningú",
-            credibility: "baixa"
-          },
-          rumor: "Sempre treballa fins tard i ningú sap realment què fa.",
-          relationships: "Poca relació amb els altres sospitosos.",
-          tensions: "Frustració pel creixement del poble."
-        });
-      }
-    }
-
-    const assassinName = (caseData.assassin || "").trim().toLowerCase();
-    const assassinChar = caseData.characters.find(c => c.name.trim().toLowerCase() === assassinName);
-
-    if (!assassinChar && caseData.characters.length > 0) {
-      const firstChar = caseData.characters[0];
-      if (firstChar) {
-        caseData.assassin = firstChar.name;
-      }
-    }
-
-    return caseData;
-  }
-
-  private validateCaseData(caseData: FullCase, expectedCount: number): string[] {
-    const errors: string[] = [];
-
-    if (caseData.characters.length !== expectedCount) {
-      errors.push(`Nombre de personatges incorrecte: s'esperaven ${expectedCount}, s'han rebut ${caseData.characters.length}.`);
-    }
-
-    const validWeapons = WEAPONS as string[];
-    const validLocations = LOCATIONS as string[];
-
-    if (!caseData.weapon || !validWeapons.includes(caseData.weapon)) {
-       caseData.weapon = validWeapons[0] || 'Ganivet de cuina';
-    }
-
-    if (!caseData.location || !validLocations.includes(caseData.location)) {
-       caseData.location = validLocations[0] || 'Carrer Major';
-    }
-
-    if (!caseData.introductionNarrative || caseData.introductionNarrative.length < 100) {
-      errors.push("L'introducció és massa curta o inexistent.");
-    }
-
-    if (!caseData.solutionNarrative || caseData.solutionNarrative.length < 100) {
-      errors.push("La solució narrativa és massa curta o inexistent.");
-    }
-
-    return errors;
   }
 
   private isValidIntro(intro: string, weapon: string, location: string): boolean {

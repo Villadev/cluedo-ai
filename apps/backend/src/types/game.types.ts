@@ -8,6 +8,19 @@ export const GameStates: Record<GameState, GameState> = {
   FINISHED: 'FINISHED'
 };
 
+export type GenerationPhase = 'IDLE' | 'SKELETON' | 'CHARACTERS' | 'NARRATIVES' | 'CLUES' | 'RECOVERY' | 'DONE' | 'FAILED';
+
+export const GenerationPhases: Record<GenerationPhase, GenerationPhase> = {
+  IDLE: 'IDLE',
+  SKELETON: 'SKELETON',
+  CHARACTERS: 'CHARACTERS',
+  NARRATIVES: 'NARRATIVES',
+  CLUES: 'CLUES',
+  RECOVERY: 'RECOVERY',
+  DONE: 'DONE',
+  FAILED: 'FAILED'
+};
+
 export interface GameResult {
   winner: WinnerType;
   killer: string;
@@ -163,6 +176,11 @@ export interface Game {
   nextSequenceId: number;
   createdAt: string;
   updatedAt: string;
+  // Generation Phase Metadata
+  generationPhase?: GenerationPhase;
+  generationStepStartedAt?: number;
+  generationAttempts?: number;
+  generationError?: string;
 }
 
 export interface AskQuestionInput {
@@ -232,6 +250,11 @@ export interface PublicGameView {
   createdAt: string;
   updatedAt: string;
   nextSequenceId: number;
+  // Generation Phase Metadata
+  generationPhase?: GenerationPhase;
+  generationStepStartedAt?: number;
+  generationAttempts?: number;
+  generationError?: string;
 }
 
 export interface PublicParticipant {

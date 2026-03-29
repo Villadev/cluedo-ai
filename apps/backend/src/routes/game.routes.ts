@@ -9,11 +9,11 @@ const controller = new GameController();
  * @openapi
  * /game:
  *   post:
- *     summary: Crear una nova partida
- *     description: Inicialitza una nova instància de joc i retorna l'estat inicial.
+ *     summary: Crear partida
+ *     description: Crea una nova instància de partida.
  *     responses:
  *       200:
- *         description: Partida creada correctament.
+ *         description: Partida creada.
  */
 gameRouter.post('/', asyncHandler((req: Request, res: Response) => controller.createGame(req, res)));
 
@@ -21,8 +21,8 @@ gameRouter.post('/', asyncHandler((req: Request, res: Response) => controller.cr
  * @openapi
  * /game/{id}/join:
  *   post:
- *     summary: Unir-se a una partida
- *     description: Afegeix un nou jugador a la sala d'espera d'una partida existent.
+ *     summary: Unir-se a partida
+ *     description: Permet a un nou jugador registrar-se a la partida.
  *     parameters:
  *       - in: path
  *         name: id
@@ -31,18 +31,6 @@ gameRouter.post('/', asyncHandler((req: Request, res: Response) => controller.cr
  *           type: string
  *           format: uuid
  *         description: ID de la partida
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - name
- *             properties:
- *               name:
- *                 type: string
- *                 description: Nom del jugador (mínim 2 caràcters)
  *     responses:
  *       200:
  *         description: Jugador unit correctament.
@@ -53,8 +41,8 @@ gameRouter.post('/:id/join', asyncHandler((req: Request, res: Response) => contr
  * @openapi
  * /game/{id}/start:
  *   post:
- *     summary: Iniciar generació del cas
- *     description: Tanca la sala d'espera i comença la generació IA del misteri i els personatges.
+ *     summary: Iniciar partida
+ *     description: Inicia la generació del cas i canvia l'estat de la partida.
  *     parameters:
  *       - in: path
  *         name: id
@@ -65,36 +53,16 @@ gameRouter.post('/:id/join', asyncHandler((req: Request, res: Response) => contr
  *         description: ID de la partida
  *     responses:
  *       200:
- *         description: Inici de generació del cas confirmat.
+ *         description: Partida iniciada.
  */
 gameRouter.post('/:id/start', asyncHandler((req: Request, res: Response) => controller.startGame(req, res)));
-
-/**
- * @openapi
- * /game/{id}/play:
- *   post:
- *     summary: Començar a jugar
- *     description: Canvia l'estat de la partida a PLAYING per permetre l'inici dels torns.
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID de la partida
- *     responses:
- *       200:
- *         description: Partida iniciada correctament.
- */
-gameRouter.post('/:id/play', asyncHandler((req: Request, res: Response) => controller.startPlaying(req, res)));
 
 /**
  * @openapi
  * /game/{id}/ask:
  *   post:
  *     summary: Fer una pregunta
- *     description: Envia una pregunta d'investigació al mestre del joc (IA).
+ *     description: Envia una pregunta al narrador de la partida.
  *     parameters:
  *       - in: path
  *         name: id
@@ -103,70 +71,18 @@ gameRouter.post('/:id/play', asyncHandler((req: Request, res: Response) => contr
  *           type: string
  *           format: uuid
  *         description: ID de la partida
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - playerId
- *               - question
- *             properties:
- *               playerId:
- *                 type: string
- *                 format: uuid
- *               question:
- *                 type: string
  *     responses:
  *       200:
- *         description: Resposta del mestre del joc obtinguda.
+ *         description: Resposta obtinguda.
  */
-gameRouter.post('/:id/ask', asyncHandler((req: Request, res: Response) => controller.ask(req, res)));
+gameRouter.post('/:id/ask', asyncHandler((req: Request, res: Response) => controller.askQuestion(req, res)));
 
 /**
  * @openapi
  * /game/{id}/accuse:
  *   post:
- *     summary: Realitzar una acusació
- *     description: Un jugador intenta resoldre el cas acusant un sospitós amb una arma i lloc concrets.
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID de la partida
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               playerId:
- *                 type: string
- *                 format: uuid
- *               accusedPlayerId:
- *                 type: string
- *                 format: uuid
- *               weapon:
- *                 type: string
- *               location:
- *                 type: string
- *     responses:
- *       200:
- *         description: Resultat de l'acusació processat.
- */
-gameRouter.post('/:id/accuse', asyncHandler((req: Request, res: Response) => controller.accuse(req, res)));
-
-/**
- * @openapi
- * /game/{id}/players:
- *   get:
- *     summary: Obtenir participants
- *     description: Retorna una llista resumida dels participants de la partida.
+ *     summary: Realitzar acusació
+ *     description: Un jugador intenta resoldre el cas acusant un sospitós.
  *     parameters:
  *       - in: path
  *         name: id
@@ -177,56 +93,16 @@ gameRouter.post('/:id/accuse', asyncHandler((req: Request, res: Response) => con
  *         description: ID de la partida
  *     responses:
  *       200:
- *         description: Llista de participants obtinguda.
+ *         description: Resultat de l'acusació.
  */
-gameRouter.get('/:id/players', asyncHandler((req: Request, res: Response) => controller.getPlayers(req, res)));
-
-/**
- * @openapi
- * /game/{id}/instructions:
- *   get:
- *     summary: Obtenir instruccions
- *     description: Retorna les instruccions detallades del joc.
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID de la partida
- *     responses:
- *       200:
- *         description: Instruccions obtingudes en format text.
- */
-gameRouter.get('/:id/instructions', asyncHandler((req: Request, res: Response) => controller.getInstructions(req, res)));
-
-/**
- * @openapi
- * /game/{id}/solution:
- *   get:
- *     summary: Obtenir la solució
- *     description: Retorna la solució del cas.
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID de la partida
- *     responses:
- *       200:
- *         description: Solució de la partida.
- */
-gameRouter.get('/:id/solution', asyncHandler((req: Request, res: Response) => controller.getSolution(req, res)));
+gameRouter.post('/:id/accuse', asyncHandler((req: Request, res: Response) => controller.handleAccusation(req, res)));
 
 /**
  * @openapi
  * /game/{id}/intro:
  *   get:
- *     summary: Obtenir la introducció
- *     description: Retorna la narrativa inicial de la partida.
+ *     summary: Obtenir introducció
+ *     description: Retorna la narrativa inicial del cas.
  *     parameters:
  *       - in: path
  *         name: id
@@ -338,6 +214,7 @@ gameRouter.post('/:id/timeline/log', asyncHandler((req: Request, res: Response) 
  *       200:
  *         description: Dades de depuració obtingudes.
  */
+gameRouter.get('/:id/debug', asyncHandler((req: Request, res: Response) => controller.debug(req, res)));
 
 /**
  * @openapi
@@ -358,8 +235,6 @@ gameRouter.post('/:id/timeline/log', asyncHandler((req: Request, res: Response) 
  *         description: Llistes d'armes i llocs.
  */
 gameRouter.get('/:id/options', asyncHandler((req: Request, res: Response) => controller.getOptions(req, res)));
-
-gameRouter.get('/:id/debug', asyncHandler((req: Request, res: Response) => controller.debug(req, res)));
 
 /**
  * @openapi
@@ -486,35 +361,6 @@ gameRouter.get('/:id', asyncHandler((req: Request, res: Response) => controller.
  *         description: Ronda avançada correctament.
  */
 gameRouter.post('/:id/force-next-round', asyncHandler((req: Request, res: Response) => controller.forceNextRound(req, res)));
-
-/**
- * @openapi
- * /game/{id}/end:
- *   post:
- *     summary: Finalitzar partida
- *     description: Finalitza una partida en curs i estableix un guanyador opcionalment.
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *         description: ID de la partida
- *     requestBody:
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               winnerPlayerId:
- *                 type: string
- *                 format: uuid
- *     responses:
- *       200:
- *         description: Partida finalitzada correctament.
- */
-gameRouter.post('/:id/end', asyncHandler((req: Request, res: Response) => controller.endGame(req, res)));
 
 /**
  * @openapi

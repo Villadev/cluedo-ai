@@ -1,5 +1,6 @@
 import { AIService } from '../services/AIService.js';
 import { GameStoreService } from '../services/game-store.service.js';
+import { CaseOrchestratorService } from '../services/case-orchestrator.service.js';
 import {
   Game,
   GameState,
@@ -22,14 +23,12 @@ import {
   GameSolution,
   AIServiceClue,
   GameResult,
-  FullCase
+  GenerationPhases
 } from '../types/game.types.js';
-import { generateId } from '../utils/id.js';
+import { generateId, nowIso } from '../utils/id.js';
 import { HttpError } from '../utils/http-error.js';
 import { errorLogger } from '../utils/error-logger.js';
 import { WEAPONS, LOCATIONS } from '../config/game-options.js';
-
-const nowIso = () => new Date().toISOString();
 
 const MAX_PLAYERS = 17;
 const MIN_SUSPECTS = 4;
@@ -37,11 +36,14 @@ const MIN_SUSPECTS = 4;
 export class GameEngine {
   private onSystemEvent?: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number) => void;
   private onGameStateChange?: (gameId: string, state: GameState) => void;
+  private orchestrator: CaseOrchestratorService;
 
   constructor(
     private readonly store: GameStoreService,
     private readonly aiService: AIService
-  ) {}
+  ) {
+    this.orchestrator = new CaseOrchestratorService(aiService, store);
+  }
 
   public setSystemEventListener(listener: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number) => void): void {
     this.onSystemEvent = listener;
@@ -82,7 +84,8 @@ export class GameEngine {
       questionHistory: [],
       nextSequenceId: 1,
       createdAt: timestamp,
-      updatedAt: timestamp
+      updatedAt: timestamp,
+      generationPhase: GenerationPhases.IDLE
     };
 
     this.store.save(game);
@@ -92,58 +95,59 @@ export class GameEngine {
   public async addPlayer(gameId: string, nickname: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     if (game.state === GameStates.GENERATING) {
-      throw new HttpError(400, "No es poden afegir jugadors mentre s'està generant el cas.");
+      throw new Error("No es poden afegir jugadors mentre s'està generant el cas.");
     }
     if (game.state !== GameStates.LOBBY) {
-      throw new HttpError(400, "La partida no està en fase de registre.");
+      throw new Error("La partida no està en fase de registre.");
     }
 
     if (game.players.length >= MAX_PLAYERS) {
-      throw new HttpError(400, 'La partida ja està plena');
-    }
-
-    if (game.players.some((p) => p.nickname.toLowerCase() === nickname.toLowerCase())) {
-      throw new HttpError(400, 'Aquest nom ja està en ús');
+      throw new Error("S'ha assolit el límit de jugadors.");
     }
 
     const player: Player = {
       id: generateId(),
       nickname,
       characterId: null,
-      isReady: true,
+      isReady: false,
       isEliminated: false,
       hasAccused: false,
       askedThisRound: false,
       accusedThisRound: false,
       accusationCooldown: 0,
-      type: 'real'
+      type: "real"
     };
 
     game.players.push(player);
     game.updatedAt = nowIso();
+    this.store.save(game);
 
     this.recordTimelineEvent(game, {
       type: 'PLAYER_JOIN',
       playerId: player.id,
-      description: `${player.nickname} s'ha unit a la partida`
+      description: `Jugador afegit: ${nickname}`
     });
 
-    this.store.save(game);
     return game;
   }
 
   public async startGame(gameId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
-    this.validateGameStateTransition(game.state, GameStates.GENERATING);
 
-    const currentPlayersCount = game.players.length;
-    if (currentPlayersCount < MIN_SUSPECTS) {
-      const npcsNeeded = MIN_SUSPECTS - currentPlayersCount;
-      console.log(`[GAME ENGINE] Adding ${npcsNeeded} NPCs to reach minimum suspect count.`);
-      for (let i = 0; i < npcsNeeded; i++) {
+    if (game.state !== GameStates.LOBBY) {
+      throw new Error("La partida ja ha començat.");
+    }
+
+    if (game.players.length < 2) {
+      throw new Error("Es necessiten almenys 2 jugadors reals.");
+    }
+
+    if (game.players.length < MIN_SUSPECTS) {
+      const npcCount = MIN_SUSPECTS - game.players.length;
+      for (let i = 0; i < npcCount; i++) {
         const npc: Player = {
           id: generateId(),
-          nickname: `Investigador NPC ${i + 1}`,
+          nickname: `Sospitós ${i + 1}`,
           characterId: null,
           isReady: true,
           isEliminated: false,
@@ -157,201 +161,47 @@ export class GameEngine {
       }
     }
 
-    const totalExpectedCharacters = game.players.length;
-
     game.state = GameStates.GENERATING;
+    game.generationPhase = GenerationPhases.SKELETON;
+    game.generationStepStartedAt = Date.now();
+    game.generationAttempts = 1;
     this.emitStateChange(gameId, game.state);
     this.store.save(game);
 
-    try {
-      console.log(`[GAME ENGINE] Starting case generation for ${totalExpectedCharacters} players and ${game.maxRounds} rounds.`);
-      const caseData: FullCase = await this.aiService.generateFullCase(totalExpectedCharacters, game.difficulty, game.maxRounds);
-
-      if (!caseData.characters || caseData.characters.length < totalExpectedCharacters) {
-         throw new Error(`Dades insuficients de personatges generades: s'esperaven ${totalExpectedCharacters}, s'han rebut ${caseData.characters?.length || 0}.`);
-      }
-
-      game.murder = {
-        killerPlayerId: '', // Will assign later
-        weapon: caseData.weapon,
-        location: caseData.location,
-        victim: caseData.victim,
-        crimeWindow: caseData.crimeWindow
-      };
-
-      game.introNarrative = caseData.introductionNarrative;
-      game.solution = {
-        assassin: caseData.assassin,
-        weapon: caseData.weapon,
-        location: caseData.location,
-        victimName: caseData.victim,
-        finalNarrative: caseData.solutionNarrative
-      };
-
-      const shuffledCharactersData = this.shuffle(caseData.characters);
-      const characters: Character[] = shuffledCharactersData.map((c: any) => ({
-        id: generateId(),
-        ...c,
-        isAssassin: c.name.trim().toLowerCase() === caseData.assassin.trim().toLowerCase()
-      }));
-
-      game.characters = characters;
-
-      game.players.forEach((p, i) => {
-        const character = characters[i];
-        if (!character) {
-           throw new Error(`Error intern: No s'ha pogut trobar un personatge per al jugador ${p.nickname} (índex ${i}).`);
+    this.orchestrator.generateCase(gameId).then(async () => {
+        const updatedGame = this.store.getById(gameId);
+        if (updatedGame && updatedGame.state === GameStates.PLAYER_INFO) {
+            await this.revealCluesForRound(updatedGame, 1);
+            this.store.save(updatedGame);
         }
-        p.characterId = character.id;
-        if (character.isAssassin) {
-          game.assassinCharacterId = character.id;
-          game.murder!.killerPlayerId = p.id;
-          game.solution!.assassinId = p.id;
-        }
-      });
-
-      const playersWithoutCharacter = game.players.filter(p => !p.characterId);
-      if (playersWithoutCharacter.length > 0) {
-        const names = playersWithoutCharacter.map(p => p.nickname).join(', ');
-        throw new Error(`Error d'assignació crítica: els jugadors següents no tenen personatge: ${names}`);
-      }
-
-      // Handle clues dynamically for all rounds provided
-      const allClues: Clue[] = [];
-      Object.entries(caseData.clues).forEach(([roundKey, cluesForRound]) => {
-        const roundNum = parseInt(roundKey.replace('round', ''));
-        if (isNaN(roundNum)) return;
-
-        cluesForRound.forEach((c: AIServiceClue) => {
-          allClues.push({
-            id: generateId(),
-            type: c.type,
-            text: c.text,
-            isTrue: c.isTrue,
-            roundNumber: roundNum,
-            createdAt: nowIso()
-          });
-        });
-      });
-      game.clues = allClues;
-
-      game.state = GameStates.PLAYER_INFO;
-      game.updatedAt = nowIso();
-      this.store.save(game);
-      this.emitStateChange(gameId, game.state);
-
-      await this.revealCluesForRound(game, 1);
-
-      return game;
-    } catch (error: any) {
-      console.error(`[GAME ENGINE] Fatal start error: ${error.message}`);
-      game.state = GameStates.LOBBY;
-      this.emitStateChange(gameId, game.state);
-      this.store.save(game);
-      throw error;
-    }
-  }
-
-  public async startPlaying(gameId: string): Promise<Game> {
-    const game = this.getGameOrThrow(gameId);
-    this.validateGameStateTransition(game.state, GameStates.PLAYING);
-
-    game.state = GameStates.PLAYING;
-    game.updatedAt = nowIso();
-    this.store.save(game);
-    this.emitStateChange(gameId, game.state);
+    }).catch(err => {
+        console.error("[GAME ENGINE] Async generation error:", err);
+    });
 
     return game;
   }
 
-  public getPublicState(gameId: string, requesterPlayerId?: string): PublicGameView {
-    const game = this.getGameOrThrow(gameId);
-
-    const publicPlayers: PublicPlayerView[] = game.players.map((p) => {
-      const character = game.characters.find((c) => c.id === p.characterId);
-      const isSelf = p.id === requesterPlayerId;
-      const isFinished = game.state === GameStates.FINISHED;
-
-      return {
-        id: p.id,
-        nickname: p.nickname,
-        character: character
-          ? {
-              id: character.id,
-              name: character.name,
-              profession: character.profession,
-              description: character.description,
-              personality: character.personality,
-              possibleMotive: character.possibleMotive,
-              secret: character.secret,
-              secretKnowledge: character.secretKnowledge,
-              coartada: character.coartada,
-              rumor: character.rumor,
-              relationships: character.relationships,
-              tensions: character.tensions
-            }
-          : undefined,
-        isReady: p.isReady,
-        isEliminated: p.isEliminated,
-        hasAccused: p.hasAccused,
-        askedThisRound: p.askedThisRound,
-        accusedThisRound: p.accusedThisRound,
-        accusationCooldown: p.accusationCooldown,
-        isAssassin: (isSelf || isFinished) ? (p.characterId === game.assassinCharacterId) : false,
-        type: p.type
-      };
-    });
-
-    const publicClues: PublicClueView[] = game.clues
-      .filter(c => c.roundNumber <= game.roundNumber)
-      .map((c) => ({
-        id: c.id,
-        playerId: c.playerId,
-        type: c.type,
-        text: c.text,
-        roundNumber: c.roundNumber,
-        createdAt: c.createdAt
-      }));
-
-    return {
-      id: game.id,
-      state: game.state,
-      players: publicPlayers,
-      clues: publicClues,
-      currentTurnPlayerId: game.players[game.currentTurnIndex]?.id || null,
-      roundNumber: game.roundNumber,
-      maxRounds: game.maxRounds,
-      tensionLevel: game.tensionLevel,
-      difficulty: game.difficulty,
-      winnerPlayerId: game.winnerPlayerId,
-      winnerType: game.winnerType,
-      createdAt: game.createdAt,
-      updatedAt: game.updatedAt,
-      nextSequenceId: game.nextSequenceId,
-      assassinId: (game.state === 'FINISHED' || (requesterPlayerId && game.players.find(p => p.id === requesterPlayerId)?.characterId === game.assassinCharacterId)) ? (game.players.find(p => p.characterId === game.assassinCharacterId)?.id) : undefined,
-      result: this.getGameResult(game)
-    };
-  }
-
   public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ response: string; game: Game }> {
     const game = this.getGameOrThrow(gameId);
-    if (game.state !== 'PLAYING') {
-      throw new HttpError(409, 'La partida no està en curs');
+    if (game.state !== GameStates.PLAYING) {
+      throw new Error('La partida no està en fase d\'investigació');
     }
 
     const player = this.getPlayerOrThrow(game, input.playerId);
-    if (player.type !== 'real') {
-       throw new HttpError(403, 'Només els jugadors reals poden fer preguntes');
+    this.assertActivePlayer(player);
+
+    const turnPlayer = this.getCurrentTurnPlayer(game);
+    if (turnPlayer?.id !== player.id) {
+      throw new Error("No és el teu torn");
     }
 
     if (player.askedThisRound || player.accusedThisRound) {
-       throw new HttpError(409, 'Ja has realitzat la teva acció en aquesta ronda');
+       throw new Error("Ja has realitzat la teva acció aquesta ronda");
     }
 
-    const publicStateStr = JSON.stringify(this.getPublicState(game.id, player.id));
-    const result = await this.aiService.respondToQuestion(publicStateStr, input.question, game.difficulty);
+    const publicGameState = JSON.stringify(this.getPublicState(gameId, player.id));
 
-    player.askedThisRound = true;
+    const result = await this.aiService.respondToQuestion(publicGameState, input.question, game.difficulty);
 
     const timestamp = Date.now();
 
@@ -364,131 +214,179 @@ export class GameEngine {
       roundNumber: game.roundNumber,
       sequenceId: game.nextSequenceId++
     };
-    game.chatHistory.push(questionEntry);
-
-    this.recordTimelineEvent(game, {
-      type: 'QUESTION',
-      playerId: player.id,
-      text: input.question,
-      description: `${player.nickname} ha preguntat: ${input.question}`
-    });
 
     const responseEntry: ChatMessage = {
       type: 'narrator',
-      playerName: 'Narrador 🕵️',
       message: result.response,
-      timestamp: timestamp + 1,
+      timestamp: timestamp + 50,
       roundNumber: game.roundNumber,
       sequenceId: game.nextSequenceId++
     };
-    game.chatHistory.push(responseEntry);
 
+    game.chatHistory.push(questionEntry, responseEntry);
+
+    game.questionHistory.push({
+      playerId: player.id,
+      playerName: player.nickname,
+      question: input.question,
+      timestamp,
+      roundNumber: game.roundNumber,
+      sequenceId: questionEntry.sequenceId!
+    });
+
+    game.turns.push({
+      id: generateId(),
+      playerId: player.id,
+      question: input.question,
+      answer: result.response,
+      createdAt: nowIso()
+    });
+
+    player.askedThisRound = true;
     game.updatedAt = nowIso();
     this.store.save(game);
 
-    return {
-      response: result.response,
-      game
-    };
+    return { response: result.response, game };
   }
-  public async handleAccusation(gameId: string, input: AccusationInput): Promise<Game> {
+
+  public async makeAccusation(gameId: string, input: AccusationInput): Promise<{ correct: boolean; game: Game }> {
     const game = this.getGameOrThrow(gameId);
-    if (game.state !== 'PLAYING') {
-      throw new HttpError(409, 'La partida no està en curs');
+    if (game.state !== GameStates.PLAYING) {
+      throw new Error('La partida no està en fase d\'investigació');
     }
 
     const player = this.getPlayerOrThrow(game, input.playerId);
     this.assertActivePlayer(player);
 
-    if (player.askedThisRound || player.accusedThisRound) {
-       throw new HttpError(409, 'Ja has realitzat la teva acció en aquesta ronda');
+    const turnPlayer = this.getCurrentTurnPlayer(game);
+    if (turnPlayer?.id !== player.id) {
+      throw new Error("No és el teu torn");
+    }
+
+    if (player.accusedThisRound || player.askedThisRound) {
+      throw new Error("Ja has realitzat la teva acció aquesta ronda");
     }
 
     if (player.accusationCooldown > 0) {
-       throw new HttpError(403, `Has d'esperar ${player.accusationCooldown} rondes per tornar a acusar`);
+      throw new Error(`Has d'esperar ${player.accusationCooldown} rondes per tornar a acusar`);
     }
 
     const isCorrect =
       input.accusedPlayerId === game.murder?.killerPlayerId &&
-      input.weapon === game.murder?.weapon &&
-      input.location === game.murder?.location;
-
-    player.accusedThisRound = true;
-    player.hasAccused = true;
+      input.weapon.trim().toLowerCase() === game.murder?.weapon.trim().toLowerCase() &&
+      input.location.trim().toLowerCase() === game.murder?.location.trim().toLowerCase();
 
     if (isCorrect) {
       game.state = GameStates.FINISHED;
       game.winnerPlayerId = player.id;
       game.winnerType = 'INVESTIGATORS';
-      game.updatedAt = nowIso();
 
-      const msg = `L'acusació és CORRECTA! El jugador ${player.nickname} ha resolt el cas.`;
+      const msg = `ENHORABONA! ${player.nickname} ha resolt el cas. L'assassí era a la vista!`;
       this.recordTimelineEvent(game, {
-        type: 'ACCUSATION',
+        type: 'GAME_END',
         playerId: player.id,
-        success: true,
         description: msg
       });
 
       if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
+        this.onSystemEvent(gameId, msg, undefined, game.roundNumber, game.nextSequenceId++);
       }
+      this.emitStateChange(gameId, game.state);
     } else {
-      player.accusationCooldown = 2; // Penalty rounds
-      const accusedNickname = game.players.find(p => p.id === input.accusedPlayerId)?.nickname || 'un desconegut';
-      const msg = `L'acusació contra ${accusedNickname} amb ${input.weapon} a ${input.location} és INCORRECTA. ${player.nickname} rep una penalització de 2 rondes.`;
+      player.accusationCooldown = 2;
+      player.accusedThisRound = true;
+
+      const accusedPlayer = this.getPlayerOrThrow(game, input.accusedPlayerId);
+      const msg = `L'acusació de ${player.nickname} contra ${accusedPlayer.nickname} ha fallat. No s'ha pogut demostrar el crim amb ${input.weapon} a ${input.location}.`;
 
       this.recordTimelineEvent(game, {
         type: 'ACCUSATION',
         playerId: player.id,
+        targetCharacterId: accusedPlayer.characterId!,
         success: false,
         description: msg
       });
 
       if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
+        this.onSystemEvent(gameId, msg, undefined, game.roundNumber, game.nextSequenceId++);
       }
     }
 
-    this.emitStateChange(gameId, game.state);
+    game.updatedAt = nowIso();
     this.store.save(game);
-    return game;
+
+    return { correct: isCorrect, game };
   }
 
-  public getIntro(gameId: string): string | null {
-    const game = this.getGameOrThrow(gameId);
-    return game.introNarrative;
-  }
-
-  public getPlayerSecret(gameId: string, playerId: string): string | null {
-    const game = this.getGameOrThrow(gameId);
-    const player = this.getPlayerOrThrow(game, playerId);
-    const character = game.characters.find(c => c.id === player.characterId);
-    return character ? character.secret : null;
-  }
-
-  public logTimelineEvent(gameId: string, type: TimelineEvent['type'], description: string): void {
-    const game = this.getGameOrThrow(gameId);
-    this.recordTimelineEvent(game, { type, description });
-    this.store.save(game);
-  }
-
-  public recordChatMessage(gameId: string, message: ChatMessage): void {
+  public getPublicState(gameId: string, requesterPlayerId?: string): PublicGameView {
     const game = this.getGameOrThrow(gameId);
 
-    const isDuplicate = game.chatHistory.some(m =>
-      m.sequenceId !== undefined &&
-      m.sequenceId === message.sequenceId &&
-      m.type === message.type
-    );
+    const players: PublicPlayerView[] = game.players.map(p => {
+      const isSelf = p.id === requesterPlayerId;
+      const character = game.characters.find(c => c.id === p.characterId);
 
-    if (isDuplicate) {
-      console.warn(`[DUPLICATE MESSAGE DETECTED] Skipping recordChatMessage for sequenceId ${message.sequenceId}`);
-      return;
-    }
+      const publicChar = character ? {
+        id: character.id,
+        name: character.name,
+        profession: character.profession,
+        description: character.description,
+        personality: character.personality,
+        possibleMotive: character.possibleMotive,
+        secret: isSelf ? character.secret : '???',
+        secretKnowledge: isSelf ? character.secretKnowledge : '???',
+        coartada: character.coartada,
+        rumor: character.rumor,
+        relationships: character.relationships,
+        tensions: character.tensions
+      } : undefined;
 
-    game.chatHistory.push(message);
-    this.store.save(game);
+      return {
+        id: p.id,
+        nickname: p.nickname,
+        character: publicChar,
+        isReady: p.isReady,
+        isEliminated: p.isEliminated,
+        hasAccused: p.hasAccused,
+        askedThisRound: p.askedThisRound,
+        accusedThisRound: p.accusedThisRound,
+        accusationCooldown: p.accusationCooldown,
+        isAssassin: p.characterId === game.assassinCharacterId,
+        type: p.type
+      };
+    });
+
+    const clues: PublicClueView[] = game.clues
+      .filter(c => c.roundNumber <= game.roundNumber)
+      .map(c => ({
+        id: c.id,
+        playerId: c.playerId,
+        type: c.type,
+        text: c.text,
+        roundNumber: c.roundNumber,
+        createdAt: c.createdAt
+      }));
+
+    return {
+      id: game.id,
+      state: game.state,
+      players,
+      clues,
+      currentTurnPlayerId: game.players[game.currentTurnIndex]?.id || null,
+      roundNumber: game.roundNumber,
+      maxRounds: game.maxRounds,
+      tensionLevel: game.tensionLevel,
+      difficulty: game.difficulty,
+      winnerPlayerId: game.winnerPlayerId,
+      winnerType: game.winnerType,
+      createdAt: game.createdAt,
+      updatedAt: game.updatedAt,
+      nextSequenceId: game.nextSequenceId,
+      result: this.getGameResult(game),
+      generationPhase: game.generationPhase,
+      generationError: game.generationError,
+      generationStepStartedAt: game.generationStepStartedAt,
+      generationAttempts: game.generationAttempts
+    };
   }
 
   public getChatHistory(gameId: string): ChatMessage[] {
@@ -496,22 +394,48 @@ export class GameEngine {
     return game.chatHistory;
   }
 
-  public getQuestionHistory(gameId: string): Question[] {
+  public recordChatMessage(gameId: string, message: ChatMessage): void {
     const game = this.getGameOrThrow(gameId);
-    return [...game.questionHistory].sort((a, b) => b.timestamp - a.timestamp);
+
+    const isDuplicate = game.chatHistory.some(m =>
+        m.sequenceId !== undefined &&
+        m.sequenceId === message.sequenceId &&
+        m.type === message.type
+    );
+
+    if (isDuplicate) return;
+
+    game.chatHistory.push(message);
+    this.store.save(game);
   }
 
-  public endGame(gameId: string, winnerPlayerId?: string): Game {
+  public getQuestionHistory(gameId: string): Question[] {
     const game = this.getGameOrThrow(gameId);
-    this.validateGameStateTransition(game.state, GameStates.FINISHED);
-    game.state = GameStates.FINISHED;
-    if (winnerPlayerId) {
-      game.winnerPlayerId = winnerPlayerId;
+    return game.questionHistory;
+  }
+
+  public getPlayerSecret(gameId: string, playerId: string): string {
+    const game = this.getGameOrThrow(gameId);
+    const player = this.getPlayerOrThrow(game, playerId);
+    const character = game.characters.find(c => c.id === player.characterId);
+    if (!character) {
+      throw new Error('Personatge no trobat');
     }
-    game.updatedAt = nowIso();
+    return character.secret;
+  }
+
+  public getIntro(gameId: string): string | null {
+    const game = this.getGameOrThrow(gameId);
+    return game.introNarrative;
+  }
+
+  public logTimelineEvent(gameId: string, type: string, description: string): void {
+    const game = this.getGameOrThrow(gameId);
+    this.recordTimelineEvent(game, {
+      type: type as any,
+      description
+    });
     this.store.save(game);
-    this.emitStateChange(gameId, game.state);
-    return game;
   }
 
   public resetGame(gameId: string): Game {
@@ -519,22 +443,24 @@ export class GameEngine {
     game.state = GameStates.LOBBY;
     game.players = [];
     game.characters = [];
-    game.assassinCharacterId = null;
+    game.clues = [];
+    game.turns = [];
+    game.chatHistory = [];
+    game.questionHistory = [];
+    game.timeline = [];
     game.murder = null;
     game.introNarrative = null;
     game.solution = null;
-    game.clues = [];
-    game.turns = [];
-    game.currentTurnIndex = 0;
-    game.roundNumber = 1;
-    game.tensionLevel = 0;
     game.winnerPlayerId = null;
     game.winnerType = null;
-    game.timeline = [];
-    game.chatHistory = [];
-    game.questionHistory = [];
+    game.roundNumber = 1;
+    game.currentTurnIndex = 0;
+    game.tensionLevel = 0;
     game.nextSequenceId = 1;
     game.updatedAt = nowIso();
+    game.generationPhase = GenerationPhases.IDLE;
+    game.generationError = undefined;
+
     this.store.save(game);
     this.emitStateChange(gameId, game.state);
     return game;
@@ -542,7 +468,7 @@ export class GameEngine {
 
   public deletePlayer(gameId: string, playerId: string): Game {
     const game = this.getGameOrThrow(gameId);
-    game.players = game.players.filter((p) => p.id !== playerId);
+    game.players = game.players.filter(p => p.id !== playerId);
     game.updatedAt = nowIso();
     this.store.save(game);
     return game;
@@ -619,7 +545,7 @@ export class GameEngine {
   public updateDifficulty(gameId: string, difficulty: Difficulty): Game {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== 'LOBBY') {
-       throw new HttpError(400, "Només es pot canviar la dificultat a la sala d'espera");
+       throw new Error("Només es pot canviar la dificultat a la sala d'espera");
     }
 
     game.difficulty = difficulty;
@@ -673,7 +599,7 @@ export class GameEngine {
   private getGameOrThrow(gameId: string): Game {
     const game = this.store.getById(gameId);
     if (!game) {
-      throw new HttpError(404, 'Partida no trobada');
+      throw new Error('Partida no trobada');
     }
     if (game.maxRounds === undefined) {
       game.maxRounds = 5;
@@ -690,7 +616,7 @@ export class GameEngine {
   private getPlayerOrThrow(game: Game, playerId: string): Player {
     const player = game.players.find((entry) => entry.id === playerId);
     if (!player) {
-      throw new HttpError(404, 'Jugador no trobat');
+      throw new Error('Jugador no trobat');
     }
     return player;
   }
@@ -701,7 +627,7 @@ export class GameEngine {
 
   private assertActivePlayer(player: Player): void {
     if (player.isEliminated) {
-      throw new HttpError(409, 'Un jugador eliminat no pot actuar');
+      throw new Error('Un jugador eliminat no pot actuar');
     }
   }
 
@@ -735,7 +661,7 @@ export class GameEngine {
 
     const allowed = allowedTransitions[currentState];
     if (!allowed || !allowed.includes(nextState)) {
-      const error = new HttpError(400, `Transició d'estat no vàlida: ${currentState} -> ${nextState}`);
+      const error = new Error(`Transició d'estat no vàlida: ${currentState} -> ${nextState}`);
       errorLogger.push("STATE TRANSITION", error);
       throw error;
     }
@@ -765,7 +691,7 @@ export class GameEngine {
   public async forceNextRound(gameId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     if (game.state !== GameStates.PLAYING) {
-      throw new HttpError(409, 'Només es pot forçar la ronda si la partida està en curs');
+      throw new Error('Només es pot forçar la ronda si la partida està en curs');
     }
     await this.advanceRound(game);
     this.store.save(game);
@@ -824,7 +750,9 @@ export class GameEngine {
   public getGameStateInfo(gameId: string): any {
     const game = this.getGameOrThrow(gameId);
     return {
+      gameId: game.id,
       state: game.state,
+      status: game.state,
       playersCount: game.players.length,
       charactersCount: game.characters.length,
       roundNumber: game.roundNumber,
@@ -833,6 +761,8 @@ export class GameEngine {
       difficulty: game.difficulty,
       winnerType: game.winnerType,
       result: this.getGameResult(game),
+      generationPhase: game.generationPhase,
+      generationError: game.generationError,
       playerStatus: game.players.filter(p => p.type === 'real').map(p => ({
         nickname: p.nickname,
         askedThisRound: p.askedThisRound

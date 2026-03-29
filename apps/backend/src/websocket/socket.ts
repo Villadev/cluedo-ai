@@ -2,7 +2,7 @@ import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { corsOrigins } from '../config/env.js';
 import { gameEngine } from '../models/dependencies.js';
-import { Player, PublicGameView, ChatMessage, GameState, Difficulty } from '../types/game.types.js';
+import { Player, PublicGameView, ChatMessage, GameState, Difficulty, GenerationPhase } from '../types/game.types.js';
 
 let io: Server | null = null;
 
@@ -183,6 +183,22 @@ export const emitGameStateUpdate = (gameId: string, status: any): void => {
   }
 
   getSocketServer().to(gameId).emit('game_state_update', payload);
+};
+
+export const emitGenerationProgress = (
+  gameId: string,
+  progress: {
+    phase: GenerationPhase;
+    attempt: number;
+    elapsedMs: number;
+    error?: string;
+  }
+): void => {
+  console.log(`WS_EMIT: generation_progress to room ${gameId}`, progress);
+  getSocketServer().to(gameId).emit('generation_progress', {
+    gameId,
+    ...progress
+  });
 };
 
 export const emitGameStarted = (gameId: string, payload: PublicGameView | any): void => {
