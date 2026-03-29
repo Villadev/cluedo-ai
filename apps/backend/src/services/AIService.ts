@@ -47,6 +47,9 @@ interface OpenAICallInput {
 }
 
 export class AIService {
+  private readonly GLOBAL_TIMEOUT_MS = 120000; // 2 minutes
+  private readonly STEP_TIMEOUT_MS = 45000;    // 45 seconds
+
   public getInstructionsContext(): string {
     return GAME_INSTRUCTIONS;
   }
@@ -67,49 +70,68 @@ export class AIService {
   }
 
   public async generateFullCase(playerCount: number, difficulty: Difficulty = 'hard', maxRounds: number = 5): Promise<FullCase> {
+    const startTime = Date.now();
     const expectedCount = Math.max(playerCount, 4);
     console.log(`[ORCHESTRATOR] Starting multi-step case generation (Players: ${expectedCount}, Rounds: ${maxRounds})`);
 
-    // 1. Case Skeleton
-    let fullCase = await this.generateCaseSkeleton(difficulty);
-
-    // 2. Characters
-    fullCase.characters = await this.generateCharacters(fullCase as FullCase, expectedCount, difficulty);
-    fullCase = this.normalizeCaseData(fullCase as FullCase, expectedCount);
-
-    // 3. Narratives
-    const narratives = await this.generateNarratives(fullCase as FullCase, difficulty);
-    fullCase.introductionNarrative = narratives.introductionNarrative;
-    fullCase.solutionNarrative = narratives.solutionNarrative;
-
-    // 4. Clues
-    fullCase.clues = await this.generateCluesByRounds(fullCase as FullCase, maxRounds, difficulty);
-
-    // 5. Missing Clues Recovery
-    let missingRounds = this.validateClueCoverage(fullCase as FullCase, maxRounds);
-    if (missingRounds.length > 0) {
-      console.warn(`[ORCHESTRATOR] Missing clues for rounds: ${missingRounds.join(', ')}. Attempting recovery...`);
-      fullCase = await this.recoverMissingClues(fullCase as FullCase, missingRounds, difficulty);
-      missingRounds = this.validateClueCoverage(fullCase as FullCase, maxRounds);
-    }
-
-    if (missingRounds.length > 0) {
-      console.warn(`[ORCHESTRATOR] Clue recovery failed for: ${missingRounds.join(', ')}. Applying fallbacks.`);
-      fullCase = this.applyFallbackClues(fullCase as FullCase, missingRounds);
-    }
-
-    // Final Validation
-    const errors = this.validateCaseData(fullCase as FullCase, expectedCount);
-    if (errors.length > 0) {
-      console.error("[ORCHESTRATOR] Final case validation failed:", errors);
-      // We try to return it anyway if it's mostly usable, or throw if critical
-      if (errors.some(e => e.includes('personatges'))) {
-        throw new Error("Critical validation failure: " + errors.join("; "));
+    const checkGlobalTimeout = () => {
+      if (Date.now() - startTime > this.GLOBAL_TIMEOUT_MS) {
+        throw new Error("S'ha superat el temps límit global per a la generació del cas.");
       }
-    }
+    };
 
-    console.log("[ORCHESTRATOR] Case generation complete.");
-    return fullCase as FullCase;
+    try {
+      // 1. Case Skeleton (Low complexity, high retry)
+      checkGlobalTimeout();
+      let fullCase = await this.generateCaseSkeleton(difficulty);
+
+      // 2. Characters (High complexity, adaptive retry)
+      checkGlobalTimeout();
+      const characterRetries = expectedCount > 6 ? 1 : 2;
+      fullCase.characters = await this.generateCharacters(fullCase as FullCase, expectedCount, difficulty, characterRetries);
+      fullCase = this.normalizeCaseData(fullCase as FullCase, expectedCount);
+
+      // 3. Narratives (Medium complexity)
+      checkGlobalTimeout();
+      const narratives = await this.generateNarratives(fullCase as FullCase, difficulty);
+      fullCase.introductionNarrative = narratives.introductionNarrative;
+      fullCase.solutionNarrative = narratives.solutionNarrative;
+
+      // 4. Clues (Medium complexity)
+      checkGlobalTimeout();
+      fullCase.clues = await this.generateCluesByRounds(fullCase as FullCase, maxRounds, difficulty);
+
+      // 5. Missing Clues Recovery
+      checkGlobalTimeout();
+      let missingRounds = this.validateClueCoverage(fullCase as FullCase, maxRounds);
+      if (missingRounds.length > 0) {
+        console.warn(`[ORCHESTRATOR] Missing clues for rounds: ${missingRounds.join(', ')}. Attempting recovery...`);
+        fullCase = await this.recoverMissingClues(fullCase as FullCase, missingRounds, difficulty);
+        missingRounds = this.validateClueCoverage(fullCase as FullCase, maxRounds);
+      }
+
+      if (missingRounds.length > 0) {
+        console.warn(`[ORCHESTRATOR] Clue recovery failed for: ${missingRounds.join(', ')}. Applying fallbacks.`);
+        fullCase = this.applyFallbackClues(fullCase as FullCase, missingRounds);
+      }
+
+      // Final Validation
+      const errors = this.validateCaseData(fullCase as FullCase, expectedCount);
+      if (errors.length > 0) {
+        console.error("[ORCHESTRATOR] Final case validation failed:", errors);
+        if (errors.some(e => e.includes('personatges'))) {
+          throw new Error("Critical validation failure: " + errors.join("; "));
+        }
+      }
+
+      const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.log(`[ORCHESTRATOR] Case generation complete in ${totalDuration}s.`);
+      return fullCase as FullCase;
+    } catch (error: any) {
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.error(`[ORCHESTRATOR ERROR] Failed after ${duration}s:`, error.message);
+      throw error;
+    }
   }
 
   private async generateCaseSkeleton(difficulty: Difficulty): Promise<Partial<FullCase>> {
@@ -127,10 +149,10 @@ Regles:
 
     return this.callOpenAIWithRetry<Partial<FullCase>>(instruction, "skeleton", (data) => {
       return !!(data.victim && data.weapon && data.location && data.assassin && data.crimeWindow);
-    });
+    }, 3);
   }
 
-  private async generateCharacters(caseBible: FullCase, expectedCount: number, difficulty: Difficulty): Promise<AIServiceCharacter[]> {
+  private async generateCharacters(caseBible: FullCase, expectedCount: number, difficulty: Difficulty, retries: number): Promise<AIServiceCharacter[]> {
     const instruction = `Crea exactament ${expectedCount} personatges sospitosos per a un cas d'assassinat en català.
 L'assassí ha de ser ${caseBible.assassin}. La víctima és ${caseBible.victim}. El crim va passar entre les ${caseBible.crimeWindow.start} i les ${caseBible.crimeWindow.end} a ${caseBible.location} amb ${caseBible.weapon}.
 
@@ -150,8 +172,8 @@ Regles coartada:
 Retorna un JSON amb una llista "characters".`;
 
     const result = await this.callOpenAIWithRetry<{ characters: AIServiceCharacter[] }>(instruction, "characters", (data) => {
-      return Array.isArray(data.characters) && data.characters.length >= expectedCount;
-    });
+      return Array.isArray(data.characters) && data.characters.length >= Math.floor(expectedCount * 0.8);
+    }, retries);
 
     return result.characters;
   }
@@ -163,7 +185,6 @@ Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBibl
 1. introductionNarrative (200-300 paraules):
    - Presenta el crim i la commoció al poble.
    - REGLA D'OR: NO mencionis l'arma (${caseBible.weapon}), ni el lloc (${caseBible.location}), ni l'assassí.
-   - NO mencionis llocs concrets del poble.
    - Menciona la finestra temporal: ${caseBible.crimeWindow.start} - ${caseBible.crimeWindow.end}.
 
 2. solutionNarrative (200-300 paraules):
@@ -175,7 +196,7 @@ Retorna un JSON amb "introductionNarrative" i "solutionNarrative".`;
     return this.callOpenAIWithRetry<{ introductionNarrative: string, solutionNarrative: string }>(instruction, "narratives", (data) => {
       const validIntro = this.isValidIntro(data.introductionNarrative, caseBible.weapon, caseBible.location);
       return !!(data.introductionNarrative && data.solutionNarrative && validIntro);
-    });
+    }, 2);
   }
 
   private async generateCluesByRounds(caseBible: FullCase, maxRounds: number, difficulty: Difficulty): Promise<Record<string, AIServiceClue[]>> {
@@ -193,8 +214,8 @@ Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
 
     const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "clues", (data) => {
       const missing = this.validateClueCoverage({ clues: data.clues } as FullCase, maxRounds);
-      return missing.length === 0;
-    });
+      return missing.length <= Math.ceil(maxRounds * 0.4); // Allow some missing for recovery
+    }, 2);
 
     return result.clues;
   }
@@ -202,9 +223,14 @@ Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
   private async callOpenAIWithRetry<T>(instruction: string, stepName: string, validator: (data: T) => boolean, maxRetries: number = 3): Promise<T> {
     let attempts = 0;
     while (attempts < maxRetries) {
+      const stepStartTime = Date.now();
       attempts++;
       try {
         console.log(`[OPENAI] Step: ${stepName} (Attempt ${attempts}/${maxRetries})`);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), this.STEP_TIMEOUT_MS);
+
         const completion = await openaiClient.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [
@@ -212,18 +238,23 @@ Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
             { role: 'user', content: instruction + "\n\nRespon exclusivament en JSON." }
           ],
           response_format: { type: "json_object" }
-        });
+        }, { signal: controller.signal }).finally(() => clearTimeout(timeoutId));
 
         const responseText = completion.choices[0]?.message.content;
         if (!responseText) throw new Error("Empty response");
 
         const data = JSON.parse(responseText) as T;
+        const duration = ((Date.now() - stepStartTime) / 1000).toFixed(2);
+
         if (validator(data)) {
+          console.log(`[OPENAI] Step: ${stepName} succeeded in ${duration}s`);
           return data;
         }
-        console.warn(`[OPENAI] Validation failed for step: ${stepName}`);
+        console.warn(`[OPENAI] Step: ${stepName} validation failed after ${duration}s`);
       } catch (error: any) {
-        console.error(`[OPENAI ERROR] Step: ${stepName}, Attempt: ${attempts}`, error.message);
+        const duration = ((Date.now() - stepStartTime) / 1000).toFixed(2);
+        const reason = error.name === 'AbortError' ? 'Timeout' : (error.message || 'Unknown error');
+        console.error(`[OPENAI ERROR] Step: ${stepName}, Attempt: ${attempts}, Duration: ${duration}s, Reason: ${reason}`);
         if (attempts >= maxRetries) throw error;
       }
     }
@@ -296,6 +327,12 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
       caseData.clues = {};
     }
 
+    // Enforce exact character count
+    if (caseData.characters.length > expectedCount) {
+      console.warn(`[REPAIR] Trimming ${caseData.characters.length - expectedCount} excess characters.`);
+      caseData.characters = caseData.characters.slice(0, expectedCount);
+    }
+
     caseData.characters = caseData.characters.map((char, idx) => {
       const sanitized: AIServiceCharacter = {
         name: (char.name || `Sospitós ${idx + 1}`).trim(),
@@ -321,6 +358,7 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
 
     if (caseData.characters.length < expectedCount) {
       const missingCount = expectedCount - caseData.characters.length;
+      console.warn(`[REPAIR] Adding ${missingCount} placeholder characters.`);
       for (let i = 0; i < missingCount; i++) {
         caseData.characters.push({
           name: `Habitant extra ${caseData.characters.length + 1}`,
@@ -422,7 +460,7 @@ ${diffContext}
 Regles:
 - No utilitzis metàfores ni descripcions poètiques.
 - Dona una pista subtil o un fet concret si és possible.
-- Sigues enigmàtic però concís.
+- Sigues enigmàtic pero concís.
 - Respon siempre en català.
 - Retorna la resposta en JSON.
 Estructura JSON:

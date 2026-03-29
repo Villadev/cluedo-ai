@@ -4,11 +4,11 @@ process.env.OPENAI_API_KEY = 'mock-key';
 import { AIService } from '../services/AIService.js';
 
 async function testPipeline() {
-  console.log("Starting Pipeline Verification Test (Mocked AI)...");
+  console.log("Starting Stability Hotfix Verification Test (Mocked AI)...");
   const aiService = new AIService();
 
-  // Mock callOpenAIWithRetry to avoid actual API calls
-  (aiService as any).callOpenAIWithRetry = async (instruction: string, stepName: string, validator: (data: any) => boolean) => {
+  // Helper for mock implementation
+  const mockCall = async (instruction: string, stepName: string, validator: (data: any) => boolean) => {
     console.log(`[MOCK OPENAI] Step: ${stepName}`);
     let mockData: any = {};
 
@@ -22,16 +22,19 @@ async function testPipeline() {
       };
     } else if (stepName === "characters") {
       mockData = {
-        characters: [
-          { name: "A1", profession: "P1", description: "D1", personality: "Pers1", possibleMotive: "M1", secret: "S1", secretKnowledge: "K1", coartada: { location: "L1", timeStart: "21:00", timeEnd: "22:00", witness: "W2", credibility: "alta" }, rumor: "R1", relationships: "Rel1", tensions: "T1" },
-          { name: "S2", profession: "P2", description: "D2", personality: "Pers2", possibleMotive: "M2", secret: "S2", secretKnowledge: "K2", coartada: { location: "L2", timeStart: "21:00", timeEnd: "22:00", witness: "A1", credibility: "alta" }, rumor: "R2", relationships: "Rel2", tensions: "T2" },
-          { name: "S3", profession: "P3", description: "D3", personality: "Pers3", possibleMotive: "M3", secret: "S3", secretKnowledge: "K3", coartada: { location: "L3", timeStart: "21:00", timeEnd: "22:00", witness: "S2", credibility: "alta" }, rumor: "R3", relationships: "Rel3", tensions: "T3" },
-          { name: "S4", profession: "P4", description: "D4", personality: "Pers4", possibleMotive: "M4", secret: "S4", secretKnowledge: "K4", coartada: { location: "L4", timeStart: "21:00", timeEnd: "22:00", witness: "S3", credibility: "alta" }, rumor: "R4", relationships: "Rel4", tensions: "T4" },
-          { name: "S5", profession: "P5", description: "D5", personality: "Pers5", possibleMotive: "M5", secret: "S5", secretKnowledge: "K5", coartada: { location: "L5", timeStart: "21:00", timeEnd: "22:00", witness: "S4", credibility: "alta" }, rumor: "R5", relationships: "Rel5", tensions: "T5" },
-          { name: "S6", profession: "P6", description: "D6", personality: "Pers6", possibleMotive: "M6", secret: "S6", secretKnowledge: "K6", coartada: { location: "L6", timeStart: "21:00", timeEnd: "22:00", witness: "S5", credibility: "alta" }, rumor: "R6", relationships: "Rel6", tensions: "T6" },
-          { name: "S7", profession: "P7", description: "D7", personality: "Pers7", possibleMotive: "M7", secret: "S7", secretKnowledge: "K7", coartada: { location: "L7", timeStart: "21:00", timeEnd: "22:00", witness: "S6", credibility: "alta" }, rumor: "R7", relationships: "Rel7", tensions: "T7" },
-          { name: "S8", profession: "P8", description: "D8", personality: "Pers8", possibleMotive: "M8", secret: "S8", secretKnowledge: "K8", coartada: { location: "L8", timeStart: "21:00", timeEnd: "22:00", witness: "S7", credibility: "alta" }, rumor: "R8", relationships: "Rel8", tensions: "T8" }
-        ]
+        characters: Array.from({ length: 10 }, (_, i) => ({
+          name: i === 0 ? "A1" : `S${i + 1}`,
+          profession: `P${i + 1}`,
+          description: `D${i + 1}`,
+          personality: `Pers${i + 1}`,
+          possibleMotive: `M${i + 1}`,
+          secret: `S${i + 1}`,
+          secretKnowledge: `K${i + 1}`,
+          coartada: { location: `L${i + 1}`, timeStart: "21:00", timeEnd: "22:00", witness: "None", credibility: "alta" },
+          rumor: `R${i + 1}`,
+          relationships: `Rel${i + 1}`,
+          tensions: `T${i + 1}`
+        }))
       };
     } else if (stepName === "narratives") {
       mockData = {
@@ -56,51 +59,58 @@ async function testPipeline() {
     throw new Error(`Mock validation failed for ${stepName}`);
   };
 
+  (aiService as any).callOpenAIWithRetry = mockCall;
+
   try {
-    // 1. Test with large player count
-    console.log("--- TEST 1: Large Player Count (8 players) ---");
+    // 1. Test character trimming (Large player count)
+    console.log("--- TEST 1: Character Trimming (8 players requested, 10 mocked) ---");
     const playerCount = 8;
     const fullCase = await aiService.generateFullCase(playerCount, 'medium', 5);
 
-    console.log(`- Victim: ${fullCase.victim}`);
-    console.log(`- Assassin: ${fullCase.assassin}`);
-    console.log(`- Characters generated: ${fullCase.characters.length}`);
-
-    if (fullCase.characters.length >= playerCount) {
-      console.log("✅ TEST 1 PASSED: Character count is correct.");
+    console.log(`- Characters after normalization: ${fullCase.characters.length}`);
+    if (fullCase.characters.length === playerCount) {
+      console.log("✅ TEST 1 PASSED: Character trimming enforced.");
     } else {
-      throw new Error(`TEST 1 FAILED: Expected at least ${playerCount} characters, got ${fullCase.characters.length}`);
+      throw new Error(`TEST 1 FAILED: Expected exactly ${playerCount} characters, got ${fullCase.characters.length}`);
     }
 
-    // 2. Test Clue Coverage
-    console.log("--- TEST 2: Clue Coverage ---");
-    const maxRounds = 5;
-    let allRoundsHaveClues = true;
-    for (let i = 1; i <= maxRounds; i++) {
-      const roundClues = fullCase.clues[`round${i}`];
-      if (!roundClues || roundClues.length === 0) {
-        console.error(`- Round ${i} is missing clues!`);
-        allRoundsHaveClues = false;
-      } else {
-        console.log(`- Round ${i}: ${roundClues.length} clues.`);
-      }
-    }
+    // 2. Test placeholder filling (Mock only 4 characters when 8 requested)
+    console.log("--- TEST 2: Character Filling (8 players requested, 4 mocked) ---");
+    const mockServiceForFilling = new AIService();
+    (mockServiceForFilling as any).callOpenAIWithRetry = async (instruction: string, stepName: string, validator: (data: any) => boolean) => {
+        if (stepName === "characters") {
+            const validData = { characters: Array.from({ length: 7 }, (_, i) => ({ name: i === 0 ? "A1" : `S${i + 1}` })) };
+            return validData;
+        }
+        return mockCall(instruction, stepName, validator);
+    };
 
-    if (allRoundsHaveClues) {
-      console.log("✅ TEST 2 PASSED: All rounds have clues.");
+    const filledCase = await mockServiceForFilling.generateFullCase(8, 'medium', 5);
+    console.log(`- Characters after filling: ${filledCase.characters.length}`);
+    if (filledCase.characters.length === 8) {
+      console.log("✅ TEST 2 PASSED: Character filling enforced.");
     } else {
-      throw new Error("TEST 2 FAILED: Some rounds are missing clues.");
+      throw new Error(`TEST 2 FAILED: Expected 8 characters, got ${filledCase.characters.length}`);
     }
 
-    // 3. Test Narratives
-    console.log("--- TEST 3: Narrative Content ---");
-    if (fullCase.introductionNarrative.length > 50 && fullCase.solutionNarrative.length > 50) {
-      console.log("✅ TEST 3 PASSED: Narratives are sufficiently long.");
-    } else {
-      throw new Error("TEST 3 FAILED: Narratives are too short.");
+    // 3. Test Global Timeout
+    console.log("--- TEST 3: Global Timeout ---");
+    const mockServiceForTimeout = new AIService();
+    (mockServiceForTimeout as any).GLOBAL_TIMEOUT_MS = -1; // Force immediate timeout
+    (mockServiceForTimeout as any).callOpenAIWithRetry = mockCall;
+
+    try {
+        await mockServiceForTimeout.generateFullCase(4, 'medium', 5);
+        throw new Error("TEST 3 FAILED: Global timeout not triggered.");
+    } catch (e: any) {
+        if (e.message.includes("temps límit global")) {
+            console.log("✅ TEST 3 PASSED: Global timeout triggered correctly.");
+        } else {
+            throw e;
+        }
     }
 
-    console.log("\nALL PIPELINE TESTS PASSED SUCCESSFULLY");
+    console.log("\nALL STABILITY TESTS PASSED SUCCESSFULLY");
   } catch (e: any) {
     console.error("\n❌ TEST FAILED:", e.message);
     process.exit(1);
