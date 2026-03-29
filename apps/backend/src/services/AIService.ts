@@ -68,171 +68,171 @@ export class AIService {
 
   public async generateFullCase(playerCount: number, difficulty: Difficulty = 'hard', maxRounds: number = 5): Promise<FullCase> {
     const expectedCount = Math.max(playerCount, 4);
-    const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Respon sempre en català.
+    console.log(`[ORCHESTRATOR] Starting multi-step case generation (Players: ${expectedCount}, Rounds: ${maxRounds})`);
 
-Estàs creant un cas complet d'assassinat per un joc de misteri narratiu.
-${diffContext}
+    // 1. Case Skeleton
+    let fullCase = await this.generateCaseSkeleton(difficulty);
 
-L'objectiu és crear una història amb personatges connectats entre si, amb secrets, tensions i possibles motius per matar.
+    // 2. Characters
+    fullCase.characters = await this.generateCharacters(fullCase as FullCase, expectedCount, difficulty);
+    fullCase = this.normalizeCaseData(fullCase as FullCase, expectedCount);
 
-Context del poble:
-${VILLAGE_CONTEXT}
+    // 3. Narratives
+    const narratives = await this.generateNarratives(fullCase as FullCase, difficulty);
+    fullCase.introductionNarrative = narratives.introductionNarrative;
+    fullCase.solutionNarrative = narratives.solutionNarrative;
 
-Crea un cas complet d'assassinat amb exactament ${expectedCount} personatges sospitosos.
+    // 4. Clues
+    fullCase.clues = await this.generateCluesByRounds(fullCase as FullCase, maxRounds, difficulty);
 
-Crea:
-- diversos personatges sospitosos
-- una víctima
-- un assassí (que ha de ser un dels personatges)
-- una arma del crim (triada EXCLUSIVAMENT de la llista d'armes permeses)
-- un lloc on ha passat el crim (triat EXCLUSIVAMENT de la llista de llocs permesos)
-- una finestra temporal pel crim (crimeWindow) amb format HH:MM (ex: "21:30" a "23:00").
+    // 5. Missing Clues Recovery
+    let missingRounds = this.validateClueCoverage(fullCase as FullCase, maxRounds);
+    if (missingRounds.length > 0) {
+      console.warn(`[ORCHESTRATOR] Missing clues for rounds: ${missingRounds.join(', ')}. Attempting recovery...`);
+      fullCase = await this.recoverMissingClues(fullCase as FullCase, missingRounds, difficulty);
+      missingRounds = this.validateClueCoverage(fullCase as FullCase, maxRounds);
+    }
 
-Llista d'armes permeses (weapon):
-${WEAPONS.join(', ')}
+    if (missingRounds.length > 0) {
+      console.warn(`[ORCHESTRATOR] Clue recovery failed for: ${missingRounds.join(', ')}. Applying fallbacks.`);
+      fullCase = this.applyFallbackClues(fullCase as FullCase, missingRounds);
+    }
 
-Llista de llocs permesos (location):
-${LOCATIONS.join(', ')}
+    // Final Validation
+    const errors = this.validateCaseData(fullCase as FullCase, expectedCount);
+    if (errors.length > 0) {
+      console.error("[ORCHESTRATOR] Final case validation failed:", errors);
+      // We try to return it anyway if it's mostly usable, or throw if critical
+      if (errors.some(e => e.includes('personatges'))) {
+        throw new Error("Critical validation failure: " + errors.join("; "));
+      }
+    }
+
+    console.log("[ORCHESTRATOR] Case generation complete.");
+    return fullCase as FullCase;
+  }
+
+  private async generateCaseSkeleton(difficulty: Difficulty): Promise<Partial<FullCase>> {
+    const instruction = `Crea l'esquelet d'un cas d'assassinat en català.
+Retorna un JSON amb:
+- victim: Nom de la víctima.
+- weapon: Una arma de la llista: ${WEAPONS.join(', ')}.
+- location: Un lloc de la llista: ${LOCATIONS.join(', ')}.
+- assassin: Nom del futur assassí (serà un dels personatges).
+- crimeWindow: { start: "HH:MM", end: "HH:MM" } (finestra d'unes 2 hores).
+
+Regles:
+- Tria una arma i un lloc realistes per al context d'un poble.
+- L'assassí ha de tenir un nom català o comú a la zona.`;
+
+    return this.callOpenAIWithRetry<Partial<FullCase>>(instruction, "skeleton", (data) => {
+      return !!(data.victim && data.weapon && data.location && data.assassin && data.crimeWindow);
+    });
+  }
+
+  private async generateCharacters(caseBible: FullCase, expectedCount: number, difficulty: Difficulty): Promise<AIServiceCharacter[]> {
+    const instruction = `Crea exactament ${expectedCount} personatges sospitosos per a un cas d'assassinat en català.
+L'assassí ha de ser ${caseBible.assassin}. La víctima és ${caseBible.victim}. El crim va passar entre les ${caseBible.crimeWindow.start} i les ${caseBible.crimeWindow.end} a ${caseBible.location} amb ${caseBible.weapon}.
 
 Cada personatge ha de tenir:
-- nom fictici
-- professió
-- descripció
-- personalitat
-- possible motiu (possibleMotive)
-- secret
-- secretKnowledge (informació secreta que aquest personatge coneix sobre la història o altres personatges)
-- coartada estructurada (coartada)
-- rumor
-- relacions amb altres personatges (relationships)
-- tensions o conflictes (tensions)
+- nom (un d'ells ha de ser ${caseBible.assassin})
+- professió, descripció, personalitat
+- possibleMotive (motiu per voler mort a ${caseBible.victim})
+- secret, secretKnowledge (pista sobre un altre personatge o el crim)
+- coartada: { location, timeStart, timeEnd, witness, credibility ("alta", "mitjana", "baixa") }
+- rumor, relationships, tensions
 
-Regles per a la finestra temporal del crim:
-- Defineix un inici i un final (ex: 21:30 - 23:00).
-- L'assassinat ha passat en algun moment dins d'aquest interval.
+Regles coartada:
+- Cap coartada cobreix tota la finestra del crim.
+- Almenys el 60% referencien un altre sospitós com a testimoni.
+- Almenys una contradicció entre coartades.
 
-Regles per a la coartada (coartada):
-- Ha de ser un objecte amb: location, timeStart, timeEnd, witness, credibility ("alta", "mitjana", "baixa").
-- Cap coartada ha de cobrir totalment la finestra temporal del crim.
-- Almenys el 60% dels personatges han de referenciar un altre personatge com a testimoni (witness).
-- Almenys una coartada ha de contradir-ne una altra (ex: A diu que estava amb B, però B diu que estava sol).
-- Almenys una coartada ha de no tenir testimoni ("ningú").
-- L'assassí pot tenir una coartada falsa, incompleta o un testimoni que no la pot confirmar.
+Retorna un JSON amb una llista "characters".`;
 
-Regles importants per a cada personatge:
-- cada personatge rebrà una secretKnowledge diferent.
-- la secretKnowledge pot revelar informació parcial però mai directament qui és l'assassí.
-- els personatges s'han de conèixer entreells.
-- diversos personatges han de tenir conflictes amb la víctima.
+    const result = await this.callOpenAIWithRetry<{ characters: AIServiceCharacter[] }>(instruction, "characters", (data) => {
+      return Array.isArray(data.characters) && data.characters.length >= expectedCount;
+    });
 
-Regles per a la narrativa:
-1. una narrativa inicial (introductionNarrative) que presenti el crim, la víctima i els sospitosos (entre 200 i 300 paraules).
-   REGLA D'OR: L'introducció NO ha de revelar l'arma, ni el lloc exacte (nom o descripció), ni la identitat de l'assassí.
-   REGLA D'OR: No mencionis MAI llocs específicos del poble (ex: "celler", "cuina", "jardí", o noms de la llista de llocs).
-   REGLA D'OR: Evita pistes indirectes sobre el lloc (ex: si el lloc és un celler, no parlis d'ampolles; si és l'església, no parlis de campanes; si és el Carrer Major, no parlis d'asfalt o botigues).
-   CENTRA'T EXCLUSIVAMENT en la descoberta del cos, la commoció, les relacions tenses entre els personatges i l'ambient de sospita general.
-   Menciona la incertesa de l'hora del crim (ex: "La mort podria haver tingut lloc en algun moment entre les nou i mitja i les onze de la nit.").
-2. una narrativa final (solutionNarrative) que reveli què ha passat realment, explicant el motiu real, com es va cometre el crim (incloent lhora exacta), com s'han interpretat malament algunes pistes i una revelació dramàtica final.
+    return result.characters;
+  }
 
-Regles per a les pistes (clues):
-Genera pistes progressives agrupades per rondes per a exactament ${maxRounds} rondes.
-CADA RONDA (des de round1 fins a round${maxRounds}) ha de tenir almenys una pista.
-IMPORTANT: Aproximadament un 30% de les pistes han de ser enganyoses (misleading) o incompletes, però plausibles.
-IMPORTANT: Evita dir directament el nom de l'arma o del lloc. Utilitza descripcions evocadores.
+  private async generateNarratives(caseBible: FullCase, difficulty: Difficulty): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
+    const instruction = `Genera dues narratives per al cas d'assassinat en català.
+Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
 
-- Round 1-2: Rumors i observacions vagues.
-- Round 3-4: Referències indirectes a objectes o llocs. Inconsistències menors.
-- Round 5+: Pistes més clares sobre l'arma o el lloc i contradiccions evidents.
+1. introductionNarrative (200-300 paraules):
+   - Presenta el crim i la commoció al poble.
+   - REGLA D'OR: NO mencionis l'arma (${caseBible.weapon}), ni el lloc (${caseBible.location}), ni l'assassí.
+   - NO mencionis llocs concrets del poble.
+   - Menciona la finestra temporal: ${caseBible.crimeWindow.start} - ${caseBible.crimeWindow.end}.
 
-Retorna el resultat en JSON amb aquesta estructura:
-{
- "victim": "",
- "weapon": "",
- "location": "",
- "assassin": "",
- "crimeWindow": { "start": "HH:MM", "end": "HH:MM" },
- "characters": [...],
- "introductionNarrative": "",
- "solutionNarrative": "",
- "clues": {
-    "round1": [{"type": "rumor", "text": "", "isTrue": true}],
-    ...
-    "round${maxRounds}": [...]
- }
-}`;
+2. solutionNarrative (200-300 paraules):
+   - Revela com ${caseBible.assassin} va matar a ${caseBible.victim} amb ${caseBible.weapon} a ${caseBible.location}.
+   - Explica el motiu i la revelació final.
 
-    try {
-      console.log(`[OPENAI] Attempting case generation (expected characters: ${expectedCount}, rounds: ${maxRounds})`);
+Retorna un JSON amb "introductionNarrative" i "solutionNarrative".`;
 
-      let attempts = 0;
-      const maxAttempts = 3;
+    return this.callOpenAIWithRetry<{ introductionNarrative: string, solutionNarrative: string }>(instruction, "narratives", (data) => {
+      const validIntro = this.isValidIntro(data.introductionNarrative, caseBible.weapon, caseBible.location);
+      return !!(data.introductionNarrative && data.solutionNarrative && validIntro);
+    });
+  }
 
-      while (attempts < maxAttempts) {
-        attempts++;
+  private async generateCluesByRounds(caseBible: FullCase, maxRounds: number, difficulty: Difficulty): Promise<Record<string, AIServiceClue[]>> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
+    const instruction = `Genera pistes progressives per a ${maxRounds} rondes en català.
+${diffContext}
+Cas: ${caseBible.victim} mort per ${caseBible.assassin} a ${caseBible.location} amb ${caseBible.weapon}.
+
+Regles:
+- CADA RONDA (round1 a round${maxRounds}) ha de tenir almenys una pista.
+- 30% de pistes enganyoses (misleading: true/false).
+- Round 1-2: Rumors. Round 3-4: Referències indirectes. Round 5+: Contradiccions clares.
+
+Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
+
+    const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "clues", (data) => {
+      const missing = this.validateClueCoverage({ clues: data.clues } as FullCase, maxRounds);
+      return missing.length === 0;
+    });
+
+    return result.clues;
+  }
+
+  private async callOpenAIWithRetry<T>(instruction: string, stepName: string, validator: (data: T) => boolean, maxRetries: number = 3): Promise<T> {
+    let attempts = 0;
+    while (attempts < maxRetries) {
+      attempts++;
+      try {
+        console.log(`[OPENAI] Step: ${stepName} (Attempt ${attempts}/${maxRetries})`);
         const completion = await openaiClient.chat.completions.create({
           model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: instruction }
+            { role: 'user', content: instruction + "\n\nRespon exclusivament en JSON." }
           ],
           response_format: { type: "json_object" }
         });
 
         const responseText = completion.choices[0]?.message.content;
-        if (!responseText) {
-          throw new Error('Resposta buida del model');
+        if (!responseText) throw new Error("Empty response");
+
+        const data = JSON.parse(responseText) as T;
+        if (validator(data)) {
+          return data;
         }
-
-        let fullCase = JSON.parse(responseText) as FullCase;
-
-        // 1. Normalize and sanitize data
-        fullCase = this.normalizeCaseData(fullCase, expectedCount);
-
-        // 2. Validate critical integrity (excluding clues for now)
-        const validationErrors = this.validateCaseData(fullCase, expectedCount);
-        const isValidIntro = this.isValidIntro(fullCase.introductionNarrative, fullCase.weapon, fullCase.location);
-
-        if (validationErrors.length === 0 && isValidIntro) {
-          // 3. Robust Clue Coverage Validation
-          let missingRounds = this.validateClueCoverage(fullCase, maxRounds);
-
-          if (missingRounds.length > 0) {
-            console.warn(`[OPENAI] Missing clues for rounds: ${missingRounds.join(', ')}. Attempting recovery...`);
-            fullCase = await this.recoverMissingClues(fullCase, missingRounds, difficulty);
-
-            // Re-validate after recovery
-            missingRounds = this.validateClueCoverage(fullCase, maxRounds);
-          }
-
-          if (missingRounds.length > 0) {
-            console.warn(`[REPAIR] Clue recovery failed for rounds: ${missingRounds.join(', ')}. Applying fallback clues.`);
-            fullCase = this.applyFallbackClues(fullCase, missingRounds);
-          }
-
-          console.log(`[OPENAI] Case generated successfully on attempt ${attempts}`);
-          return fullCase;
-        }
-
-        if (validationErrors.length > 0) {
-          console.warn(`[OPENAI] Case validation failed (attempt ${attempts}):\n- ${validationErrors.join('\n- ')}`);
-        }
-        if (!isValidIntro) {
-          console.warn(`[OPENAI] Intro validation failed (attempt ${attempts}). Location or weapon mentioned in introduction.`);
-        }
-        console.warn(`[OPENAI] Regenerating (attempt ${attempts + 1} of ${maxAttempts})...`);
+        console.warn(`[OPENAI] Validation failed for step: ${stepName}`);
+      } catch (error: any) {
+        console.error(`[OPENAI ERROR] Step: ${stepName}, Attempt: ${attempts}`, error.message);
+        if (attempts >= maxRetries) throw error;
       }
-
-      throw new Error(`No s'ha pogut generar un cas vàlid després de ${maxAttempts} intents.`);
-    } catch (error: any) {
-      console.error("[OPENAI ERROR]", error.message || error);
-      errorLogger.push("OPENAI", error);
-      throw new Error(error.message || 'Error en generar el cas. Servei narratiu no disponible temporalment.');
     }
+    throw new Error(`Failed step ${stepName} after ${maxRetries} attempts`);
   }
 
   private validateClueCoverage(caseData: FullCase, maxRounds: number): string[] {
     const missing: string[] = [];
+    if (!caseData.clues) return Array.from({ length: maxRounds }, (_, i) => `round${i + 1}`);
     for (let i = 1; i <= maxRounds; i++) {
       const roundKey = `round${i}`;
       if (!caseData.clues[roundKey] || caseData.clues[roundKey].length === 0) {
@@ -246,66 +246,21 @@ Retorna el resultat en JSON amb aquesta estructura:
     const diffContext = this.getDifficultyInstruction(difficulty);
     const caseSummary = `Víctima: ${caseData.victim}, Arma: ${caseData.weapon}, Lloc: ${caseData.location}, Assassí: ${caseData.assassin}.`;
 
-    const existingCluesMap = Object.entries(caseData.clues)
-      .filter(([_, clues]) => clues.length > 0)
-      .map(([round, clues]) => `${round}: ${clues.map(c => c.text).join(' | ')}`)
-      .join('\n');
-
-    const instruction = `Respon en català.
-Ets el Mestre del Joc. Hem generat un cas però falten pistes per a algunes rondes.
+    const instruction = `Respon en català. Falten pistes per a les rondes: ${missingRounds.join(', ')}.
 ${diffContext}
-
-Resum del cas:
-${caseSummary}
-
-Pistes existents:
-${existingCluesMap}
-
-Genera almenys 2 pistes noves per a CADASCUNA de les següents rondes: ${missingRounds.join(', ')}.
-Les pistes han de ser coherents amb el cas i les pistes existents.
-Manté el format progressiu:
-- Round 1-2: rumors vagues.
-- Round 3-4: referències indirectes.
-- Round 5+: contradiccions i pistes més clares.
-
-Retorna el resultat en JSON:
-{
-  "clues": {
-    "roundX": [{"type": "rumor|witness|contradiction|evidence", "text": "...", "isTrue": true}],
-    ...
-  }
-}`;
+Resum del cas: ${caseSummary}
+Genera almenys 2 pistes per a cadascuna d'aquestes rondes.
+Retorna JSON: { "clues": { "roundX": [...] } }`;
 
     try {
-      let recoveryAttempts = 0;
-      const maxRecoveryAttempts = 2;
+      const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "recovery", (data) => {
+        return !!data.clues;
+      }, 2);
 
-      while (recoveryAttempts < maxRecoveryAttempts) {
-        recoveryAttempts++;
-        const completion = await openaiClient.chat.completions.create({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: instruction }
-          ],
-          response_format: { type: "json_object" }
-        });
-
-        const responseText = completion.choices[0]?.message.content;
-        if (!responseText) continue;
-
-        const recoveredData = JSON.parse(responseText) as { clues: Record<string, AIServiceClue[]> };
-
-        if (recoveredData.clues) {
-          for (const round of missingRounds) {
-            if (recoveredData.clues[round] && recoveredData.clues[round].length > 0) {
-              caseData.clues[round] = recoveredData.clues[round];
-            }
-          }
+      for (const round of missingRounds) {
+        if (result.clues[round]) {
+          caseData.clues[round] = result.clues[round];
         }
-
-        const stillMissing = this.validateClueCoverage(caseData, Math.max(...missingRounds.map(r => parseInt(r.replace('round', '')))));
-        if (stillMissing.length === 0) break;
       }
     } catch (error) {
       console.error("[OPENAI RECOVERY ERROR]", error);
@@ -366,7 +321,6 @@ Retorna el resultat en JSON:
 
     if (caseData.characters.length < expectedCount) {
       const missingCount = expectedCount - caseData.characters.length;
-      console.warn(`[REPAIR] Adding ${missingCount} placeholder characters to match expected count.`);
       for (let i = 0; i < missingCount; i++) {
         caseData.characters.push({
           name: `Habitant extra ${caseData.characters.length + 1}`,
@@ -396,7 +350,6 @@ Retorna el resultat en JSON:
     if (!assassinChar && caseData.characters.length > 0) {
       const firstChar = caseData.characters[0];
       if (firstChar) {
-        console.warn(`[REPAIR] Assassin '${caseData.assassin}' not found. Defaulting to '${firstChar.name}'.`);
         caseData.assassin = firstChar.name;
       }
     }
@@ -415,15 +368,11 @@ Retorna el resultat en JSON:
     const validLocations = LOCATIONS as string[];
 
     if (!caseData.weapon || !validWeapons.includes(caseData.weapon)) {
-       const fallbackWeapon = validWeapons[0] || 'Ganivet de cuina';
-       console.warn(`[REPAIR] Invalid weapon '${caseData.weapon}'. Using '${fallbackWeapon}' as fallback.`);
-       caseData.weapon = fallbackWeapon;
+       caseData.weapon = validWeapons[0] || 'Ganivet de cuina';
     }
 
     if (!caseData.location || !validLocations.includes(caseData.location)) {
-       const fallbackLocation = validLocations[0] || 'Carrer Major';
-       console.warn(`[REPAIR] Invalid location '${caseData.location}'. Using '${fallbackLocation}' as fallback.`);
-       caseData.location = fallbackLocation;
+       caseData.location = validLocations[0] || 'Carrer Major';
     }
 
     if (!caseData.introductionNarrative || caseData.introductionNarrative.length < 100) {
@@ -495,6 +444,7 @@ ${diffContext}
 Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el lloc, però sigues concís. Respon en català.`;
     return this.generateNarrative({ instruction, publicGameState, clueDescription }, 100);
   }
+
   public async generatePrivateMessage(privateContext: string): Promise<string> {
     const instruction = 'Redacta un missatge privat i segur, alineat amb la partida i sense revelar informació aliena. Respon sempre en català.';
     return this.generateNarrative({ instruction, privateContext }, 220);
@@ -520,8 +470,6 @@ Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el 
       .join('\n\n');
 
     try {
-      console.log("[OPENAI] Sending narrative request");
-
       const completion = await openaiClient.chat.completions.create({
         model: 'gpt-4o-mini',
         max_tokens: maxTokens,
