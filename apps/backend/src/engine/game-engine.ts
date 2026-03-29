@@ -135,10 +135,12 @@ export class GameEngine {
   public async startGame(gameId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
     this.validateGameStateTransition(game.state, GameStates.GENERATING);
+
     // Ensure minimum number of players with NPCs if needed
     const currentPlayersCount = game.players.length;
     if (currentPlayersCount < MIN_SUSPECTS) {
       const npcsNeeded = MIN_SUSPECTS - currentPlayersCount;
+      console.log(`[GAME ENGINE] Adding ${npcsNeeded} NPCs to reach minimum suspect count.`);
       for (let i = 0; i < npcsNeeded; i++) {
         const npc: Player = {
           id: generateId(),
@@ -156,13 +158,20 @@ export class GameEngine {
       }
     }
 
+    const totalExpectedCharacters = game.players.length;
 
     game.state = GameStates.GENERATING;
     this.emitStateChange(gameId, game.state);
     this.store.save(game);
 
     try {
-      const caseData: FullCase = await this.aiService.generateFullCase(game.players.length, game.difficulty);
+      console.log(`[GAME ENGINE] Starting case generation for ${totalExpectedCharacters} players.`);
+      const caseData: FullCase = await this.aiService.generateFullCase(totalExpectedCharacters, game.difficulty);
+
+      // Pre-assignment integrity check
+      if (!caseData.characters || caseData.characters.length < totalExpectedCharacters) {
+         throw new Error(`Dades insuficients de personatges generades: s'esperaven ${totalExpectedCharacters}, s'han rebut ${caseData.characters?.length || 0}.`);
+      }
 
       game.murder = {
         killerPlayerId: '', // Will assign later
@@ -181,32 +190,36 @@ export class GameEngine {
         finalNarrative: caseData.solutionNarrative
       };
 
-      // Assign characters
-      const shuffledCharacters = this.shuffle(caseData.characters);
-      game.characters = shuffledCharacters.map((c: any) => ({
+      // Assign characters (shuffled for fairness)
+      const shuffledCharactersData = this.shuffle(caseData.characters);
+      const characters: Character[] = shuffledCharactersData.map((c: any) => ({
         id: generateId(),
         ...c,
-        isAssassin: c.name === caseData.assassin
+        isAssassin: c.name.trim().toLowerCase() === caseData.assassin.trim().toLowerCase()
       }));
 
-      // Map characters to players
+      // Map to game state
+      game.characters = characters;
+
+      // Assign to players with guaranteed loop safety
       game.players.forEach((p, i) => {
-        const character = game.characters[i];
-        if (character) {
-          p.characterId = character.id;
-          if (character.isAssassin) {
-            game.assassinCharacterId = character.id;
-            game.murder!.killerPlayerId = p.id;
-            game.solution!.assassinId = p.id;
-          }
+        const character = characters[i];
+        if (!character) {
+           throw new Error(`Error intern: No s'ha pogut trobar un personatge per al jugador ${p.nickname} (índex ${i}).`);
+        }
+        p.characterId = character.id;
+        if (character.isAssassin) {
+          game.assassinCharacterId = character.id;
+          game.murder!.killerPlayerId = p.id;
+          game.solution!.assassinId = p.id;
         }
       });
 
-      // Verification: ensure ALL players have a character
+      // Verification: double-check NO player is left behind
       const playersWithoutCharacter = game.players.filter(p => !p.characterId);
       if (playersWithoutCharacter.length > 0) {
         const names = playersWithoutCharacter.map(p => p.nickname).join(', ');
-        throw new Error(`Error en l'assignació: els jugadors següents no tenen personatge: ${names}`);
+        throw new Error(`Error d'assignació crítica: els jugadors següents no tenen personatge: ${names}`);
       }
 
       // Handle clues
@@ -238,6 +251,7 @@ export class GameEngine {
 
       return game;
     } catch (error: any) {
+      console.error(`[GAME ENGINE] Fatal start error: ${error.message}`);
       game.state = GameStates.LOBBY;
       this.emitStateChange(gameId, game.state);
       this.store.save(game);
