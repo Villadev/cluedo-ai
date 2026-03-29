@@ -278,10 +278,5 @@ export interface FullCase {
   introductionNarrative: string;
   solutionNarrative: string;
   difficulty?: Difficulty;
-  clues: {
-    round1: AIServiceClue[];
-    round2: AIServiceClue[];
-    round3: AIServiceClue[];
-    round4: AIServiceClue[];
-  };
+  clues: Record<string, AIServiceClue[]>;
 }
