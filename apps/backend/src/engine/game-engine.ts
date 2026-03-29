@@ -91,7 +91,12 @@ export class GameEngine {
 
   public async addPlayer(gameId: string, nickname: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
-    this.validateGameStateTransition(game.state, GameStates.LOBBY);
+    if (game.state === GameStates.GENERATING) {
+      throw new HttpError(400, "No es poden afegir jugadors mentre s'està generant el cas.");
+    }
+    if (game.state !== GameStates.LOBBY) {
+      throw new HttpError(400, "La partida no està en fase de registre.");
+    }
 
     if (game.players.length >= MAX_PLAYERS) {
       throw new HttpError(400, 'La partida ja està plena');
@@ -541,53 +546,8 @@ export class GameEngine {
     const allPlayersActed = realPlayers.every((p) => p.askedThisRound || p.accusedThisRound || p.isEliminated);
 
     if (allPlayersActed) {
-      if (game.roundNumber >= game.maxRounds) {
-        game.state = GameStates.FINISHED;
-        game.winnerType = 'ASSASSIN';
-        game.updatedAt = nowIso();
-
-        const msg = "El temps s'ha acabat. L'assassí ha aconseguit escapar.";
-        this.recordTimelineEvent(game, {
-          type: 'GAME_END',
-          description: msg
-        });
-
-        if (this.onSystemEvent) {
-          this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
-        }
-        this.store.save(game);
-        this.emitStateChange(gameId, game.state);
-        return;
-      }
-
-      game.roundNumber += 1;
-      game.tensionLevel = Math.min(100, game.tensionLevel + 10);
-
-      const msg = `Comença la ronda ${game.roundNumber}.`;
-      console.log("[ROUND START DETECTED]", game.roundNumber);
-      this.recordTimelineEvent(game, {
-        type: 'ROUND_START',
-        roundNumber: game.roundNumber,
-        description: `Ronda ${game.roundNumber} iniciada`
-      });
-
-      if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
-      }
-
-      // Reveal clues for the new round
-      await this.revealCluesForRound(game, game.roundNumber);
-
-      game.players.forEach((p) => {
-        p.askedThisRound = false;
-        p.accusedThisRound = false;
-        if (p.accusationCooldown > 0) {
-          p.accusationCooldown -= 1;
-        }
-      });
-
-      const firstRealPlayerIndex = game.players.findIndex(p => p.type === 'real');
-      game.currentTurnIndex = firstRealPlayerIndex >= 0 ? firstRealPlayerIndex : 0;
+      await this.advanceRound(game);
+      this.store.save(game);
     } else {
       let nextIndex = game.currentTurnIndex;
       let count = 0;
@@ -794,6 +754,66 @@ export class GameEngine {
     };
   }
 
+  public async forceNextRound(gameId: string): Promise<Game> {
+    const game = this.getGameOrThrow(gameId);
+    if (game.state !== GameStates.PLAYING) {
+      throw new HttpError(409, 'Només es pot forçar la ronda si la partida està en curs');
+    }
+    await this.advanceRound(game);
+    this.store.save(game);
+    return game;
+  }
+
+  private async advanceRound(game: Game): Promise<void> {
+    if (game.roundNumber >= game.maxRounds) {
+      game.state = GameStates.FINISHED;
+      game.winnerType = 'ASSASSIN';
+      game.updatedAt = nowIso();
+
+      const msg = "El temps s'ha acabat. L'assassí ha aconseguit escapar.";
+      this.recordTimelineEvent(game, {
+        type: 'GAME_END',
+        description: msg
+      });
+
+      if (this.onSystemEvent) {
+        this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
+      }
+      this.emitStateChange(game.id, game.state);
+      return;
+    }
+
+    game.roundNumber += 1;
+    game.tensionLevel = Math.min(100, game.tensionLevel + 10);
+
+    const msg = `Comença la ronda ${game.roundNumber}.`;
+    console.log("[ROUND START DETECTED]", game.roundNumber);
+    this.recordTimelineEvent(game, {
+      type: 'ROUND_START',
+      roundNumber: game.roundNumber,
+      description: `Ronda ${game.roundNumber} iniciada`
+    });
+
+    if (this.onSystemEvent) {
+      this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
+    }
+
+    // Reveal clues for the new round
+    await this.revealCluesForRound(game, game.roundNumber);
+
+    game.players.forEach((p) => {
+      p.askedThisRound = false;
+      p.accusedThisRound = false;
+      if (p.accusationCooldown > 0) {
+        p.accusationCooldown -= 1;
+      }
+    });
+
+    const firstRealPlayerIndex = game.players.findIndex(p => p.type === 'real');
+    game.currentTurnIndex = firstRealPlayerIndex >= 0 ? firstRealPlayerIndex : 0;
+    game.updatedAt = nowIso();
+  }
+
   public getGameStateInfo(gameId: string): any {
     const game = this.getGameOrThrow(gameId);
     return {
@@ -805,7 +825,11 @@ export class GameEngine {
       maxRounds: game.maxRounds,
       difficulty: game.difficulty,
       winnerType: game.winnerType,
-      result: this.getGameResult(game)
+      result: this.getGameResult(game),
+      playerStatus: game.players.filter(p => p.type === 'real').map(p => ({
+        nickname: p.nickname,
+        askedThisRound: p.askedThisRound
+      }))
     };
   }
 

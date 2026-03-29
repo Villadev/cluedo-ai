@@ -394,6 +394,27 @@ export class GameController {
 
   /**
    * @openapi
+   * /game/{id}/force-next-round:
+   *   post:
+   *     summary: Força l'avançament a la següent ronda.
+   *     responses:
+   *       200:
+   *         description: Ronda avançada.
+   */
+  public async forceNextRound(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    const game = await gameEngine.forceNextRound(gameId);
+
+    // WS Emit
+    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
+
+    res.status(200).json(successResponse({
+      gameState: gameEngine.getPublicState(game.id)
+    }));
+  }
+
+  /**
+   * @openapi
    * /game/{id}/end:
    *   post:
    *     summary: Finalitza una partida en curs.

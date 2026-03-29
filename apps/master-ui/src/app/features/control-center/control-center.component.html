@@ -144,10 +144,41 @@
     <div class="col-12 md:col-6">
       <p-card header="Estat en Temps Real">
         <div class="flex flex-column gap-2">
-          <div class="flex justify-content-between">
-            <span class="text-700">Ronda:</span>
-            <span class="font-bold">{{ currentRound() }} / {{ maxRounds() }}</span>
+          <div class="flex justify-content-between align-items-center mb-2">
+            <div>
+              <span class="text-700">Ronda:</span>
+              <span class="font-bold ml-1">{{ currentRound() }} / {{ maxRounds() }}</span>
+            </div>
+            @if (gameState() === 'PLAYING') {
+              <button
+                pButton
+                label="Forçar Següent Ronda"
+                icon="pi pi-step-forward"
+                severity="warning"
+                class="p-button-sm"
+                (click)="forceNextRound()"
+                [loading]="loading()"
+                [disabled]="loading()"
+              ></button>
+            }
           </div>
+
+          <!-- Player Round Status List -->
+          @if (gameState() === 'PLAYING' && playerStatus().length > 0) {
+            <div class="mb-3 border-1 border-round border-300 overflow-y-auto" style="max-height: 150px;">
+              <ul class="list-none p-0 m-0">
+                @for (player of playerStatus(); track player.nickname) {
+                  <li class="flex justify-content-between align-items-center p-2 border-bottom-1 border-200 last:border-bottom-none">
+                    <span class="text-700">{{ player.nickname }}</span>
+                    <span [class]="player.askedThisRound ? 'text-green-500' : 'text-orange-500'">
+                      <i [class]="player.askedThisRound ? 'pi pi-check-circle' : 'pi pi-clock'" class="mr-1"></i>
+                      {{ player.askedThisRound ? 'Ha preguntat' : 'Pendent' }}
+                    </span>
+                  </li>
+                }
+              </ul>
+            </div>
+          }
           <div class="flex justify-content-between">
             <span class="text-700">Dificultat actual:</span>
             <span class="font-bold text-primary">{{ difficulty() | titlecase }}</span>
