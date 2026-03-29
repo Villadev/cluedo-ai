@@ -10,6 +10,7 @@ import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ChatService } from '../../services/chat.service';
 import { TtsService } from '../../services/tts.service';
+import { SpeechToTextService } from '../../services/speech-to-text.service';
 import { GameService } from '../../services/game.service';
 import { SessionService } from '../../services/session.service';
 import { GameStatusIndicatorComponent } from '../../components/game-status-indicator/game-status-indicator.component';
@@ -48,6 +49,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   private readonly sessionService = inject(SessionService);
   private readonly gameStateService = inject(GameStateService);
   protected readonly ttsService = inject(TtsService);
+  protected readonly sttService = inject(SpeechToTextService);
   private readonly subscriptions = new Subscription();
 
   protected readonly chatMessages$ = this.chatService.messages$.pipe(
@@ -82,6 +84,13 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
         } else if (newState === 'PLAYER_INFO' && this.router.url.endsWith('/' + this.gameId)) {
           void this.router.navigate(['/game', this.gameId, 'participants']);
         }
+      }
+    });
+
+    effect(() => {
+      const transcript = this.sttService.transcript();
+      if (transcript && this.sttService.isListening()) {
+        this.questionForm.patchValue({ question: transcript });
       }
     });
   }
@@ -222,6 +231,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.subscriptions.unsubscribe();
     this.websocketService.disconnect();
     this.ttsService.stop();
+    this.sttService.stop();
   }
 
   protected onSendQuestion(): void {
@@ -248,6 +258,14 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
       this.ttsService.stop();
     } else {
       this.ttsService.speak(messageId, text);
+    }
+  }
+
+  protected toggleVoice(): void {
+    if (this.sttService.isListening()) {
+      this.sttService.stop();
+    } else {
+      this.sttService.start();
     }
   }
 
