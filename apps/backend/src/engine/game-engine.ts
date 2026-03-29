@@ -136,7 +136,6 @@ export class GameEngine {
     const game = this.getGameOrThrow(gameId);
     this.validateGameStateTransition(game.state, GameStates.GENERATING);
 
-    // Ensure minimum number of players with NPCs if needed
     const currentPlayersCount = game.players.length;
     if (currentPlayersCount < MIN_SUSPECTS) {
       const npcsNeeded = MIN_SUSPECTS - currentPlayersCount;
@@ -165,10 +164,9 @@ export class GameEngine {
     this.store.save(game);
 
     try {
-      console.log(`[GAME ENGINE] Starting case generation for ${totalExpectedCharacters} players.`);
-      const caseData: FullCase = await this.aiService.generateFullCase(totalExpectedCharacters, game.difficulty);
+      console.log(`[GAME ENGINE] Starting case generation for ${totalExpectedCharacters} players and ${game.maxRounds} rounds.`);
+      const caseData: FullCase = await this.aiService.generateFullCase(totalExpectedCharacters, game.difficulty, game.maxRounds);
 
-      // Pre-assignment integrity check
       if (!caseData.characters || caseData.characters.length < totalExpectedCharacters) {
          throw new Error(`Dades insuficients de personatges generades: s'esperaven ${totalExpectedCharacters}, s'han rebut ${caseData.characters?.length || 0}.`);
       }
@@ -190,7 +188,6 @@ export class GameEngine {
         finalNarrative: caseData.solutionNarrative
       };
 
-      // Assign characters (shuffled for fairness)
       const shuffledCharactersData = this.shuffle(caseData.characters);
       const characters: Character[] = shuffledCharactersData.map((c: any) => ({
         id: generateId(),
@@ -198,10 +195,8 @@ export class GameEngine {
         isAssassin: c.name.trim().toLowerCase() === caseData.assassin.trim().toLowerCase()
       }));
 
-      // Map to game state
       game.characters = characters;
 
-      // Assign to players with guaranteed loop safety
       game.players.forEach((p, i) => {
         const character = characters[i];
         if (!character) {
@@ -215,19 +210,18 @@ export class GameEngine {
         }
       });
 
-      // Verification: double-check NO player is left behind
       const playersWithoutCharacter = game.players.filter(p => !p.characterId);
       if (playersWithoutCharacter.length > 0) {
         const names = playersWithoutCharacter.map(p => p.nickname).join(', ');
         throw new Error(`Error d'assignació crítica: els jugadors següents no tenen personatge: ${names}`);
       }
 
-      // Handle clues
+      // Handle clues dynamically for all rounds provided
       const allClues: Clue[] = [];
-      const rounds: (keyof typeof caseData.clues)[] = ['round1', 'round2', 'round3', 'round4'];
-      rounds.forEach((roundKey, index) => {
-        const roundNum = index + 1;
-        const cluesForRound = (caseData.clues && caseData.clues[roundKey]) || [];
+      Object.entries(caseData.clues).forEach(([roundKey, cluesForRound]) => {
+        const roundNum = parseInt(roundKey.replace('round', ''));
+        if (isNaN(roundNum)) return;
+
         cluesForRound.forEach((c: AIServiceClue) => {
           allClues.push({
             id: generateId(),
@@ -246,7 +240,6 @@ export class GameEngine {
       this.store.save(game);
       this.emitStateChange(gameId, game.state);
 
-      // Reveal first round clues immediately
       await this.revealCluesForRound(game, 1);
 
       return game;
@@ -360,10 +353,8 @@ export class GameEngine {
 
     player.askedThisRound = true;
 
-    // Record Chat History
     const timestamp = Date.now();
 
-    // 1. Question
     const questionEntry: ChatMessage = {
       type: 'player',
       playerId: player.id,
@@ -382,7 +373,6 @@ export class GameEngine {
       description: `${player.nickname} ha preguntat: ${input.question}`
     });
 
-    // 2. Response
     const responseEntry: ChatMessage = {
       type: 'narrator',
       playerName: 'Narrador 🕵️',
@@ -486,7 +476,6 @@ export class GameEngine {
   public recordChatMessage(gameId: string, message: ChatMessage): void {
     const game = this.getGameOrThrow(gameId);
 
-    // Defensive check to avoid duplicate messages in history
     const isDuplicate = game.chatHistory.some(m =>
       m.sequenceId !== undefined &&
       m.sequenceId === message.sequenceId &&
@@ -618,7 +607,6 @@ export class GameEngine {
         });
       } catch (error) {
         console.error("Error generating clue narration:", error);
-        // Fallback to raw clue text if AI fails
         if (this.onSystemEvent) {
           console.log(`[CLUE GENERATED] (fallback)`, clue.text);
           console.log(`[CLUE ENQUEUED]`);
@@ -687,7 +675,6 @@ export class GameEngine {
     if (!game) {
       throw new HttpError(404, 'Partida no trobada');
     }
-    // Compatibility fix for older games
     if (game.maxRounds === undefined) {
       game.maxRounds = 5;
     }
@@ -819,7 +806,6 @@ export class GameEngine {
       this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
     }
 
-    // Reveal clues for the new round
     await this.revealCluesForRound(game, game.roundNumber);
 
     game.players.forEach((p) => {
