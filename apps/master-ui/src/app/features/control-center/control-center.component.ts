@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { GameApiService, GameState, Difficulty } from '../../services/game-api.service';
+import { GameApiService, GameState, Difficulty, PlayerStatus } from '../../services/game-api.service';
 import { WebSocketService } from '../../services/websocket.service';
 import { GameStateService } from '../../services/game-state.service';
 
@@ -50,6 +50,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   readonly difficulty = signal<Difficulty>('hard');
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
+  readonly playerStatus = signal<PlayerStatus[]>([]);
 
   readonly gameState = this.gameStateService.state;
   readonly winnerType = signal<string | null>(null);
@@ -141,6 +142,10 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       this.winnerType.set(payload.winnerType);
     }
 
+    if (payload.playerStatus !== undefined) {
+      this.playerStatus.set(payload.playerStatus);
+    }
+
     // Always refresh for more details if needed
     const id = this.gameId();
     if (id && payload.type === 'STATE_CHANGE') {
@@ -157,6 +162,9 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
           this.maxRounds.set(response.data.maxRounds);
           this.difficulty.set(response.data.difficulty);
           this.winnerType.set(response.data.winnerType);
+          if (response.data.playerStatus) {
+            this.playerStatus.set(response.data.playerStatus);
+          }
         }
       },
       error: () => {
@@ -258,6 +266,26 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.error.set('Error en el servidor en començar a jugar');
+        this.loading.set(false);
+      }
+    });
+  }
+
+  protected forceNextRound(): void {
+    const id = this.gameId();
+    if (!id) return;
+
+    this.loading.set(true);
+    this.error.set(null);
+    this.gameApiService.forceNextRound(id).subscribe({
+      next: (response) => {
+        if (!response.success) {
+          this.error.set(response.error || 'Error en forçar la següent ronda');
+        }
+        this.loading.set(false);
+      },
+      error: (err) => {
+        this.error.set('Error en el servidor en forçar la següent ronda');
         this.loading.set(false);
       }
     });

@@ -120,6 +120,11 @@ export interface DebugData {
   errors: BackendErrorLog[];
 }
 
+export interface PlayerStatus {
+  nickname: string;
+  askedThisRound: boolean;
+}
+
 export interface GameStateInfo {
   state: string;
   playersCount: number;
@@ -128,6 +133,7 @@ export interface GameStateInfo {
   maxRounds: number;
   difficulty: Difficulty;
   winnerType: WinnerType | null;
+  playerStatus?: PlayerStatus[];
 }
 
 export interface UsersResponse {
@@ -244,5 +250,9 @@ export class GameApiService {
 
   deleteUser(gameId: string, userId: string): Observable<ApiResponse<GameResponse>> {
     return this.http.delete<ApiResponse<GameResponse>>(`${this.baseUrl}/game/${gameId}/users/${userId}`);
+  }
+
+  forceNextRound(gameId: string): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.baseUrl}/game/${gameId}/force-next-round`, {});
   }
 }

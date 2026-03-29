@@ -469,6 +469,26 @@ gameRouter.get('/:id', asyncHandler((req: Request, res: Response) => controller.
 
 /**
  * @openapi
+ * /game/{id}/force-next-round:
+ *   post:
+ *     summary: Forçar següent ronda
+ *     description: Avança immediatament a la següent ronda de la partida.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Ronda avançada correctament.
+ */
+gameRouter.post('/:id/force-next-round', asyncHandler((req: Request, res: Response) => controller.forceNextRound(req, res)));
+
+/**
+ * @openapi
  * /game/{id}/end:
  *   post:
  *     summary: Finalitzar partida
