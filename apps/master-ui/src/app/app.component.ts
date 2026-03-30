@@ -64,6 +64,7 @@ export class AppComponent {
       },
       { label: 'Sales d\'espera', icon: 'pi pi-sitemap', routerLink: '/lobbies' },
       { label: 'Moderació', icon: 'pi pi-shield', routerLink: '/moderation' },
+      { label: 'Base de Dades', icon: 'pi pi-database', routerLink: '/database' },
       { label: 'Configuració', icon: 'pi pi-cog', routerLink: '/settings' }
     ];
   });

@@ -268,4 +268,8 @@ export class GameApiService {
   forceNextRound(gameId: string): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(`${this.baseUrl}/game/${gameId}/force-next-round`, {});
   }
+
+  listAllGames(): Observable<ApiResponse<any[]>> {
+    return this.http.get<ApiResponse<any[]>>(`${this.baseUrl}/game`);
+  }
 }

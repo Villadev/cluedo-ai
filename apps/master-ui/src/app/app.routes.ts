@@ -11,6 +11,7 @@ import { SolutionComponent } from './features/solution/solution.component';
 import { DebugPageComponent } from './pages/debug/debug-page.component';
 import { TimelinePageComponent } from './pages/timeline/timeline-page.component';
 import { QuestionsPageComponent } from './pages/questions/questions-page.component';
+import { DatabasePageComponent } from './pages/database/database-page.component';
 import { authGuard } from './guards/auth.guard';
 
 export const appRoutes: Routes = [
@@ -26,5 +27,6 @@ export const appRoutes: Routes = [
   { path: 'solution', component: SolutionComponent, canActivate: [authGuard] },
   { path: 'debug', component: DebugPageComponent, canActivate: [authGuard] },
   { path: 'timeline', component: TimelinePageComponent, canActivate: [authGuard] },
-  { path: 'questions', component: QuestionsPageComponent, canActivate: [authGuard] }
+  { path: 'questions', component: QuestionsPageComponent, canActivate: [authGuard] },
+  { path: 'database', component: DatabasePageComponent }
 ];

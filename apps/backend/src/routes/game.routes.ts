@@ -17,6 +17,7 @@ const controller = new GameController();
  */
 gameRouter.post('/', asyncHandler((req: Request, res: Response) => controller.createGame(req, res)));
 gameRouter.delete('/', asyncHandler((req: Request, res: Response) => controller.deleteAllGames(req, res)));
+gameRouter.get('/', asyncHandler((req: Request, res: Response) => controller.listAllGames(req, res)));
 
 /**
  * @openapi
