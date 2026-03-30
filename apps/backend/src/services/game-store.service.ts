@@ -37,4 +37,26 @@ export class GameStoreService {
     const rows = stmt.all() as { payload: string }[];
     return rows.map(row => JSON.parse(row.payload) as Game);
   }
+
+  public appendChatMessage(gameId: string, message: any): void {
+    const db = this.dbService.getDatabase();
+    // Using json_insert and json_extract to atomically append to chatHistory
+    const stmt = db.prepare(`
+      UPDATE games
+      SET payload = json_set(
+        payload,
+        '$.chatHistory',
+        json_insert(
+          json_extract(payload, '$.chatHistory'),
+          '$[' || json_array_length(json_extract(payload, '$.chatHistory')) || ']',
+          json(?)
+        ),
+        '$.updatedAt',
+        ?
+      )
+      WHERE id = ?
+    `);
+
+    stmt.run(JSON.stringify(message), new Date().toISOString(), gameId);
+  }
 }
