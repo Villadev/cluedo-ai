@@ -166,7 +166,7 @@ export interface ChatHistoryMessage {
 })
 export class GameApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'http://localhost:3000';
+  private readonly baseUrl = 'https://backend-veq8.onrender.com';
 
   // Reactive gameId signal
   readonly gameId = signal<string | null>(sessionStorage.getItem('gameId'));

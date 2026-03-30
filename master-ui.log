@@ -224,3 +224,14 @@ runtime.js          | runtime |  6.91 kB |
 Build at: 2026-03-30T10:05:10.667Z - Hash: f0d29bfe083188a8 - Time: 1593ms
 
 ✔ Compiled successfully.
+[32m✔[39m Browser application bundle generation complete.
+
+Initial chunk files | Names   | Raw size
+main.js             | main    |  4.38 MB |
+runtime.js          | runtime |  6.91 kB |
+
+2 unchanged chunks
+
+Build at: 2026-03-30T11:06:54.927Z - Hash: 508646dc402bcee6 - Time: 13016ms
+
+✔ Compiled successfully.
