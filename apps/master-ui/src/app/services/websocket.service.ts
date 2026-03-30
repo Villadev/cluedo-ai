@@ -9,7 +9,7 @@ export interface SocketGameEvent {
 
 @Injectable({ providedIn: 'root' })
 export class WebSocketService {
-  private readonly baseUrl = 'https://backend-veq8.onrender.com';
+  private readonly baseUrl = 'http://localhost:3000';
   private socket: Socket | null = null;
   private currentGameId: string | null = null;
   private pendingEvents: { event: string; payload: any }[] = [];
