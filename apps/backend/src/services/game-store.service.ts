@@ -10,4 +10,8 @@ export class GameStoreService {
   public getById(gameId: string): Game | undefined {
     return this.games.get(gameId);
   }
+
+  public clear(): void {
+    this.games.clear();
+  }
 }
