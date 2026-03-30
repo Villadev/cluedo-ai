@@ -62,10 +62,10 @@ export class ParticipantsComponent {
   protected fetchParticipants(id: string): void {
     this.loading.set(true);
     this.error.set(null);
-    this.gameApiService.getGame(id).subscribe({
+    this.gameApiService.getParticipants(id).subscribe({
       next: (response) => {
         if (response.success && response.data) {
-          this.participants.set(response.data.players);
+          this.participants.set(response.data);
         } else {
           this.error.set(response.error || 'Error en obtenir els participants');
         }

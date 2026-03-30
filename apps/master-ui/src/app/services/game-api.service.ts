@@ -269,6 +269,10 @@ export class GameApiService {
     return this.http.post<ApiResponse<any>>(`${this.baseUrl}/game/${gameId}/force-next-round`, {});
   }
 
+  getParticipants(gameId: string): Observable<ApiResponse<PublicPlayerView[]>> {
+    return this.http.get<ApiResponse<PublicPlayerView[]>>(`${this.baseUrl}/game/${gameId}/players`);
+  }
+
   listAllGames(): Observable<ApiResponse<any[]>> {
     return this.http.get<ApiResponse<any[]>>(`${this.baseUrl}/game`);
   }

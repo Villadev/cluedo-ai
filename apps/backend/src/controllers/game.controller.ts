@@ -310,10 +310,6 @@ export class GameController {
    *       200:
    *         description: Jugadors retornats.
    */
-  public async getPlayers(req: Request, res: Response): Promise<void> {
-    const gameId = this.getGameId(req);
-    res.status(200).json(successResponse(gameEngine.getParticipants(gameId)));
-  }
 
   /**
    * @openapi
@@ -455,6 +451,11 @@ export class GameController {
    *       200:
    *         description: Usuaris retornats.
    */
+  public async getPlayers(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    res.status(200).json(successResponse(gameEngine.getParticipants(gameId)));
+  }
+
   public async getUsers(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const game = gameEngine.getPublicState(gameId);
