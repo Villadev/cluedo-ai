@@ -48,6 +48,24 @@ export class CaseOrchestratorService {
         globalController.signal
       );
 
+      // Early persistence of solution seed
+      this.persistPartialData(gameId, {
+        murder: {
+          killerPlayerId: '',
+          weapon: fullCase.weapon || '',
+          location: fullCase.location || '',
+          victim: fullCase.victim || '',
+          crimeWindow: fullCase.crimeWindow
+        },
+        solution: {
+          assassin: fullCase.assassin || '',
+          weapon: fullCase.weapon || '',
+          location: fullCase.location || '',
+          victimName: fullCase.victim || '',
+          finalNarrative: ''
+        }
+      });
+
       // 2. CHARACTERS BASIC
       const basicCharacters = await this.executeStep<Partial<AIServiceCharacter>[]>(
         gameId,
@@ -81,8 +99,12 @@ export class CaseOrchestratorService {
       fullCase.introductionNarrative = narratives.introductionNarrative;
       fullCase.solutionNarrative = narratives.solutionNarrative;
 
-      // Immediate persistence of introduction
-      this.persistPartialData(gameId, { introNarrative: narratives.introductionNarrative });
+      // Immediate persistence of introduction and final narrative
+      const currentSolution = this.store.getById(gameId)?.solution;
+      this.persistPartialData(gameId, {
+        introNarrative: narratives.introductionNarrative,
+        solution: currentSolution ? { ...currentSolution, finalNarrative: narratives.solutionNarrative } : null
+      });
 
       // 4. CLUES
       const clues = await this.executeStep<Record<string, AIServiceClue[]>>(
@@ -198,8 +220,9 @@ export class CaseOrchestratorService {
     const game = this.store.getById(gameId);
     if (!game) return;
 
+    // Use already persisted solution/murder seed if available
     game.murder = {
-      killerPlayerId: '',
+      killerPlayerId: game.murder?.killerPlayerId || '',
       weapon: caseData.weapon,
       location: caseData.location,
       victim: caseData.victim,
