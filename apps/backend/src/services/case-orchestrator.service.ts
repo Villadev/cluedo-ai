@@ -9,14 +9,16 @@ import {
   GameStates,
   Character,
   Clue,
-  AIServiceClue
+  AIServiceClue,
+  AIServiceCharacter
 } from '../types/game.types.js';
 import { emitGenerationProgress, emitGameStateUpdate } from '../websocket/socket.js';
 import { generateId, nowIso } from '../utils/id.js';
+import { env } from '../config/env.js';
 
 export class CaseOrchestratorService {
-  private readonly STEP_TIMEOUT_MS = 45000;
-  private readonly GLOBAL_TIMEOUT_MS = 120000;
+  private readonly STEP_TIMEOUT_MS = env.GENERATION_STEP_TIMEOUT_MS;
+  private readonly GLOBAL_TIMEOUT_MS = env.GENERATION_GLOBAL_TIMEOUT_MS;
 
   constructor(
     private aiService: AIService,
@@ -32,24 +34,36 @@ export class CaseOrchestratorService {
     const maxRounds = game.maxRounds;
 
     const globalController = new AbortController();
-    const globalTimeout = setTimeout(() => globalController.abort(), this.GLOBAL_TIMEOUT_MS);
+    const globalTimeout = setTimeout(() => {
+      console.warn(`[ORCHESTRATOR] Global timeout reached for game ${gameId}`);
+      globalController.abort();
+    }, this.GLOBAL_TIMEOUT_MS);
 
     try {
       // 1. SKELETON
       let fullCase = await this.executeStep<Partial<FullCase>>(
         gameId,
         GenerationPhases.SKELETON,
-        () => this.aiService.generateCaseSkeleton(difficulty),
+        (sig) => this.aiService.generateCaseSkeleton(difficulty, sig),
         globalController.signal
       );
 
-      // 2. CHARACTERS
-      const aiCharacters = await this.executeStep<any[]>(
+      // 2. CHARACTERS BASIC
+      const basicCharacters = await this.executeStep<Partial<AIServiceCharacter>[]>(
         gameId,
         GenerationPhases.CHARACTERS,
-        () => this.aiService.generateCharacters(fullCase as FullCase, expectedCount, difficulty),
+        (sig) => this.aiService.generateBasicCharacters(fullCase, expectedCount, difficulty, sig),
         globalController.signal
       );
+
+      // CHARACTERS ENRICH
+      const aiCharacters = await this.executeStep<AIServiceCharacter[]>(
+        gameId,
+        GenerationPhases.CHARACTERS,
+        (sig) => this.aiService.enrichCharacters(fullCase, basicCharacters, difficulty, sig),
+        globalController.signal
+      );
+
       fullCase.characters = aiCharacters;
 
       // Immediate persistence of characters
@@ -61,7 +75,7 @@ export class CaseOrchestratorService {
       const narratives = await this.executeStep<{ introductionNarrative: string, solutionNarrative: string }>(
         gameId,
         GenerationPhases.NARRATIVES,
-        () => this.aiService.generateNarratives(fullCase as FullCase, difficulty),
+        (sig) => this.aiService.generateNarratives(fullCase as FullCase, difficulty, sig),
         globalController.signal
       );
       fullCase.introductionNarrative = narratives.introductionNarrative;
@@ -74,7 +88,7 @@ export class CaseOrchestratorService {
       const clues = await this.executeStep<Record<string, AIServiceClue[]>>(
         gameId,
         GenerationPhases.CLUES,
-        () => this.aiService.generateCluesByRounds(fullCase as FullCase, maxRounds, difficulty),
+        (sig) => this.aiService.generateCluesByRounds(fullCase as FullCase, maxRounds, difficulty, sig),
         globalController.signal
       );
       fullCase.clues = clues;
@@ -85,7 +99,7 @@ export class CaseOrchestratorService {
         const recoveredClues = await this.executeStep<FullCase>(
           gameId,
           GenerationPhases.RECOVERY,
-          () => this.aiService.recoverMissingClues(fullCase as FullCase, missingRounds, difficulty),
+          (sig) => this.aiService.recoverMissingClues(fullCase as FullCase, missingRounds, difficulty, sig),
           globalController.signal
         );
         fullCase = recoveredClues;
@@ -104,45 +118,39 @@ export class CaseOrchestratorService {
   private async executeStep<T>(
     gameId: string,
     phase: GenerationPhase,
-    task: () => Promise<T>,
-    signal: AbortSignal
+    task: (sig: AbortSignal) => Promise<T>,
+    globalSignal: AbortSignal
   ): Promise<T> {
     const stepStartTime = Date.now();
-    let attempt = 1;
-    const maxAttempts = 2;
 
-    while (attempt <= maxAttempts) {
-      if (signal.aborted) throw new Error('Global generation timeout exceeded');
+    this.updateGenerationMetadata(gameId, phase, 1);
+    emitGenerationProgress(gameId, {
+      phase,
+      attempt: 1,
+      elapsedMs: 0
+    });
 
-      this.updateGenerationMetadata(gameId, phase, attempt);
-      emitGenerationProgress(gameId, {
-        phase,
-        attempt,
-        elapsedMs: Date.now() - stepStartTime
-      });
+    const stepController = new AbortController();
+    const stepTimeout = setTimeout(() => {
+        console.warn(`[ORCHESTRATOR] Step ${phase} timeout reached for game ${gameId}`);
+        stepController.abort();
+    }, this.STEP_TIMEOUT_MS);
 
-      const stepController = new AbortController();
-      const stepTimeout = setTimeout(() => stepController.abort(), this.STEP_TIMEOUT_MS);
+    // Link global signal to step controller
+    const abortHandler = () => stepController.abort();
+    globalSignal.addEventListener('abort', abortHandler);
 
-      try {
-        const result = await Promise.race([
-          task(),
-          new Promise<never>((_, reject) => {
-            stepController.signal.addEventListener('abort', () => reject(new Error(`Step ${phase} timeout`)));
-            signal.addEventListener('abort', () => reject(new Error('Global timeout')));
-          })
-        ]);
-
-        clearTimeout(stepTimeout);
-        return result;
-      } catch (err: any) {
-        clearTimeout(stepTimeout);
-        console.warn(`[ORCHESTRATOR] Step ${phase} attempt ${attempt} failed: ${err.message}`);
-        attempt++;
-        if (attempt > maxAttempts) throw err;
-      }
+    try {
+      const result = await task(stepController.signal);
+      return result;
+    } catch (err: any) {
+      if (globalSignal.aborted) throw new Error('Global generation timeout exceeded');
+      if (stepController.signal.aborted) throw new Error(`Step ${phase} timeout`);
+      throw err;
+    } finally {
+      clearTimeout(stepTimeout);
+      globalSignal.removeEventListener('abort', abortHandler);
     }
-    throw new Error(`Step ${phase} failed after max attempts`);
   }
 
   private updateGenerationMetadata(gameId: string, phase: GenerationPhase, attempt: number) {
