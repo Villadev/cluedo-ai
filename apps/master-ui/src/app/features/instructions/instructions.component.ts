@@ -8,7 +8,6 @@ import { MessageModule } from 'primeng/message';
 
 @Component({
   selector: 'app-instructions',
-  standalone: true,
   imports: [
     CommonModule,
     CardModule,

@@ -5,7 +5,6 @@ import { TooltipModule } from 'primeng/tooltip';
 
 @Component({
   selector: 'app-game-status-indicator',
-  standalone: true,
   imports: [CommonModule, TooltipModule],
   templateUrl: './game-status-indicator.component.html',
   styleUrl: './game-status-indicator.component.scss',

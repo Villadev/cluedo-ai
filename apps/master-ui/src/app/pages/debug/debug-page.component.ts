@@ -7,7 +7,6 @@ import { AccordionModule } from 'primeng/accordion';
 
 @Component({
   selector: 'app-debug-page',
-  standalone: true,
   imports: [CommonModule, CardModule, ButtonModule, AccordionModule],
   template: `
     <div class="p-4">

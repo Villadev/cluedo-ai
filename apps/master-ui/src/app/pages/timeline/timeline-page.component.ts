@@ -9,7 +9,6 @@ import { AccordionModule } from 'primeng/accordion';
 
 @Component({
   selector: 'app-timeline-page',
-  standalone: true,
   imports: [CommonModule, CardModule, ButtonModule, TableModule, TagModule, AccordionModule],
   template: `
     <div class="p-4">

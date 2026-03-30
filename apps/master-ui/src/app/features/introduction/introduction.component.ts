@@ -9,7 +9,6 @@ import { ButtonModule } from 'primeng/button';
 
 @Component({
   selector: 'app-introduction',
-  standalone: true,
   imports: [
     CommonModule,
     CardModule,

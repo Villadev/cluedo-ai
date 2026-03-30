@@ -6,7 +6,6 @@ import { GameApiService } from './services/game-api.service';
 
 @Component({
   selector: 'app-root',
-  standalone: true,
   imports: [RouterOutlet, AppLayoutComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'

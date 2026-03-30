@@ -8,7 +8,6 @@ import { GameApiService, Question } from '../../services/game-api.service';
 
 @Component({
   selector: 'app-questions-page',
-  standalone: true,
   imports: [CommonModule, CardModule, TableModule, ProgressSpinnerModule, MessageModule, DatePipe],
   template: `
     <div class="p-4">
