@@ -82,6 +82,25 @@ export class GameController {
     const game = gameEngine.createGame(maxRounds);
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
+  /**
+   * @openapi
+   * /game/{id}/play:
+   *   post:
+   *     summary: Comença l'etapa d'investigació.
+   *     responses:
+   *       200:
+   *         description: Partida en marxa.
+   */
+  public async playGame(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    const game = await gameEngine.playGame(gameId);
+
+    // WS Emit
+    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
+
+    res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
+  }
+
 
   /**
    * @openapi

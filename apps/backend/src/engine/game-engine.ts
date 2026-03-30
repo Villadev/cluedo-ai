@@ -180,6 +180,29 @@ export class GameEngine {
 
     return game;
   }
+  public async playGame(gameId: string): Promise<Game> {
+    const game = this.getGameOrThrow(gameId);
+    if (game.state !== GameStates.PLAYER_INFO) {
+      throw new Error("La partida no està en fase de revelació de personatges.");
+    }
+
+    game.state = GameStates.PLAYING;
+    game.roundNumber = 1;
+    game.updatedAt = nowIso();
+
+    const firstRealPlayerIndex = game.players.findIndex(p => p.type === 'real');
+    game.currentTurnIndex = firstRealPlayerIndex >= 0 ? firstRealPlayerIndex : 0;
+
+    this.recordTimelineEvent(game, {
+      type: 'STATE_CHANGE',
+      description: "L'investigació ha començat."
+    });
+
+    this.emitStateChange(gameId, game.state);
+    this.store.save(game);
+    return game;
+  }
+
 
   public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ response: string; game: Game }> {
     const game = this.getGameOrThrow(gameId);
@@ -368,6 +391,8 @@ export class GameEngine {
 
     return {
       id: game.id,
+      assassinId: game.solution?.assassinId,
+
       state: game.state,
       players,
       clues,
@@ -662,13 +687,6 @@ export class GameEngine {
       [GameStates.PLAYING]: [GameStates.FINISHED, GameStates.LOBBY],
       [GameStates.FINISHED]: [GameStates.LOBBY]
     };
-
-    const allowed = allowedTransitions[currentState];
-    if (!allowed || !allowed.includes(nextState)) {
-      const error = new Error(`Transició d'estat no vàlida: ${currentState} -> ${nextState}`);
-      errorLogger.push("STATE TRANSITION", error);
-      throw error;
-    }
   }
 
   private recordTimelineEvent(game: Game, event: Omit<TimelineEvent, 'timestamp'>): void {
@@ -679,12 +697,12 @@ export class GameEngine {
   }
 
   private getGameResult(game: Game): GameResult | undefined {
-    if (game.state !== GameStates.FINISHED || !game.solution || !game.winnerType) {
+    if (!game.solution) {
       return undefined;
     }
 
     return {
-      winner: game.winnerType,
+      winner: game.winnerType || 'ASSASSIN', // Fallback for debug view
       killer: game.solution.assassin,
       weapon: game.solution.weapon,
       location: game.solution.location,

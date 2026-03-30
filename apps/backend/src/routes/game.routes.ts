@@ -57,6 +57,26 @@ gameRouter.post('/:id/join', asyncHandler((req: Request, res: Response) => contr
  *         description: Partida iniciada.
  */
 gameRouter.post('/:id/start', asyncHandler((req: Request, res: Response) => controller.startGame(req, res)));
+/**
+ * @openapi
+ * /game/{id}/play:
+ *   post:
+ *     summary: Començar a jugar
+ *     description: Canvia l'estat de la partida de PLAYER_INFO a PLAYING.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Partida en marxa.
+ */
+gameRouter.post('/:id/play', asyncHandler((req: Request, res: Response) => controller.playGame(req, res)));
+
 
 /**
  * @openapi
