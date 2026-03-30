@@ -103,17 +103,32 @@
                </div>
             }
 
-            @if (gameState() !== 'NONE') {
+            <div class="flex flex-wrap gap-2 w-full">
+              @if (gameState() !== 'NONE') {
+                <button
+                  pButton
+                  label="Eliminar Partida"
+                  icon="pi pi-trash"
+                  severity="danger"
+                  (click)="cancelGame()"
+                  [loading]="loading()"
+                  [disabled]="loading() || gameState() === 'GENERATING'"
+                ></button>
+              }
+
               <button
                 pButton
-                label="Eliminar Partida"
-                icon="pi pi-trash"
+                label="Eliminar partida en curs"
+                icon="pi pi-refresh"
                 severity="danger"
-                (click)="cancelGame()"
+                [outlined]="true"
+                (click)="confirmForceDelete()"
                 [loading]="loading()"
-                [disabled]="loading() || gameState() === 'GENERATING'"
+                [disabled]="loading()"
+                pTooltip="Elimina totes les partides actives al servidor i reseta l'estat local. Útil si s'ha perdut la sessió del navegador."
+                tooltipPosition="top"
               ></button>
-            }
+            </div>
           </div>
         </div>
       </p-card>
@@ -217,4 +232,6 @@
       <app-chat-view [gameId]="gameId()!"></app-chat-view>
     </div>
   }
+
+  <p-confirmDialog></p-confirmDialog>
 </div>

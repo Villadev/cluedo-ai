@@ -16,6 +16,7 @@ const controller = new GameController();
  *         description: Partida creada.
  */
 gameRouter.post('/', asyncHandler((req: Request, res: Response) => controller.createGame(req, res)));
+gameRouter.delete('/', asyncHandler((req: Request, res: Response) => controller.deleteAllGames(req, res)));
 
 /**
  * @openapi

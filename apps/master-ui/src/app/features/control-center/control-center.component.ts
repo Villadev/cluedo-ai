@@ -14,6 +14,8 @@ import { MessageModule } from 'primeng/message';
 import { TooltipModule } from "primeng/tooltip";
 import { MessagesModule } from 'primeng/messages';
 import { SelectButtonModule } from 'primeng/selectbutton';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ConfirmationService } from 'primeng/api';
 
 interface GenerationProgress {
   phase: string;
@@ -35,38 +37,40 @@ interface GenerationProgress {
     MessageModule,
     TooltipModule,
     MessagesModule,
-    SelectButtonModule
+    SelectButtonModule,
+    ConfirmDialogModule
   ],
+  providers: [ConfirmationService],
   templateUrl: './control-center.component.html',
-  styleUrls: [],
+  styleUrls: ['./control-center.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ControlCenterComponent implements OnInit, OnDestroy {
-  protected readonly gameApiService = inject(GameApiService);
+  private readonly gameApiService = inject(GameApiService);
   private readonly websocketService = inject(WebSocketService);
   private readonly gameStateService = inject(GameStateService);
   private readonly router = inject(Router);
-  private readonly subscriptions = new Subscription();
+  private readonly confirmationService = inject(ConfirmationService);
 
-  readonly gameId = this.gameApiService.gameId;
-  readonly playerName = signal<string>('');
-  readonly maxRounds = signal<number>(5);
-  readonly currentRound = signal<number>(1);
-  readonly difficulty = signal<Difficulty>('hard');
-  readonly loading = signal<boolean>(false);
-  readonly error = signal<string | null>(null);
-  readonly playerStatus = signal<PlayerStatus[]>([]);
+  private subscriptions = new Subscription();
 
   readonly gameState = this.gameStateService.state;
-  readonly winnerType = signal<string | null>(null);
-  readonly solutionStatus = signal<string>('Solution pending...');
-  readonly showCopyFeedback = signal<boolean>(false);
+  readonly gameId = this.gameApiService.gameId;
 
-  // Generation specific signals
-  readonly generationProgress = signal<GenerationProgress | null>(null);
-  readonly generationError = signal<string | null>(null);
+  protected readonly loading = signal<boolean>(false);
+  protected readonly error = signal<string | null>(null);
+  protected readonly playerName = signal<string>('');
+  protected readonly currentRound = signal<number>(0);
+  protected readonly maxRounds = signal<number>(5);
+  protected readonly difficulty = signal<Difficulty>('hard');
+  protected readonly winnerType = signal<string | null>(null);
+  protected readonly playerStatus = signal<PlayerStatus[]>([]);
+  protected readonly generationProgress = signal<GenerationProgress | null>(null);
+  protected readonly generationError = signal<string | null>(null);
+  protected readonly solutionStatus = signal<string>('Solution pending...');
+  protected readonly showCopyFeedback = signal<boolean>(false);
 
-  readonly difficultyOptions = [
+  protected readonly difficultyOptions = [
     { label: 'Fàcil', value: 'easy' },
     { label: 'Mitjà', value: 'medium' },
     { label: 'Difícil', value: 'hard' },
@@ -214,7 +218,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
 
   private fetchInitialGameData(id: string): void {
     this.gameApiService.getGameState(id).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         if (response.success && response.data) {
           this.gameStateService.setState(response.data.state as GameState);
           this.currentRound.set(response.data.roundNumber);
@@ -233,7 +237,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     });
 
     this.gameApiService.getSolution(id).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         if (response.success && response.data) {
            if (response.data.message) {
              this.solutionStatus.set('Solution pending...');
@@ -252,7 +256,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.error.set(null);
     this.gameApiService.createGame(this.maxRounds()).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         if (!response.success) {
           this.error.set(response.error || 'Error al crear la partida');
         } else {
@@ -260,7 +264,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
         }
         this.loading.set(false);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.error.set('Error en el servidor al crear la partida');
         this.loading.set(false);
       }
@@ -275,7 +279,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.error.set(null);
     this.gameApiService.joinGame(id, name).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         if (response.success) {
           this.playerName.set('');
         } else {
@@ -283,7 +287,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
         }
         this.loading.set(false);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.error.set('Error en el servidor en afegir el jugador');
         this.loading.set(false);
       }
@@ -298,13 +302,13 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     this.error.set(null);
     this.generationError.set(null); // Clear UI error immediately on click
     this.gameApiService.startGame(id).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         if (!response.success) {
           this.error.set(response.error || 'Error en iniciar la partida');
         }
         this.loading.set(false);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.error.set('Error en el servidor en iniciar la partida');
         this.loading.set(false);
       }
@@ -318,13 +322,13 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.error.set(null);
     this.gameApiService.startPlaying(id).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         if (!response.success) {
           this.error.set(response.error || 'Error en començar a jugar');
         }
         this.loading.set(false);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.error.set('Error en el servidor en començar a jugar');
         this.loading.set(false);
       }
@@ -338,13 +342,13 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.error.set(null);
     this.gameApiService.forceNextRound(id).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         if (!response.success) {
           this.error.set(response.error || 'Error en forçar la següent ronda');
         }
         this.loading.set(false);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.error.set('Error en el servidor en forçar la següent ronda');
         this.loading.set(false);
       }
@@ -362,7 +366,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     this.loading.set(true);
     this.error.set(null);
     this.gameApiService.deleteGame(id).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         if (response.success) {
           this.router.navigate(['/control-center']);
         } else {
@@ -370,10 +374,43 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
         }
         this.loading.set(false);
       },
-      error: (err) => {
+      error: (err: any) => {
         this.error.set('Error en el servidor en cancel·lar la partida. S\'ha resetat localment.');
         this.gameApiService.setGameId(null);
         this.router.navigate(['/control-center']);
+        this.loading.set(false);
+      }
+    });
+  }
+
+  protected confirmForceDelete(): void {
+    this.confirmationService.confirm({
+      message: 'Estàs segur que vols eliminar la partida en curs? Aquesta acció no es pot desfer i afectarà a tots els jugadors.',
+      header: 'Confirmació d\u0027eliminació forçada',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Confirmar',
+      rejectLabel: 'Cancel·lar',
+      accept: () => {
+        this.forceDeleteAll();
+      }
+    });
+  }
+
+  private forceDeleteAll(): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.gameApiService.deleteAllGames().subscribe({
+      next: (response: any) => {
+        if (response.success) {
+          this.gameStateService.setState('NONE');
+          this.router.navigate(['/control-center']);
+        } else {
+          this.error.set(response.error || 'Error en forçar l\u0027eliminació de la partida');
+        }
+        this.loading.set(false);
+      },
+      error: (err: any) => {
+        this.error.set('Error en el servidor en forçar l\u0027eliminació de la partida');
         this.loading.set(false);
       }
     });

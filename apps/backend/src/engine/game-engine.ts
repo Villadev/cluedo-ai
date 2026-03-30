@@ -437,6 +437,10 @@ export class GameEngine {
     });
     this.store.save(game);
   }
+  public deleteAllGames(): void {
+    this.store.clear();
+  }
+
 
   public resetGame(gameId: string): Game {
     const game = this.getGameOrThrow(gameId);

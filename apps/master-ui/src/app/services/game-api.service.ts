@@ -204,6 +204,16 @@ export class GameApiService {
     return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/play`, {});
   }
 
+  deleteAllGames(): Observable<ApiResponse<any>> {
+    return this.http.delete<ApiResponse<any>>(`${this.baseUrl}/game`).pipe(
+      tap(response => {
+        if (response.success) {
+          this.setGameId(null);
+        }
+      })
+    );
+  }
+
   deleteGame(gameId: string): Observable<ApiResponse<any>> {
     return this.http.delete<ApiResponse<any>>(`${this.baseUrl}/game/${gameId}`).pipe(
       tap(response => {

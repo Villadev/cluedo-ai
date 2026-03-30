@@ -63,6 +63,20 @@ export class GameController {
    *       200:
    *         description: Partida creada.
    */
+  /**
+   * @openapi
+   * /game:
+   *   delete:
+   *     summary: Elimina totes les partides.
+   *     responses:
+   *       200:
+   *         description: Totes les partides han estat eliminades.
+   */
+  public async deleteAllGames(req: Request, res: Response): Promise<void> {
+    gameEngine.deleteAllGames();
+    res.status(200).json(successResponse({ message: "Totes les partides han estat eliminades" }));
+  }
+
   public async createGame(req: Request, res: Response): Promise<void> {
     const { maxRounds } = createSchema.parse(req.body || {});
     const game = gameEngine.createGame(maxRounds);
