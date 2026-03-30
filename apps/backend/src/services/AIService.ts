@@ -4,6 +4,7 @@ import { openaiClient } from '../config/openai.js';
 import { errorLogger } from '../utils/error-logger.js';
 import { FullCase, Difficulty, AIServiceCharacter, AIServiceClue } from '../types/game.types.js';
 import { WEAPONS, LOCATIONS } from '../config/game-options.js';
+import { env } from '../config/env.js';
 
 const resolveContextPath = (fileName: string): string => {
   const candidatePaths = [
@@ -44,6 +45,7 @@ interface OpenAICallInput {
   clueDescription?: string;
   privateContext?: string;
   json?: boolean;
+  signal?: AbortSignal;
 }
 
 export class AIService {
@@ -66,7 +68,7 @@ export class AIService {
     }
   }
 
-  public async generateCaseSkeleton(difficulty: Difficulty): Promise<Partial<FullCase>> {
+  public async generateCaseSkeleton(difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<FullCase>> {
     const instruction = `Crea l'esquelet d'un cas d'assassinat en català.
 Retorna un JSON amb:
 - victim: Nom de la víctima.
@@ -81,55 +83,77 @@ Regles:
 
     return this.callOpenAIWithRetry<Partial<FullCase>>(instruction, "skeleton", (data) => {
       return !!(data.victim && data.weapon && data.location && data.assassin && data.crimeWindow);
-    });
+    }, 3, signal);
   }
 
-  public async generateCharacters(caseBible: FullCase, expectedCount: number, difficulty: Difficulty): Promise<AIServiceCharacter[]> {
-    const instruction = `Crea exactament ${expectedCount} personatges sospitosos per a un cas d'assassinat en català.
-L'assassí ha de ser ${caseBible.assassin}. La víctima és ${caseBible.victim}. El crim va passar entre les ${caseBible.crimeWindow.start} i les ${caseBible.crimeWindow.end} a ${caseBible.location} amb ${caseBible.weapon}.
+  public async generateBasicCharacters(caseBible: Partial<FullCase>, expectedCount: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+    const instruction = `Crea exactament ${expectedCount} personatges per a un Cluedo en català.
+Assassí: ${caseBible.assassin}. Víctima: ${caseBible.victim}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
 
-Cada personatge ha de tenir:
-- nom (un d'ells ha de ser ${caseBible.assassin})
-- profession, description, personality
-- possibleMotive (motiu per voler mort a ${caseBible.victim})
-- secret, secretKnowledge (pista sobre un altre personatge o el crim)
-- coartada: { location, timeStart, timeEnd, witness, credibility ("alta", "mitjana", "baixa") }
-- rumor, relationships, tensions
+Retorna un JSON amb "characters": [
+  { "name": "...", "profession": "...", "possibleMotive": "..." }
+] (exactament ${expectedCount} elements, un d'ells ha de ser ${caseBible.assassin})`;
 
-Regles coartada:
-- Cap coartada cobreix tota la finestra del crim.
-- Almenys el 60% referencien un altre sospitós com a testimoni.
-- Almenys una contradicció entre coartades.
-
-Retorna un JSON amb una llista "characters".`;
-
-    const result = await this.callOpenAIWithRetry<{ characters: AIServiceCharacter[] }>(instruction, "characters", (data) => {
-      if (!Array.isArray(data.characters) || data.characters.length < expectedCount) return false;
-
-      return data.characters.every(c => {
-        const hasBasicInfo = !!(c.name && c.profession && c.description && c.personality && c.possibleMotive && c.secret && c.secretKnowledge && c.rumor && c.relationships && c.tensions);
-        const hasCoartada = !!(c.coartada && c.coartada.location && c.coartada.timeStart && c.coartada.timeEnd && c.coartada.witness && c.coartada.credibility);
-
-        // Explicitly check against "Unknown" or placeholders
-        const isPlaceHolder = (val: string) => !val || val.toLowerCase() === 'unknown' || val.trim().length < 3;
-
-        if (!hasBasicInfo || !hasCoartada) return false;
-
-        const fieldsToCheck = [
-            c.name, c.profession, c.description, c.personality,
-            c.possibleMotive, c.secret, c.secretKnowledge,
-            c.rumor, c.relationships, c.tensions,
-            c.coartada.location, c.coartada.witness
-        ];
-
-        return fieldsToCheck.every(f => !isPlaceHolder(f));
-      });
-    });
-
+    const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(instruction, "characters_basic", (data) => {
+      return Array.isArray(data.characters) && data.characters.length === expectedCount && data.characters.some(c => c.name === caseBible.assassin);
+    }, 3, signal);
     return result.characters;
   }
 
-  public async generateNarratives(caseBible: FullCase, difficulty: Difficulty): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
+  public async enrichCharacters(caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
+    const instruction = `Enriqueix aquests personatges per al Cluedo en català.
+Víctima: ${caseBible.victim}. Crim: de ${caseBible.crimeWindow?.start} a ${caseBible.crimeWindow?.end} a ${caseBible.location} amb ${caseBible.weapon}.
+${diffContext}
+
+Personatges a enriquir: ${JSON.stringify(characters.map(c => c.name))}
+
+Per a cada personatge, genera:
+- description, personality
+- secret (fet inconfessable), secretKnowledge (pista sobre un altre)
+- coartada: { location, timeStart, timeEnd, witness, credibility ("alta"|"mitjana"|"baixa") }
+- rumor, relationships, tensions
+
+Retorna JSON amb "characters": [ { ...full_details } ]`;
+
+    const result = await this.callOpenAIWithRetry<{ characters: AIServiceCharacter[] }>(instruction, "characters_enrich", (data) => {
+      return Array.isArray(data.characters) && data.characters.length === characters.length;
+    }, 3, signal);
+
+    return this.normalizeCharacters(result.characters, characters, caseBible);
+  }
+
+  private normalizeCharacters(aiCharacters: AIServiceCharacter[], basicCharacters: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
+      return basicCharacters.map((basic, i) => {
+          const enriched = aiCharacters.find(c => c.name === basic.name) || aiCharacters[i] || ({} as AIServiceCharacter);
+          return {
+              name: basic.name || enriched.name || 'Desconegut',
+              profession: basic.profession || enriched.profession || 'Sense professió',
+              description: enriched.description || 'Sense descripció',
+              personality: enriched.personality || 'Sense personalitat',
+              possibleMotive: basic.possibleMotive || enriched.possibleMotive || 'Sense motiu',
+              secret: enriched.secret || 'Sense secret',
+              secretKnowledge: enriched.secretKnowledge || 'Sense coneixement secret',
+              coartada: enriched.coartada || {
+                  location: 'Desconeguda',
+                  timeStart: caseBible.crimeWindow?.start || '00:00',
+                  timeEnd: caseBible.crimeWindow?.end || '00:00',
+                  witness: 'Ningú',
+                  credibility: 'baixa'
+              },
+              rumor: enriched.rumor || 'Cap rumor',
+              relationships: enriched.relationships || 'Cap relació',
+              tensions: enriched.tensions || 'Cap tensió'
+          } as AIServiceCharacter;
+      });
+  }
+
+  public async generateCharacters(caseBible: FullCase, expectedCount: number, difficulty: Difficulty): Promise<AIServiceCharacter[]> {
+    const basics = await this.generateBasicCharacters(caseBible, expectedCount, difficulty);
+    return this.enrichCharacters(caseBible, basics, difficulty);
+  }
+
+  public async generateNarratives(caseBible: FullCase, difficulty: Difficulty, signal?: AbortSignal): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
     const instruction = `Genera dues narratives per al cas d'assassinat en català.
 Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
 
@@ -148,10 +172,10 @@ Retorna un JSON amb "introductionNarrative" i "solutionNarrative".`;
     return this.callOpenAIWithRetry<{ introductionNarrative: string, solutionNarrative: string }>(instruction, "narratives", (data) => {
       const validIntro = this.isValidIntro(data.introductionNarrative, caseBible.weapon, caseBible.location);
       return !!(data.introductionNarrative && data.solutionNarrative && validIntro);
-    });
+    }, 3, signal);
   }
 
-  public async generateCluesByRounds(caseBible: FullCase, maxRounds: number, difficulty: Difficulty): Promise<Record<string, AIServiceClue[]>> {
+  public async generateCluesByRounds(caseBible: FullCase, maxRounds: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Record<string, AIServiceClue[]>> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Genera pistes progressives per a ${maxRounds} rondes en català.
 ${diffContext}
@@ -167,7 +191,7 @@ Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
     const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "clues", (data) => {
       const missing = this.validateClueCoverage({ clues: data.clues } as FullCase, maxRounds);
       return missing.length === 0;
-    });
+    }, 3, signal);
 
     return result.clues;
   }
@@ -184,7 +208,7 @@ Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
     return missing;
   }
 
-  public async recoverMissingClues(caseData: FullCase, missingRounds: string[], difficulty: Difficulty): Promise<FullCase> {
+  public async recoverMissingClues(caseData: FullCase, missingRounds: string[], difficulty: Difficulty, signal?: AbortSignal): Promise<FullCase> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const caseSummary = `Víctima: ${caseData.victim}, Arma: ${caseData.weapon}, Lloc: ${caseData.location}, Assassí: ${caseData.assassin}.`;
 
@@ -197,7 +221,7 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
     try {
       const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "recovery", (data) => {
         return !!data.clues;
-      }, 2);
+      }, 2, signal);
 
       for (const round of missingRounds) {
         if (result.clues[round]) {
@@ -211,10 +235,12 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
     return caseData;
   }
 
-  private async callOpenAIWithRetry<T>(instruction: string, stepName: string, validator: (data: T) => boolean, maxRetries: number = 3): Promise<T> {
+  private async callOpenAIWithRetry<T>(instruction: string, stepName: string, validator: (data: T) => boolean, maxRetries: number = 3, signal?: AbortSignal): Promise<T> {
     let attempts = 0;
     while (attempts < maxRetries) {
       attempts++;
+      if (signal?.aborted) throw new Error(`Step ${stepName} aborted before attempt ${attempts}`);
+
       try {
         console.log(`[OPENAI] Step: ${stepName} (Attempt ${attempts}/${maxRetries})`);
         const completion = await openaiClient.chat.completions.create({
@@ -224,7 +250,7 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
             { role: 'user', content: instruction + "\n\nRespon exclusivament en JSON." }
           ],
           response_format: { type: "json_object" }
-        });
+        }, { signal });
 
         const responseText = completion.choices[0]?.message.content;
         if (!responseText) throw new Error("Empty response");
@@ -235,8 +261,13 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
         }
         console.warn(`[OPENAI] Validation failed for step: ${stepName}`);
       } catch (error: any) {
+        if (error.name === 'AbortError') {
+           console.warn(`[OPENAI] Step ${stepName} aborted during attempt ${attempts}`);
+           throw error;
+        }
         console.error(`[OPENAI ERROR] Step: ${stepName}, Attempt: ${attempts}`, error.message);
         if (attempts >= maxRetries) throw error;
+        await new Promise(res => setTimeout(res, 1000 * attempts));
       }
     }
     throw new Error(`Failed step ${stepName} after ${maxRetries} attempts`);
@@ -334,7 +365,7 @@ Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el 
           { role: 'user', content: userContent }
         ],
         response_format: payload.json ? { type: "json_object" } : undefined
-      });
+      }, { signal: payload.signal });
 
       const outputText = completion.choices[0]?.message.content?.trim();
       if (!outputText) {
