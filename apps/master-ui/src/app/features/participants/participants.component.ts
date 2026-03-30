@@ -12,7 +12,6 @@ import { ConfirmationService } from 'primeng/api';
 
 @Component({
   selector: 'app-participants',
-  standalone: true,
   imports: [
     CommonModule,
     ButtonModule,

@@ -488,4 +488,8 @@ export class GameController {
     return paramsSchema.parse(req.params).id;
   }
 
+  public async listAllGames(req: Request, res: Response): Promise<void> {
+    const games = gameEngine.listAllGames();
+    res.status(200).json(successResponse(games));
+  }
 }

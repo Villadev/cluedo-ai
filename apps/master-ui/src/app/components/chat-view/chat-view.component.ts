@@ -22,7 +22,6 @@ export interface ChatMessage {
 
 @Component({
   selector: 'app-chat-view',
-  standalone: true,
   imports: [CommonModule, DatePipe, CardModule, ScrollPanelModule],
   templateUrl: './chat-view.component.html',
   styleUrls: ['./chat-view.component.scss']

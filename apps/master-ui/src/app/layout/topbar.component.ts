@@ -6,7 +6,6 @@ import { GameApiService } from '../services/game-api.service';
 
 @Component({
   selector: 'ui-topbar',
-  standalone: true,
   imports: [CommonModule, ButtonModule, GameStatusIndicatorComponent],
   templateUrl: './topbar.component.html',
   styleUrl: './topbar.component.scss'

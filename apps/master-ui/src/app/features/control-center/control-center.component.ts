@@ -26,7 +26,6 @@ interface GenerationProgress {
 
 @Component({
   selector: 'app-control-center',
-  standalone: true,
   imports: [
     ChatViewComponent,
     CommonModule,

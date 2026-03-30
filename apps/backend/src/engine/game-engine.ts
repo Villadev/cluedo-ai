@@ -811,4 +811,5 @@ export class GameEngine {
         isTrue: c.isTrue
       }));
   }
+  public listAllGames(): Game[] { return this.store.list(); }
 }

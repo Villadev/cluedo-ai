@@ -8,7 +8,6 @@ import { MenuService } from './menu.service';
 
 @Component({
   selector: 'ui-app-layout',
-  standalone: true,
   imports: [CommonModule, SidebarModule, TopbarComponent, SidebarComponent],
   templateUrl: './app-layout.component.html',
   styleUrl: './app-layout.component.scss'

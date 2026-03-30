@@ -6,7 +6,6 @@ import { RippleModule } from 'primeng/ripple';
 
 @Component({
   selector: 'ui-sidebar',
-  standalone: true,
   imports: [DividerModule, RouterLink, RouterLinkActive, RippleModule],
   templateUrl: './sidebar.component.html',
   styleUrl: './sidebar.component.scss'
