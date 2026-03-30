@@ -171,17 +171,17 @@ export class CaseOrchestratorService {
   private mapToCharacters(aiCharacters: any[], assassinName: string): Character[] {
     return aiCharacters.map(c => ({
       id: generateId(),
-      name: c.name || 'Unknown',
-      profession: c.profession || 'Unknown',
-      description: c.description || 'Unknown',
-      personality: c.personality || 'Unknown',
-      possibleMotive: c.possibleMotive || 'Unknown',
-      secret: c.secret || 'Unknown',
-      secretKnowledge: c.secretKnowledge || 'Unknown',
-      coartada: c.coartada || { location: 'Unknown', timeStart: '00:00', timeEnd: '00:00', witness: 'Unknown', credibility: 'baixa' },
-      rumor: c.rumor || 'Unknown',
-      relationships: c.relationships || 'Unknown',
-      tensions: c.tensions || 'Unknown',
+      name: c.name || 'Sense nom',
+      profession: c.profession || 'Sense professió',
+      description: c.description || 'Sense descripció',
+      personality: c.personality || 'Sense personalitat',
+      possibleMotive: c.possibleMotive || 'Sense motiu',
+      secret: c.secret || 'Sense secret',
+      secretKnowledge: c.secretKnowledge || 'Sense coneixement secret',
+      coartada: c.coartada || { location: 'Desconeguda', timeStart: '00:00', timeEnd: '00:00', witness: 'Cap', credibility: 'baixa' },
+      rumor: c.rumor || 'Cap rumor',
+      relationships: c.relationships || 'Cap relació',
+      tensions: c.tensions || 'Cap tensió',
       isAssassin: c.name?.trim().toLowerCase() === assassinName?.trim().toLowerCase()
     }));
   }

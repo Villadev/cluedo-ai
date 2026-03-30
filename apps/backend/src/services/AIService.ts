@@ -90,7 +90,7 @@ L'assassí ha de ser ${caseBible.assassin}. La víctima és ${caseBible.victim}.
 
 Cada personatge ha de tenir:
 - nom (un d'ells ha de ser ${caseBible.assassin})
-- professió, descripció, personalitat
+- profession, description, personality
 - possibleMotive (motiu per voler mort a ${caseBible.victim})
 - secret, secretKnowledge (pista sobre un altre personatge o el crim)
 - coartada: { location, timeStart, timeEnd, witness, credibility ("alta", "mitjana", "baixa") }
@@ -104,7 +104,26 @@ Regles coartada:
 Retorna un JSON amb una llista "characters".`;
 
     const result = await this.callOpenAIWithRetry<{ characters: AIServiceCharacter[] }>(instruction, "characters", (data) => {
-      return Array.isArray(data.characters) && data.characters.length >= expectedCount;
+      if (!Array.isArray(data.characters) || data.characters.length < expectedCount) return false;
+
+      return data.characters.every(c => {
+        const hasBasicInfo = !!(c.name && c.profession && c.description && c.personality && c.possibleMotive && c.secret && c.secretKnowledge && c.rumor && c.relationships && c.tensions);
+        const hasCoartada = !!(c.coartada && c.coartada.location && c.coartada.timeStart && c.coartada.timeEnd && c.coartada.witness && c.coartada.credibility);
+
+        // Explicitly check against "Unknown" or placeholders
+        const isPlaceHolder = (val: string) => !val || val.toLowerCase() === 'unknown' || val.trim().length < 3;
+
+        if (!hasBasicInfo || !hasCoartada) return false;
+
+        const fieldsToCheck = [
+            c.name, c.profession, c.description, c.personality,
+            c.possibleMotive, c.secret, c.secretKnowledge,
+            c.rumor, c.relationships, c.tensions,
+            c.coartada.location, c.coartada.witness
+        ];
+
+        return fieldsToCheck.every(f => !isPlaceHolder(f));
+      });
     });
 
     return result.characters;
@@ -259,7 +278,7 @@ ${diffContext}
 Regles:
 - No utilitzis metàfores ni descripcions poètiques.
 - Dona una pista subtil o un fet concret si és possible.
-- Sigues enigmàtic però concís.
+- Sigues enigmàtic peró concís.
 - Respon siempre en català.
 - Retorna la resposta en JSON.
 Estructura JSON:

@@ -28,6 +28,24 @@
     </div>
   }
 
+  @if (!solution() && gameState()?.generationPhase && gameState()?.generationPhase !== 'DONE' && gameState()?.generationPhase !== 'IDLE') {
+    <p-card header="GENERACIÓ EN CURS" styleClass="mb-4 shadow-2">
+      <div class="flex flex-column gap-3">
+        <div class="flex justify-content-between align-items-center">
+          <span class="font-bold">Fase: {{ gameState()?.generationPhase }}</span>
+          <span>Intent: {{ gameState()?.generationAttempts }}</span>
+        </div>
+        <p-progressBar [value]="getProgressValue()" [showValue]="false"></p-progressBar>
+        <p class="text-sm text-gray-500 italic">
+          S'està generant el cas per la IA. Això pot trigar un parell de minuts.
+        </p>
+        @if (gameState()?.generationError) {
+            <p-message severity="warn" [text]="gameState()?.generationError || ''"></p-message>
+        }
+      </div>
+    </p-card>
+  }
+
   @if (solution()) {
     <p-card header="EL MISTERI RESOLT" styleClass="p-fluid shadow-4">
       <div class="flex flex-column gap-4">
@@ -77,7 +95,7 @@
     </p-card>
   }
 
-  @if (loading()) {
+  @if (loading() && !solution()) {
     <div class="flex justify-content-center p-4">
       <i class="pi pi-spin pi-spinner" style="font-size: 2rem"></i>
     </div>

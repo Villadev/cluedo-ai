@@ -11,13 +11,7 @@
     <div class="flex flex-column gap-4">
       <p-card header="Com jugar" styleClass="shadow-2">
         <div class="white-space-pre-wrap line-height-3 text-lg">
-          Cada jugador rep un personatge amb informació secreta.
-          Durant la partida es revelaran pistes en diverses rondes.
-          Parla amb els altres jugadors per compartir informació i descobrir contradiccions.
-          Analitza les coartades, els rumors i les proves.
-          Quan creguis saber la veritat, pots fer una acusació.
-          Si l'acusació és correcta, resoldràs el cas.
-          Si t'equivoques, no podràs tornar a acusar durant dues rondes.
+          {{ instructions() }}
         </div>
       </p-card>
 
@@ -40,6 +34,10 @@
           </ul>
         </div>
       </p-card>
+    </div>
+  } @else if (!loading() && !error()) {
+    <div class="text-center p-4">
+      <p class="text-gray-500">No hi ha instruccions disponibles.</p>
     </div>
   }
 
