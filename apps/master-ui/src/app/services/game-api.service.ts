@@ -134,6 +134,9 @@ export interface GameStateInfo {
   difficulty: Difficulty;
   winnerType: WinnerType | null;
   playerStatus?: PlayerStatus[];
+  generationPhase?: string;
+  generationError?: string;
+  generationAttempts?: number;
 }
 
 export interface UsersResponse {
@@ -163,7 +166,7 @@ export interface ChatHistoryMessage {
 })
 export class GameApiService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = 'https://backend-veq8.onrender.com';
+  private readonly baseUrl = 'http://localhost:3000';
 
   // Reactive gameId signal
   readonly gameId = signal<string | null>(sessionStorage.getItem('gameId'));

@@ -164,7 +164,7 @@ export class GameEngine {
     game.state = GameStates.GENERATING;
     game.generationPhase = GenerationPhases.SKELETON;
     game.generationStepStartedAt = Date.now();
-    game.generationAttempts = 1;
+    game.generationAttempts = 1; game.generationError = undefined;
     this.emitStateChange(gameId, game.state);
     this.store.save(game);
 

@@ -1,14 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, OnDestroy, signal, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, OnDestroy, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
 import { Subscription } from 'rxjs';
-import { GameApiService, GameState, Difficulty, PlayerStatus } from '../../services/game-api.service';
+import { Difficulty, GameApiService, GameState, PlayerStatus } from '../../services/game-api.service';
 import { WebSocketService } from '../../services/websocket.service';
 import { GameStateService } from '../../services/game-state.service';
-
-// PrimeNG imports
-import { ButtonModule } from 'primeng/button';
 import { ChatViewComponent } from "../../components/chat-view/chat-view.component";
 import { InputTextModule } from 'primeng/inputtext';
 import { CardModule } from 'primeng/card';
@@ -16,6 +14,13 @@ import { MessageModule } from 'primeng/message';
 import { TooltipModule } from "primeng/tooltip";
 import { MessagesModule } from 'primeng/messages';
 import { SelectButtonModule } from 'primeng/selectbutton';
+
+interface GenerationProgress {
+  phase: string;
+  attempt: number;
+  elapsedMs: number;
+  error?: string;
+}
 
 @Component({
   selector: 'app-control-center',
@@ -57,12 +62,33 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   readonly solutionStatus = signal<string>('Solution pending...');
   readonly showCopyFeedback = signal<boolean>(false);
 
+  // Generation specific signals
+  readonly generationProgress = signal<GenerationProgress | null>(null);
+  readonly generationError = signal<string | null>(null);
+
   readonly difficultyOptions = [
     { label: 'Fàcil', value: 'easy' },
     { label: 'Mitjà', value: 'medium' },
     { label: 'Difícil', value: 'hard' },
     { label: 'Extrem', value: 'extreme' }
   ];
+
+  private readonly phaseLabels: Record<string, string> = {
+    'SKELETON': 'Creant esquelet del cas',
+    'CHARACTERS': 'Generant personatges',
+    'NARRATIVES': 'Escrivint narratives',
+    'CLUES': 'Preparant pistes',
+    'RECOVERY': 'Finalitzant detalls',
+    'DONE': 'Cas generat correctament',
+    'FAILED': 'Error en la generació'
+  };
+
+  protected readonly progressLabel = computed(() => {
+    const p = this.generationProgress();
+    if (!p) return 'Generant Cas...';
+    const label = this.phaseLabels[p.phase] || p.phase;
+    return `${label} (Intent ${p.attempt})`;
+  });
 
   protected copyGameLink(): void {
     const id = this.gameId();
@@ -96,12 +122,15 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
            if (event.payload && typeof event.payload === 'object' && 'state' in event.payload) {
             this.gameStateService.setState(event.payload.state as GameState);
              const id = this.gameId();
+            // Optional: only fetch if not a simple state toggle to avoid redundant calls
             if (id) this.fetchInitialGameData(id);
           }
         } else if (event.event === 'resync_data') {
           if (event.payload?.gameState) {
             this.handleStateUpdate(event.payload.gameState);
           }
+        } else if (event.event === 'generation_progress') {
+          this.handleGenerationProgress(event.payload);
         } else if (event.event === 'game_deleted') {
            this.gameApiService.setGameId(null);
            this.router.navigate(['/control-center']);
@@ -146,11 +175,41 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       this.playerStatus.set(payload.playerStatus);
     }
 
-    // Always refresh for more details if needed
+    if (payload.generationError !== undefined) {
+      this.generationError.set(payload.generationError);
+    }
+
+    if (payload.generationPhase !== undefined) {
+        this.generationProgress.set({
+            phase: payload.generationPhase,
+            attempt: payload.generationAttempts || 1,
+            elapsedMs: 0
+        });
+    }
+
+    // Consolidated: only fetch for specific type or if we need deep data not in payload
     const id = this.gameId();
-    if (id && payload.type === 'STATE_CHANGE') {
+    if (id && payload.type === 'STATE_CHANGE' && payload.state !== 'GENERATING') {
        this.fetchInitialGameData(id);
     }
+  }
+
+  private handleGenerationProgress(payload: any): void {
+      this.generationProgress.set({
+          phase: payload.phase,
+          attempt: payload.attempt,
+          elapsedMs: payload.elapsedMs,
+          error: payload.error
+      });
+
+      if (payload.error) {
+          this.generationError.set(payload.error);
+      } else if (payload.phase !== 'FAILED') {
+          // If we got progress that isn't an error, clear the error if it was just fixed by a retry
+          // but we usually want to keep the error if we're in LOBBY.
+          // If we're moving forward, clear it.
+          this.generationError.set(null);
+      }
   }
 
   private fetchInitialGameData(id: string): void {
@@ -162,6 +221,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
           this.maxRounds.set(response.data.maxRounds);
           this.difficulty.set(response.data.difficulty);
           this.winnerType.set(response.data.winnerType);
+          this.generationError.set(response.data.generationError || null);
           if (response.data.playerStatus) {
             this.playerStatus.set(response.data.playerStatus);
           }
@@ -196,7 +256,6 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
         if (!response.success) {
           this.error.set(response.error || 'Error al crear la partida');
         } else {
-          // Send initial difficulty after creation if it's not the default or just to be sure
           this.updateDifficulty(this.difficulty());
         }
         this.loading.set(false);
@@ -237,6 +296,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
 
     this.loading.set(true);
     this.error.set(null);
+    this.generationError.set(null); // Clear UI error immediately on click
     this.gameApiService.startGame(id).subscribe({
       next: (response) => {
         if (!response.success) {
