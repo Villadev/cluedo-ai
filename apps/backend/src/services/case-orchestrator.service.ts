@@ -68,7 +68,17 @@ export class CaseOrchestratorService {
       fullCase.solutionNarrative = narratives.solutionNarrative;
 
       // Immediate persistence of introduction
-      this.persistPartialData(gameId, { introNarrative: narratives.introductionNarrative });
+      // Immediate persistence of introduction and solution narrative
+      this.persistPartialData(gameId, {
+        introNarrative: narratives.introductionNarrative,
+        solution: {
+          assassin: fullCase.assassin || '',
+          weapon: fullCase.weapon || '',
+          location: fullCase.location || '',
+          victimName: fullCase.victim || '',
+          finalNarrative: narratives.solutionNarrative
+        }
+      });
 
       // 4. CLUES
       const clues = await this.executeStep<Record<string, AIServiceClue[]>>(
