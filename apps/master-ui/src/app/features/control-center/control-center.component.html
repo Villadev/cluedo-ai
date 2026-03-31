@@ -19,6 +19,16 @@
       ></button>
     </div>
   }
+
+  @if (gameState() === 'GENERATING' && generationProgress()) {
+    <app-generation-status-card
+      [phase]="generationProgress()?.phase"
+      [attempts]="generationProgress()?.attempt"
+      [error]="generationError()"
+      [hasSolution]="solutionStatus().includes('✔')">
+    </app-generation-status-card>
+  }
+
   <div class="grid">
     <!-- Creació de Partida -->
     <div class="col-12 md:col-6">
@@ -204,6 +214,10 @@
               </ul>
             </div>
           }
+          <div class="flex justify-content-between">
+            <span class="text-700">Jugadors connectats:</span>
+            <span class="font-bold text-primary">{{ playersCount() }}</span>
+          </div>
           <div class="flex justify-content-between">
             <span class="text-700">Dificultat actual:</span>
             <span class="font-bold text-primary">{{ difficulty() | titlecase }}</span>

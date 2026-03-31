@@ -1,0 +1,19 @@
+<p-card header="GENERACIÓ EN CURS" styleClass="mb-4 shadow-2">
+  <div class="flex flex-column gap-3">
+    <div class="flex justify-content-between align-items-center">
+      <span class="font-bold">Fase: {{ phase() }}</span>
+      <span>Intent: {{ attempts() }}</span>
+    </div>
+    <p-progressBar [value]="progressValue()" [showValue]="false"></p-progressBar>
+    <p class="text-sm text-gray-500 italic">
+      @if (hasSolution()) {
+        S'estan generant els darrers detalls (narratives, pistes, etc).
+      } @else {
+        S'està generant el cas per la IA. Això pot trigar un parell de minuts.
+      }
+    </p>
+    @if (error()) {
+        <p-message severity="warn" [text]="error() || ''"></p-message>
+    }
+  </div>
+</p-card>

@@ -8,6 +8,7 @@ import { Difficulty, GameApiService, GameState, PlayerStatus } from '../../servi
 import { WebSocketService } from '../../services/websocket.service';
 import { GameStateService } from '../../services/game-state.service';
 import { ChatViewComponent } from "../../components/chat-view/chat-view.component";
+import { GenerationStatusCardComponent } from "../../components/generation-status-card/generation-status-card.component";
 import { InputTextModule } from 'primeng/inputtext';
 import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
@@ -26,8 +27,10 @@ interface GenerationProgress {
 
 @Component({
   selector: 'app-control-center',
+  standalone: true,
   imports: [
     ChatViewComponent,
+    GenerationStatusCardComponent,
     CommonModule,
     FormsModule,
     ButtonModule,
@@ -68,6 +71,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   protected readonly generationError = signal<string | null>(null);
   protected readonly solutionStatus = signal<string>('Solution pending...');
   protected readonly showCopyFeedback = signal<boolean>(false);
+  protected readonly playersCount = signal<number>(0);
 
   protected readonly difficultyOptions = [
     { label: 'Fàcil', value: 'easy' },
@@ -93,18 +97,6 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     return `${label} (Intent ${p.attempt})`;
   });
 
-  protected copyGameLink(): void {
-    const id = this.gameId();
-    if (!id) return;
-
-    const url = `https://player-ui.onrender.com/?gameId=${id}`;
-    navigator.clipboard.writeText(url).then(() => {
-      this.showCopyFeedback.set(true);
-      setTimeout(() => this.showCopyFeedback.set(false), 2000);
-    });
-  }
-
-
   constructor() {
     effect(() => {
       const id = this.gameId();
@@ -125,7 +117,6 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
            if (event.payload && typeof event.payload === 'object' && 'state' in event.payload) {
             this.gameStateService.setState(event.payload.state as GameState);
              const id = this.gameId();
-            // Optional: only fetch if not a simple state toggle to avoid redundant calls
             if (id) this.fetchInitialGameData(id);
           }
         } else if (event.event === 'resync_data') {
@@ -182,6 +173,10 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       this.generationError.set(payload.generationError);
     }
 
+    if (payload.playersCount !== undefined) {
+      this.playersCount.set(payload.playersCount);
+    }
+
     if (payload.generationPhase !== undefined) {
         this.generationProgress.set({
             phase: payload.generationPhase,
@@ -190,7 +185,6 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
         });
     }
 
-    // Consolidated: only fetch for specific type or if we need deep data not in payload
     const id = this.gameId();
     if (id && payload.type === 'STATE_CHANGE' && payload.state !== 'GENERATING') {
        this.fetchInitialGameData(id);
@@ -208,9 +202,6 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       if (payload.error) {
           this.generationError.set(payload.error);
       } else if (payload.phase !== 'FAILED') {
-          // If we got progress that isn't an error, clear the error if it was just fixed by a retry
-          // but we usually want to keep the error if we're in LOBBY.
-          // If we're moving forward, clear it.
           this.generationError.set(null);
       }
   }
@@ -225,6 +216,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
           this.difficulty.set(response.data.difficulty);
           this.winnerType.set(response.data.winnerType);
           this.generationError.set(response.data.generationError || null);
+          this.playersCount.set(response.data.playersCount || 0);
           if (response.data.playerStatus) {
             this.playerStatus.set(response.data.playerStatus);
           }
@@ -299,7 +291,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
 
     this.loading.set(true);
     this.error.set(null);
-    this.generationError.set(null); // Clear UI error immediately on click
+    this.generationError.set(null);
     this.gameApiService.startGame(id).subscribe({
       next: (response: any) => {
         if (!response.success) {
@@ -439,6 +431,16 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     this.websocketService.emit('update_difficulty', {
       gameId: id,
       difficulty: difficulty
+    });
+  }
+
+  protected copyGameLink(): void {
+    const id = this.gameId();
+    if (!id) return;
+    const url = `${window.location.origin}/player?gameId=${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      this.showCopyFeedback.set(true);
+      setTimeout(() => this.showCopyFeedback.set(false), 2000);
     });
   }
 }
