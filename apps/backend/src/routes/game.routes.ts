@@ -97,7 +97,7 @@ gameRouter.post('/:id/play', asyncHandler((req: Request, res: Response) => contr
  *       200:
  *         description: Resposta obtinguda.
  */
-gameRouter.post('/:id/ask', asyncHandler((req: Request, res: Response) => controller.askQuestion(req, res)));
+gameRouter.post('/:id/ask', asyncHandler((req: Request, res: Response) => controller.handleQuestion(req, res)));
 
 /**
  * @openapi
