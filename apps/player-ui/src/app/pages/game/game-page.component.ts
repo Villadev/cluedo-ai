@@ -110,7 +110,9 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
         playerId: this.playerId || undefined
       });
 
-      this.chatService.clear();
+      if (this.chatService.currentGameId !== this.gameId) {
+        this.chatService.clear();
+      }
       this.chatService.loadHistory(this.gameId);
       this.websocketService.connect(this.gameId, this.playerId || undefined);
 

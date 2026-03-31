@@ -16,6 +16,8 @@ export class ChatService implements OnDestroy {
   private readonly canAskQuestionSubject = new BehaviorSubject<boolean>(true);
   readonly canAskQuestion$ = this.canAskQuestionSubject.asObservable();
 
+  public currentGameId: string | null = null;
+
   constructor() {
     this.subscriptions.add(
       this.websocketService.events$.subscribe((event: SocketGameEvent) => {
@@ -29,6 +31,11 @@ export class ChatService implements OnDestroy {
   }
 
   addMessage(message: ChatMessage): void {
+    // Basic deduplication for live messages if they have sequenceId
+    if (message.sequenceId !== undefined) {
+      const exists = this.messagesSubject.value.some(m => m.sequenceId === message.sequenceId);
+      if (exists) return;
+    }
     this.messagesSubject.next([...this.messagesSubject.value, message]);
   }
 
@@ -39,40 +46,60 @@ export class ChatService implements OnDestroy {
   clear(): void {
     this.messagesSubject.next([]);
     this.canAskQuestionSubject.next(true);
+    this.currentGameId = null;
   }
 
   loadHistory(gameId: string): void {
-    this.gameService.getChatHistory(gameId).subscribe(response => {
-      if (response.success && response.data) {
-        const historyMessages: ChatMessage[] = [];
-        const seenSequenceIds = new Set<number>();
+    this.currentGameId = gameId;
+    this.gameService.getChatHistory(gameId).subscribe({
+      next: (response) => {
+        if (response.success && response.data) {
+          const historyMessages: ChatMessage[] = [];
+          const seenSequenceIds = new Set<number>();
 
-        response.data.forEach((msg: ChatHistoryMessage) => {
-          if (msg.sequenceId !== undefined && seenSequenceIds.has(msg.sequenceId)) {
-            return;
-          }
-          if (msg.sequenceId !== undefined) {
-            seenSequenceIds.add(msg.sequenceId);
-          }
+          response.data.forEach((msg: ChatHistoryMessage) => {
+            if (msg.sequenceId !== undefined && seenSequenceIds.has(msg.sequenceId)) {
+              return;
+            }
+            if (msg.sequenceId !== undefined) {
+              seenSequenceIds.add(msg.sequenceId);
+            }
 
-          const typeMap: Record<string, ChatMessageType> = {
-            'player': 'question',
-            'narrator': 'response',
-            'system': 'system',
-            'clue': 'clue'
-          };
+            const typeMap: Record<string, ChatMessageType> = {
+              'player': 'question',
+              'narrator': 'response',
+              'system': 'system',
+              'clue': 'clue'
+            };
 
-          historyMessages.push({
-            id: crypto.randomUUID(),
-            type: typeMap[msg.type] || 'system',
-            sender: msg.playerName,
-            message: msg.message,
-            timestamp: new Date(msg.timestamp),
-            round: msg.roundNumber,
-            sequenceId: msg.sequenceId
+            historyMessages.push({
+              id: crypto.randomUUID(),
+              type: typeMap[msg.type] || 'system',
+              sender: msg.playerName,
+              message: msg.message,
+              timestamp: new Date(msg.timestamp),
+              round: msg.roundNumber,
+              sequenceId: msg.sequenceId
+            });
           });
-        });
-        this.messagesSubject.next(historyMessages);
+
+          // Merge with current messages, prioritizing history but avoiding duplicates
+          const currentMessages = this.messagesSubject.value;
+          const merged = [...historyMessages];
+
+          currentMessages.forEach(curr => {
+            if (curr.sequenceId === undefined || !seenSequenceIds.has(curr.sequenceId)) {
+              merged.push(curr);
+            }
+          });
+
+          // Sort by timestamp or sequenceId if possible, but for now just replace if history is fresh
+          this.messagesSubject.next(merged.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()));
+        }
+      },
+      error: (err) => {
+        console.error(`[DEBUG] Error loading chat history for game ${gameId}:`, err);
+        // We don't clear the messages on error to keep what we have (e.g. from websocket)
       }
     });
   }
@@ -139,7 +166,7 @@ export class ChatService implements OnDestroy {
       });
     });
 
-    this.messagesSubject.next(messages);
+    this.messagesSubject.next(messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()));
   }
 
   private handleChatMessage(payload: any): void {
