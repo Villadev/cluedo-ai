@@ -43,7 +43,7 @@ export interface SecretResponse {
 }
 
 export interface ChatHistoryMessage {
-  type: 'player' | 'narrator' | 'system';
+  type: 'player' | 'narrator' | 'system' | 'clue';
   playerId?: string;
   playerName?: string;
   roundNumber?: number;
@@ -125,17 +125,6 @@ export class GameService implements OnDestroy {
     return this.http.get<ApiResponse<PublicPlayerView[]>>(`${this.baseUrl}/game/${gameId}/players`);
   }
 
-  _old_getParticipants(gameId: string): Observable<ApiResponse<PublicPlayerView[]>> {
-    const playerId = this.sessionService.getPlayerId();
-    return this.getGame(gameId, playerId).pipe(
-      map(response => ({
-        success: response.success,
-        data: response.data?.players,
-        error: response.error
-      }))
-    );
-  }
-
   getGame(gameId: string, playerId?: string): Observable<ApiResponse<PublicGameView>> {
     const url = playerId ? `${this.baseUrl}/game/${gameId}?playerId=${playerId}` : `${this.baseUrl}/game/${gameId}`;
     return this.http.get<ApiResponse<PublicGameView>>(url);
@@ -153,39 +142,16 @@ export class GameService implements OnDestroy {
     return this.http.get<ApiResponse<ChatHistoryMessage[]>>(`${this.baseUrl}/game/${gameId}/chat`);
   }
 
-  // Deprecated: use getOptions instead
-  getPossibleWeapons(): string[] {
-    return ['Canelobre', 'Ganivet', 'Tubería de plom', 'Revòlver', 'Corda', 'Clau anglesa', 'Verí', 'Trofeu', 'Destral'];
-  }
-
-  // Deprecated: use getOptions instead
-  getPossibleLocations(): string[] {
-    return [
-      'Catalunya en Miniatura',
-      'Ajuntament de Torrelles de Llobregat',
-      'Església de Sant Martí',
-      'Penyes de Can Riera',
-      'Ateneu Torrellenc',
-      'Plaça de l’Església',
-      'Carrer Major',
-      'Bar La Plaçá',
-      'Masia de Can Coll',
-      'Font del Mas Segarra'
-    ];
-  }
-
   joinGame(gameId: string, name: string): Observable<PlayerJoinResponse> {
     return this.http
-      .post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/join`, { name })
+      .post<ApiResponse<{ playerId: string, game: PublicGameView }>>(`${this.baseUrl}/game/${gameId}/join`, { name })
       .pipe(
-        map((response: ApiResponse<PublicGameView>) => {
-          const players = response.data?.players ?? [];
-          const joinedPlayer = players.find((player: PublicPlayerView) => player.nickname === name);
-          if (!joinedPlayer?.id) {
-            throw new Error("No s'ha pogut recuperar l'ID del jugador.");
+        map((response) => {
+          if (!response.success || !response.data?.playerId) {
+            throw new Error(response.error || "No s'ha pogut recuperar l'ID del jugador.");
           }
 
-          return { playerId: joinedPlayer.id };
+          return { playerId: response.data.playerId };
         })
       );
   }

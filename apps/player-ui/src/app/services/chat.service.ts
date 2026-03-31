@@ -1,5 +1,5 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
-import { BehaviorSubject, Subscription } from 'rxjs';
+import { BehaviorSubject, Subject, Subscription } from 'rxjs';
 import { ChatMessage, ChatMessageType, SocketGameEvent } from '../models/chat.models';
 import { WebSocketService } from './websocket.service';
 import { GameService, ChatHistoryMessage } from './game.service';
@@ -15,6 +15,9 @@ export class ChatService implements OnDestroy {
 
   private readonly canAskQuestionSubject = new BehaviorSubject<boolean>(true);
   readonly canAskQuestion$ = this.canAskQuestionSubject.asObservable();
+
+  private readonly errorSubject = new Subject<string>();
+  readonly error$ = this.errorSubject.asObservable();
 
   public currentGameId: string | null = null;
 
@@ -93,13 +96,11 @@ export class ChatService implements OnDestroy {
             }
           });
 
-          // Sort by timestamp or sequenceId if possible, but for now just replace if history is fresh
           this.messagesSubject.next(merged.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()));
         }
       },
       error: (err) => {
         console.error(`[DEBUG] Error loading chat history for game ${gameId}:`, err);
-        // We don't clear the messages on error to keep what we have (e.g. from websocket)
       }
     });
   }
@@ -133,7 +134,27 @@ export class ChatService implements OnDestroy {
           this.applyResyncedHistory(event.payload.chatHistory);
         }
         break;
+      case 'error':
+        this.handleError(event.payload);
+        break;
     }
+  }
+
+  private handleError(payload: any): void {
+    let message = 'S’ha produït un error.';
+    if (typeof payload === 'string') {
+      message = payload;
+    } else if (payload?.message) {
+      message = payload.message;
+    }
+
+    // Traducció de missatges comuns si cal
+    if (message.includes("not your turn")) {
+      message = "No és el teu torn.";
+    }
+
+    this.addSystemMessage('system', `⚠️ Error: ${message}`);
+    this.errorSubject.next(message);
   }
 
   private applyResyncedHistory(history: ChatHistoryMessage[]): void {

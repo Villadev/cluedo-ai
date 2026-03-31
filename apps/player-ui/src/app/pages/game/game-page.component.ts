@@ -134,6 +134,13 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
         }
       })
     );
+
+    // Revertir askedThisRound si hi ha error al xat
+    this.subscriptions.add(
+      this.chatService.error$.subscribe(() => {
+        this.askedThisRound.set(false);
+      })
+    );
   }
 
   private handleVisibilityChange = (): void => {
