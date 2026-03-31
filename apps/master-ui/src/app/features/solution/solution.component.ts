@@ -34,7 +34,6 @@ export class SolutionComponent implements OnDestroy {
   readonly isPlaying = signal<boolean>(false);
 
   private utterance: SpeechSynthesisUtterance | null = null;
-  private refreshInterval: any;
 
   constructor() {
     effect(() => {
@@ -42,9 +41,7 @@ export class SolutionComponent implements OnDestroy {
       if (id) {
         this.fetchSolution(id);
         this.fetchGameState(id);
-        this.startPolling(id);
       } else {
-        this.stopPolling();
         this.solution.set(null);
         this.gameState.set(null);
         this.error.set('No hi ha cap partida activa. Per favor, crea o uneix-te a una partida primer.');
@@ -54,21 +51,6 @@ export class SolutionComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.stopNarrative();
-    this.stopPolling();
-  }
-
-  private startPolling(id: string): void {
-    this.stopPolling();
-    this.refreshInterval = setInterval(() => {
-      this.fetchSolution(id);
-      this.fetchGameState(id);
-    }, 5000);
-  }
-
-  private stopPolling(): void {
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
-    }
   }
 
   protected fetchGameState(id: string): void {
@@ -96,10 +78,6 @@ export class SolutionComponent implements OnDestroy {
           } else {
             this.solution.set(response.data);
             this.error.set(null);
-            // Keep polling until done or narratives complete
-            if (this.gameState()?.generationPhase === "DONE") {
-              this.stopPolling();
-            }
           }
         } else {
           this.error.set(response.error || 'Error en obtenir la solució');
