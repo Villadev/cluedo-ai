@@ -1,23 +1,24 @@
 import { ChangeDetectionStrategy, Component, inject, signal, effect, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameApiService, SolutionResponse, GameStateInfo } from '../../services/game-api.service';
+import { GenerationStatusCardComponent } from '../../components/generation-status-card/generation-status-card.component';
 
 // PrimeNG imports
 import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
 import { DividerModule } from 'primeng/divider';
 import { ButtonModule } from 'primeng/button';
-import { ProgressBarModule } from 'primeng/progressbar';
 
 @Component({
   selector: 'app-solution',
+  standalone: true,
   imports: [
     CommonModule,
     CardModule,
     MessageModule,
     DividerModule,
     ButtonModule,
-    ProgressBarModule
+    GenerationStatusCardComponent
   ],
   templateUrl: './solution.component.html',
   styleUrls: [],
@@ -120,18 +121,5 @@ export class SolutionComponent implements OnDestroy {
   protected stopNarrative(): void {
     window.speechSynthesis.cancel();
     this.isPlaying.set(false);
-  }
-
-  protected getProgressValue(): number {
-    const phase = this.gameState()?.generationPhase;
-    switch (phase) {
-      case 'SKELETON': return 20;
-      case 'CHARACTERS': return 40;
-      case 'NARRATIVES': return 60;
-      case 'CLUES': return 80;
-      case 'RECOVERY': return 90;
-      case 'DONE': return 100;
-      default: return 0;
-    }
   }
 }
