@@ -683,6 +683,11 @@ export class GameEngine {
     this.store.save(game);
   }
 
+
+  public getOrchestrator(): CaseOrchestratorService {
+    return this.orchestrator;
+  }
+
   public getGameStateInfo(gameId: string): any {
     const game = this.getGameOrThrow(gameId);
     return {
