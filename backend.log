@@ -231,3 +231,11 @@ Backend listening on port 3000
 [SERVER] Backend started with Socket.IO
 [SERVER] Environment validated
 Backend listening on port 3000
+3:24:24 PM [tsx] change in ./src/websocket/socket.ts Restarting...
+c[CONFIG] OpenAI API key detected
+[DB] SQLite initialized at /app/apps/backend/game.db
+(node:28550) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[SERVER] Backend started with Socket.IO
+[SERVER] Environment validated
+Backend listening on port 3000

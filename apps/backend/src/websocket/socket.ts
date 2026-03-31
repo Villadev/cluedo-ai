@@ -15,6 +15,7 @@ interface QueueItem {
   sequenceId?: number;
   playerId?: string;
   playerNameOverride?: string;
+  persist?: boolean;
 }
 
 const messageQueue: QueueItem[] = [];
@@ -140,27 +141,23 @@ const processQuestionQueue = async (gameId: string): Promise<void> => {
       const questionEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 2);
       const responseEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 1);
 
-      // 1. Emit Player Question
-      const chatMsg = {
+      // 1. Enqueue Player Question (already persisted in askQuestion)
+      enqueueMessage(task.gameId, task.message, {
         type: 'player',
         playerId: task.playerId,
-        playerName: questionEntry?.playerName || 'Jugador',
-        message: task.message,
-        timestamp: questionEntry?.timestamp || Date.now(),
+        playerNameOverride: questionEntry?.playerName || 'Jugador',
         roundNumber: result.game.roundNumber,
-        sequenceId: questionEntry?.sequenceId
-      };
-      console.log(`[WS_EMIT] chat_message (player question) to room ${task.gameId}`);
-      getSocketServer().to(task.gameId).emit('chat_message', chatMsg);
+        sequenceId: questionEntry?.sequenceId,
+        persist: false
+      });
 
-      // 2. Emit Narrator Response
-      sendNarratorMessage(
-        task.gameId,
-        result.response,
-        'narrator',
-        result.game.roundNumber,
-        responseEntry?.sequenceId
-      );
+      // 2. Enqueue Narrator Response (already persisted in askQuestion)
+      enqueueMessage(task.gameId, result.response, {
+        type: 'narrator',
+        roundNumber: result.game.roundNumber,
+        sequenceId: responseEntry?.sequenceId,
+        persist: false
+      });
 
       // 3. Round management & state update
       await gameEngine.nextTurn(task.gameId);
@@ -172,7 +169,6 @@ const processQuestionQueue = async (gameId: string): Promise<void> => {
       getSocketServer().to(task.socketId).emit('error', { message: error.message || 'Error processing question' });
     }
 
-    // Safety delay to avoid AI rate limits or UI jitter
     await new Promise(res => setTimeout(res, 200));
   }
 
@@ -235,6 +231,7 @@ export const enqueueMessage = (
     sequenceId?: number;
     playerId?: string;
     playerNameOverride?: string;
+    persist?: boolean;
   } = {}
 ): void => {
   messageQueue.push({
@@ -244,7 +241,8 @@ export const enqueueMessage = (
     roundNumber: options.roundNumber,
     sequenceId: options.sequenceId,
     playerId: options.playerId,
-    playerNameOverride: options.playerNameOverride
+    playerNameOverride: options.playerNameOverride,
+    persist: options.persist ?? true
   });
 
   console.log(`[QUEUE] Message enqueued for game ${gameId}. Queue size: ${messageQueue.length}`);
@@ -260,7 +258,7 @@ const processQueue = async (): Promise<void> => {
     const item = messageQueue.shift();
     if (!item) continue;
 
-    const { gameId, message, type, roundNumber, sequenceId, playerId, playerNameOverride } = item;
+    const { gameId, message, type, roundNumber, sequenceId, playerId, playerNameOverride, persist } = item;
     const timestamp = Date.now();
     const playerName = playerNameOverride || (type === 'clue' || type === 'narrator' ? 'Narrador 🕵️' : 'Sistema ⚙️');
 
@@ -277,8 +275,8 @@ const processQueue = async (): Promise<void> => {
     console.log(`[QUEUE WORKER] Emitting ${type} to room ${gameId}: ${message.substring(0, 30)}...`);
     getSocketServer().to(gameId).emit('chat_message', systemMsg);
 
-    try {
-      if (type !== 'narrator') {
+    if (persist) {
+      try {
         gameEngine.recordChatMessage(gameId, {
           type,
           playerName,
@@ -287,9 +285,9 @@ const processQueue = async (): Promise<void> => {
           roundNumber,
           sequenceId
         });
+      } catch (e) {
+        console.warn(`[QUEUE WORKER] Could not persist message to history for game ${gameId}`);
       }
-    } catch (e) {
-      console.warn(`[QUEUE WORKER] Could not persist message to history for game ${gameId}`);
     }
 
     await new Promise(res => setTimeout(res, 150));
