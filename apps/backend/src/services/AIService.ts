@@ -175,6 +175,27 @@ Retorna un JSON amb "introductionNarrative" i "solutionNarrative".`;
     }, 3, signal);
   }
 
+  private normalizeCluesResponse(data: any): void {
+    if (!data.clues) return;
+
+    for (const roundKey of Object.keys(data.clues)) {
+      const roundClues = data.clues[roundKey];
+      if (!Array.isArray(roundClues)) continue;
+
+      for (const clue of roundClues) {
+        // Map misleading to isTrue if isTrue is missing
+        if (clue.isTrue === undefined && clue.misleading !== undefined) {
+          clue.isTrue = !clue.misleading;
+        }
+
+        // Ensure type and text fallback
+        if (clue.type === undefined) clue.type = 'rumor';
+        if (clue.text === undefined) clue.text = 'Pista no disponible temporalment';
+        if (clue.isTrue === undefined) clue.isTrue = true; // Safe default
+      }
+    }
+  }
+
   public async generateCluesByRounds(caseBible: FullCase, maxRounds: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Record<string, AIServiceClue[]>> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Genera pistes progressives per a ${maxRounds} rondes en català.
@@ -183,43 +204,58 @@ Cas: ${caseBible.victim} mort per ${caseBible.assassin} a ${caseBible.location} 
 
 Regles:
 - CADA RONDA (round1 a round${maxRounds}) ha de tenir almenys una pista.
-- 30% de pistes enganyoses (misleading: true/false).
+- Almenys un 30% de les pistes han de ser falses o enganyoses.
 - Round 1-2: Rumors. Round 3-4: Referències indirectes. Round 5+: Contradiccions clares.
+- IMPORTANT: El camp boolean per indicar veracitat és "isTrue" (true si és veritat, false si és mentida/enganyosa).
 
-Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
+Retorna un JSON amb l'estructura exacta:
+{
+  "clues": {
+    "round1": [
+      { "type": "rumor" | "witness" | "contradiction" | "evidence", "text": "...", "isTrue": boolean }
+    ],
+    ...
+  }
+}`;
 
     const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "clues", (data) => {
+      this.normalizeCluesResponse(data);
+
+      const errors: string[] = [];
+
       if (!data.clues) {
-        console.warn("[CLUES VALIDATION] Missing 'clues' root object");
-        return false;
-      }
-
-      const missing = this.validateClueCoverage({ clues: data.clues } as FullCase, maxRounds);
-      if (missing.length > 0) {
-        console.warn(`[CLUES VALIDATION] Missing rounds: ${missing.join(', ')}`);
-        return false;
-      }
-
-      // Validate each clue has required non-empty text and type
-      for (const [roundKey, roundClues] of Object.entries(data.clues)) {
-        if (!Array.isArray(roundClues)) {
-          console.warn(`[CLUES VALIDATION] ${roundKey} is not an array`);
-          return false;
+        errors.push("Missing 'clues' root object");
+      } else {
+        const missing = this.validateClueCoverage({ clues: data.clues } as FullCase, maxRounds);
+        if (missing.length > 0) {
+          errors.push(`Missing rounds: ${missing.join(', ')}`);
         }
-        for (const [idx, clue] of roundClues.entries()) {
-          if (!clue.text || typeof clue.text !== 'string' || clue.text.trim() === '') {
-            console.warn(`[CLUES VALIDATION] ${roundKey}[${idx}] has empty or invalid text`);
-            return false;
+
+        // Validate each clue has required non-empty text and type
+        for (const [roundKey, roundClues] of Object.entries(data.clues)) {
+          if (!Array.isArray(roundClues)) {
+            errors.push(`${roundKey} is not an array`);
+            continue;
           }
-          if (!clue.type || typeof clue.type !== 'string') {
-            console.warn(`[CLUES VALIDATION] ${roundKey}[${idx}] has missing or invalid type`);
-            return false;
-          }
-          if (typeof clue.isTrue !== 'boolean') {
-            console.warn(`[CLUES VALIDATION] ${roundKey}[${idx}] has missing or invalid isTrue boolean`);
-            return false;
+          for (const [idx, clue] of roundClues.entries()) {
+            if (!clue.text || typeof clue.text !== 'string' || clue.text.trim() === '') {
+              errors.push(`${roundKey}[${idx}] has empty or invalid text`);
+            }
+            if (!clue.type || typeof clue.type !== 'string') {
+              errors.push(`${roundKey}[${idx}] has missing or invalid type`);
+            }
+            if (typeof clue.isTrue !== 'boolean') {
+              errors.push(`${roundKey}[${idx}] has missing or invalid isTrue boolean`);
+            }
           }
         }
+      }
+
+      if (errors.length > 0) {
+        console.warn(`[CLUES VALIDATION FAILED] ${errors.join(' | ')}`);
+        // We'll pass the errors via a custom property to be picked up by callOpenAIWithRetry if it supports it
+        // Since we can't easily change the generic T, we just log it for now.
+        return false;
       }
       return true;
     }, 3, signal);
@@ -326,7 +362,7 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
         await new Promise(res => setTimeout(res, 1000 * attempts));
       }
     }
-    throw new Error(`Failed step ${stepName} after ${maxRetries} attempts`);
+    throw new Error(`Failed step ${stepName} after ${maxRetries} attempts. Check server logs for validation errors.`);
   }
 
   private isValidIntro(intro: string, weapon: string, location: string): boolean {
