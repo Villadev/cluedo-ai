@@ -223,6 +223,16 @@ export class CaseOrchestratorService {
     }));
   }
 
+
+  private shuffle<T>(array: T[]): T[] {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j] as T, newArray[i] as T];
+    }
+    return newArray;
+  }
+
   private finalizeGame(gameId: string, caseData: FullCase) {
     const game = this.store.getById(gameId);
     if (!game) return;
@@ -248,7 +258,9 @@ export class CaseOrchestratorService {
     const characters = this.mapToCharacters(caseData.characters, caseData.assassin);
     game.characters = characters;
 
-    game.players.forEach((p, i) => {
+    // Randomize character-to-player assignment
+    const shuffledPlayers = this.shuffle(game.players);
+    shuffledPlayers.forEach((p, i) => {
       const char = characters[i];
       if (char) {
         p.characterId = char.id;

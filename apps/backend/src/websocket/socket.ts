@@ -159,7 +159,12 @@ const processQuestionQueue = async (gameId: string): Promise<void> => {
         persist: false
       });
 
-      // 3. Round management & state update
+      // 3. Wait for messages to be emitted before state update
+      console.log(`[QUESTION WORKER] Waiting for queue to drain for Game: ${task.gameId}`);
+      await waitForQueueToDrain();
+      console.log(`[QUESTION WORKER] Queue drained. Proceeding with turn transition.`);
+
+      // 4. Round management & state update
       await gameEngine.nextTurn(task.gameId);
       const updatedGame = gameEngine.getGameStateInfo(task.gameId);
       emitGameStateUpdate(task.gameId, updatedGame);
@@ -222,6 +227,13 @@ export const emitGameStarted = (gameId: string, payload: PublicGameView | any): 
   getSocketServer().to(gameId).emit('game_started', payload);
 };
 
+
+export const waitForQueueToDrain = async (): Promise<void> => {
+  while (isProcessingQueue || messageQueue.length > 0) {
+    await new Promise(res => setTimeout(res, 50));
+  }
+};
+
 export const enqueueMessage = (
   gameId: string,
   message: string,
@@ -245,7 +257,7 @@ export const enqueueMessage = (
     persist: options.persist ?? true
   });
 
-  console.log(`[QUEUE] Message enqueued for game ${gameId}. Queue size: ${messageQueue.length}`);
+  console.log(`[QUEUE] Message enqueued for game ${gameId}. Type: ${options.type || 'system'}, Seq: ${options.sequenceId}. Queue size: ${messageQueue.length}`);
   processQueue();
 };
 
@@ -272,7 +284,7 @@ const processQueue = async (): Promise<void> => {
       playerId
     };
 
-    console.log(`[QUEUE WORKER] Emitting ${type} to room ${gameId}: ${message.substring(0, 30)}...`);
+    console.log(`[QUEUE WORKER] Emitting ${type} to room ${gameId} (Seq: ${sequenceId}): ${message.substring(0, 30)}...`);
     getSocketServer().to(gameId).emit('chat_message', systemMsg);
 
     if (persist) {

@@ -108,14 +108,19 @@
               </span>
             }
             @if (sttService.isSupported()) {
-              <button
-                pButton
-                type="button"
-                [icon]="sttService.isListening() ? 'pi pi-stop' : 'pi pi-play'"
-                [class]="sttService.isListening() ? 'p-button-danger stt-pulse' : 'p-button-secondary'"
-                (click)="toggleVoice()"
-                [disabled]="askedThisRound() || !(connected$ | async)"
-                [title]="sttService.isListening() ? 'Aturar veu' : 'Utilitzar veu'"></button>
+              <div class="flex flex-column align-items-end">
+                <button
+                  pButton
+                  type="button"
+                  [icon]="sttService.isListening() ? 'pi pi-stop' : 'pi pi-play'"
+                  [class]="sttService.isListening() ? 'p-button-danger stt-pulse' : 'p-button-secondary'"
+                  (click)="toggleVoice()"
+                  [disabled]="askedThisRound()"
+                  [title]="sttService.isListening() ? 'Aturar veu' : 'Utilitzar veu'"></button>
+                @if (sttService.errorMessage()) {
+                  <small class="text-red-500 mt-1">{{ sttService.errorMessage() }}</small>
+                }
+              </div>
             }
             <button
               pButton
