@@ -12,7 +12,7 @@ interface QueueItem {
   message: string;
   type: ChatMessage['type'];
   roundNumber?: number;
-  sequenceId?: number;
+  sequenceId?: number; timestamp?: number;
   playerId?: string;
   playerNameOverride?: string;
   persist?: boolean;
@@ -244,8 +244,7 @@ export const enqueueMessage = (
   options: {
     type?: ChatMessage['type'];
     roundNumber?: number;
-    sequenceId?: number;
-    playerId?: string;
+    sequenceId?: number; timestamp?: number; playerId?: string;
     playerNameOverride?: string;
     persist?: boolean;
   } = {}
@@ -255,7 +254,7 @@ export const enqueueMessage = (
     message,
     type: options.type || 'system',
     roundNumber: options.roundNumber,
-    sequenceId: options.sequenceId,
+    sequenceId: options.sequenceId, timestamp: options.timestamp,
     playerId: options.playerId,
     playerNameOverride: options.playerNameOverride,
     persist: options.persist ?? true
@@ -274,9 +273,9 @@ const processQueue = async (): Promise<void> => {
     const item = messageQueue.shift();
     if (!item) continue;
 
-    const { gameId, message, type, roundNumber, sequenceId, playerId, playerNameOverride, persist } = item;
-    const timestamp = Date.now();
-    const playerName = playerNameOverride || (type === 'clue' || type === 'narrator' ? 'Narrador 🕵️' : 'Sistema ⚙️');
+    const { gameId, message, type, roundNumber, sequenceId, playerId, playerNameOverride, persist, timestamp: itemTimestamp } = item;
+    const timestamp = itemTimestamp || Date.now();
+    const playerName = playerNameOverride || (type === 'clue' || type === 'narrator' ? 'Narrador 🕵️‍♂️' : 'Sistema ⚙️');
 
     const systemMsg = {
       type,
@@ -319,13 +318,11 @@ export const sendNarratorMessage = (
   roundNumber?: number,
   sequenceId?: number,
   playerId?: string,
-  playerNameOverride?: string
-): void => {
+  playerNameOverride?: string, timestamp?: number): void => {
   enqueueMessage(gameId, message, {
     type,
     roundNumber,
     sequenceId,
     playerId,
-    playerNameOverride
-  });
+    playerNameOverride, timestamp, persist: false });
 };
