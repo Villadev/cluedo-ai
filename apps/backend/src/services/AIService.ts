@@ -123,6 +123,20 @@ Retorna JSON amb "characters": [ { ...full_details } ]`;
     return this.normalizeCharacters(result.characters, characters, caseBible);
   }
 
+  private normalizeToString(value: any, fallback: string): string {
+    if (value === null || value === undefined) return fallback;
+    if (typeof value === 'string') return value.trim() || fallback;
+    if (Array.isArray(value)) return value.join(', ') || fallback;
+    if (typeof value === 'object') {
+      try {
+        return JSON.stringify(value);
+      } catch (e) {
+        return String(value) || fallback;
+      }
+    }
+    return String(value) || fallback;
+  }
+
   private normalizeCharacters(aiCharacters: AIServiceCharacter[], basicCharacters: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
       return basicCharacters.map((basic, i) => {
           const enriched = aiCharacters.find(c => c.name === basic.name) || aiCharacters[i] || ({} as AIServiceCharacter);
@@ -141,9 +155,9 @@ Retorna JSON amb "characters": [ { ...full_details } ]`;
                   witness: 'Ningú',
                   credibility: 'baixa'
               },
-              rumor: enriched.rumor || 'Cap rumor',
-              relationships: enriched.relationships || 'Cap relació',
-              tensions: enriched.tensions || 'Cap tensió'
+              rumor: this.normalizeToString(enriched.rumor, 'Cap rumor'),
+              relationships: this.normalizeToString(enriched.relationships, 'Cap relació'),
+              tensions: this.normalizeToString(enriched.tensions, 'Cap tensió')
           } as AIServiceCharacter;
       });
   }
