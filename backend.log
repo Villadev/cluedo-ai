@@ -1,37 +1,10 @@
 
-> @cluedo/backend@0.1.0 dev /app/apps/backend
+> @cluedo/backend@0.1.0 dev
 > tsx watch src/main.ts
 
 [CONFIG] OpenAI API key detected
-(node:5563) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-[SERVER] Backend started with Socket.IO
-[SERVER] Environment validated
-Backend listening on port 3000
-10:08:58 AM [tsx] change in ./src/routes/game.routes.ts Restarting...
-c[CONFIG] OpenAI API key detected
-(node:11109) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-[SERVER] Backend started with Socket.IO
-[SERVER] Environment validated
-Backend listening on port 3000
-10:12:07 AM [tsx] change in ./src/controllers/game.controller.ts Restarting...
-c[CONFIG] OpenAI API key detected
-(node:12558) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-[SERVER] Backend started with Socket.IO
-[SERVER] Environment validated
-Backend listening on port 3000
-10:15:07 AM [tsx] change in ./src/engine/game-engine.ts Restarting...
-c[CONFIG] OpenAI API key detected
-(node:13891) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
-(Use `node --trace-deprecation ...` to show where the warning was created)
-[SERVER] Backend started with Socket.IO
-[SERVER] Environment validated
-Backend listening on port 3000
-10:16:49 AM [tsx] change in ./src/services/game-store.service.ts Restarting...
-c[CONFIG] OpenAI API key detected
-(node:14695) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+[DB] SQLite initialized at /app/apps/backend/game.db
+(node:7792) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
 (Use `node --trace-deprecation ...` to show where the warning was created)
 [SERVER] Backend started with Socket.IO
 [SERVER] Environment validated

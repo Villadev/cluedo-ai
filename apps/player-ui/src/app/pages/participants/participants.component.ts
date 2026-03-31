@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { forkJoin } from 'rxjs';
 import { CardModule } from 'primeng/card';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { MessageModule } from 'primeng/message';
@@ -47,24 +48,30 @@ export class ParticipantsComponent implements OnInit {
       return;
     }
 
-    this.gameService.getGame(this.gameId, currentPlayerId).subscribe({
-      next: (response) => {
-        this.loading.set(true);
-        if (response.success && response.data) {
-          this.participants.set(response.data.players);
-          this.assassinId.set(response.data.assassinId || null);
-          this.gameStateService.setState(response.data.state);
+    this.loading.set(true);
 
-          console.log('[DEBUG] Game state loaded. assassinId=', response.data.assassinId);
-          const me = response.data.players.find(p => p.id === currentPlayerId);
-          console.log('[DEBUG] Current player info:', me);
+    forkJoin({
+      game: this.gameService.getGame(this.gameId, currentPlayerId),
+      participants: this.gameService.getParticipants(this.gameId)
+    }).subscribe({
+      next: (results) => {
+        if (results.game.success && results.game.data) {
+          this.assassinId.set(results.game.data.assassinId || null);
+          this.gameStateService.setState(results.game.data.state);
+          console.log('[DEBUG] Game state loaded. assassinId=', results.game.data.assassinId);
+        }
+
+        if (results.participants.success && results.participants.data) {
+          this.participants.set(results.participants.data);
+          console.log('[DEBUG] Participants loaded:', results.participants.data.length);
         } else {
-          this.error.set(response.error || 'Error en obtenir els participants');
+          this.error.set(results.participants.error || 'Error en obtenir els participants');
         }
         this.loading.set(false);
       },
-      error: () => {
-        this.error.set('Error en obtenir els participants');
+      error: (err) => {
+        console.error('[DEBUG] Error loading data:', err);
+        this.error.set('Error en carregar les dades de la partida');
         this.loading.set(false);
       }
     });
