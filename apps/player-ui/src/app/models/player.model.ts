@@ -84,3 +84,13 @@ export interface GameStateInfo {
   winnerType: WinnerType | null;
   result?: GameResult;
 }
+
+export interface GameSolution {
+  assassinId?: string;
+  assassin: string;
+  weapon: string;
+  location: string;
+  victimName: string;
+  finalNarrative: string;
+  message?: string;
+}

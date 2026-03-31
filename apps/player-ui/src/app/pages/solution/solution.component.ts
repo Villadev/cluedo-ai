@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal, OnInit } from '@ang
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { GameService } from '../../services/game.service';
-import { GameResult } from '../../models/player.model';
+import { GameResult, GameSolution } from '../../models/player.model';
 
 // PrimeNG imports
 import { CardModule } from 'primeng/card';
@@ -47,17 +47,16 @@ export class SolutionComponent implements OnInit {
     this.gameService.getSolution(this.gameId).subscribe({
       next: (response) => {
         if (response.success && response.data) {
-          if (response.data.message) {
-            this.error.set(response.data.message);
+          const solution: GameSolution = response.data;
+          if (solution.message) {
+            this.error.set(solution.message);
           } else {
-            // Map backend GameSolution to GameResult if necessary, or just set it
-            const sol = response.data;
             this.result.set({
-              winner: 'INVESTIGATORS', // Simplified for player view
-              killer: sol.assassin,
-              weapon: sol.weapon,
-              location: sol.location,
-              finalNarrative: sol.finalNarrative
+              winner: 'INVESTIGATORS',
+              killer: solution.assassin,
+              weapon: solution.weapon,
+              location: solution.location,
+              finalNarrative: solution.finalNarrative
             });
           }
         } else {

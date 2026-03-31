@@ -12,14 +12,36 @@ import {
   AIServiceClue,
   AIServiceCharacter
 } from '../types/game.types.js';
-import { emitGenerationProgress, emitGameStateUpdate } from '../websocket/socket.js';
+
 import { errorLogger } from '../utils/error-logger.js';
 import { generateId, nowIso } from '../utils/id.js';
 import { env } from '../config/env.js';
 
+
+export type GenerationProgressListener = (gameId: string, progress: {
+  phase: GenerationPhase;
+  attempt: number;
+  elapsedMs: number;
+  error?: string;
+}) => void;
+
+export type GameStateChangeListener = (gameId: string, gameInfo: any) => void;
+
 export class CaseOrchestratorService {
   private readonly STEP_TIMEOUT_MS = env.GENERATION_STEP_TIMEOUT_MS;
   private readonly GLOBAL_TIMEOUT_MS = env.GENERATION_GLOBAL_TIMEOUT_MS;
+
+
+  private onGenerationProgress?: GenerationProgressListener;
+  private onGameStateChange?: GameStateChangeListener;
+
+  public setGenerationProgressListener(listener: GenerationProgressListener) {
+    this.onGenerationProgress = listener;
+  }
+
+  public setGameStateChangeListener(listener: GameStateChangeListener) {
+    this.onGameStateChange = listener;
+  }
 
   constructor(
     private aiService: AIService,
@@ -153,7 +175,7 @@ export class CaseOrchestratorService {
     const stepStartTime = Date.now();
 
     this.updateGenerationMetadata(gameId, phase, 1);
-    emitGenerationProgress(gameId, {
+    if (this.onGenerationProgress) this.onGenerationProgress(gameId, {
       phase,
       attempt: 1,
       elapsedMs: 0
@@ -201,7 +223,7 @@ export class CaseOrchestratorService {
       this.store.save(game);
 
       const gameInfo = this.getGameStateInfo(game);
-      emitGameStateUpdate(gameId, gameInfo);
+      if (this.onGameStateChange) this.onGameStateChange(gameId, gameInfo);
     }
   }
 
@@ -295,14 +317,14 @@ export class CaseOrchestratorService {
     game.updatedAt = nowIso();
     this.store.save(game);
 
-    emitGenerationProgress(gameId, {
+    if (this.onGenerationProgress) this.onGenerationProgress(gameId, {
       phase: GenerationPhases.DONE,
       attempt: 1,
       elapsedMs: 0
     });
 
     const gameInfo = this.getGameStateInfo(game);
-    emitGameStateUpdate(gameId, gameInfo);
+    if (this.onGameStateChange) this.onGameStateChange(gameId, gameInfo);
   }
 
   private handleFailure(gameId: string, error: string) {
@@ -315,9 +337,9 @@ export class CaseOrchestratorService {
       this.store.save(game);
 
       const gameInfo = this.getGameStateInfo(game);
-      emitGameStateUpdate(gameId, gameInfo);
+      if (this.onGameStateChange) this.onGameStateChange(gameId, gameInfo);
 
-      emitGenerationProgress(gameId, {
+      if (this.onGenerationProgress) this.onGenerationProgress(gameId, {
         phase: GenerationPhases.FAILED,
         attempt: game.generationAttempts || 1,
         elapsedMs: 0,

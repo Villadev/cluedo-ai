@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { BehaviorSubject, map, Observable, Subscription } from 'rxjs';
-import { PublicGameView, PublicPlayerView, GameStateInfo, GameState, Difficulty } from '../models/player.model';
+import { PublicGameView, PublicPlayerView, GameStateInfo, GameState, Difficulty, GameSolution } from '../models/player.model';
 import { SessionService } from './session.service';
 import { WebSocketService } from './websocket.service';
 import { SocketGameEvent } from '../models/chat.models';
@@ -126,8 +126,8 @@ export class GameService implements OnDestroy {
   }
 
 
-  getSolution(gameId: string): Observable<ApiResponse<any>> {
-    return this.http.get<ApiResponse<any>>(`${this.baseUrl}/game/${gameId}/solution`);
+  getSolution(gameId: string): Observable<ApiResponse<GameSolution>> {
+    return this.http.get<ApiResponse<GameSolution>>(`${this.baseUrl}/game/${gameId}/solution`);
   }
 
   getGame(gameId: string, playerId?: string): Observable<ApiResponse<PublicGameView>> {
