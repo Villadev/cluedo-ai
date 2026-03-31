@@ -166,6 +166,10 @@ const processQuestionQueue = async (gameId: string): Promise<void> => {
 
       // 4. Round management & state update
       await gameEngine.nextTurn(task.gameId);
+
+      // Wait for any system/round messages enqueued by nextTurn to be emitted
+      await waitForQueueToDrain();
+
       const updatedGame = gameEngine.getGameStateInfo(task.gameId);
       emitGameStateUpdate(task.gameId, updatedGame);
 
