@@ -24,7 +24,7 @@ export class WebSocketService {
     this.currentGameId = gameId;
     this.currentPlayerId = playerId ?? null;
 
-    console.log("WS_CONNECTING");
+    console.log(`WS_CONNECTING: gameId=${gameId}, playerId=${playerId}`);
     this.socket = io(this.baseUrl, {
       query: {
         gameId,
@@ -36,19 +36,19 @@ export class WebSocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log("WS_CONNECTED");
+      console.log(`WS_CONNECTED: ${this.socket?.id}`);
       this.connectedSubject.next(true);
       this.reconnectingSubject.next(false);
       this.resync();
     });
 
     this.socket.on('disconnect', (reason) => {
-      console.log("WS_DISCONNECTED", reason);
+      console.log(`WS_DISCONNECTED: ${reason}`);
       this.connectedSubject.next(false);
     });
 
     this.socket.on('connect_error', (error) => {
-      console.log("WS_ERROR", error);
+      console.log(`WS_ERROR: ${error.message}`);
       this.connectedSubject.next(false);
       this.reconnectingSubject.next(true);
     });
@@ -77,19 +77,20 @@ export class WebSocketService {
 
     for (const eventName of listenableEvents) {
       this.socket.on(eventName, (payload: any) => {
-        console.log("WS_MESSAGE_RECEIVED", { event: eventName, payload });
+        console.log(`WS_EVENT_RECEIVED: ${eventName}`, payload);
         this.eventsSubject.next({ event: eventName as any, payload });
       });
     }
   }
 
   sendQuestion(gameId: string, playerId: string, message: string): void {
+    console.log(`WS_SEND: question, gameId=${gameId}, playerId=${playerId}`);
     this.socket?.emit('question', { gameId, playerId, message });
   }
 
   resync(): void {
     if (this.socket?.connected && this.currentGameId) {
-      console.log("WS_EMIT: resync_request", { gameId: this.currentGameId });
+      console.log(`WS_EMIT: resync_request, gameId=${this.currentGameId}`);
       this.socket.emit('resync_request', {
         gameId: this.currentGameId,
         playerId: this.currentPlayerId

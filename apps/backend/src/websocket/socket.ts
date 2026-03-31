@@ -91,7 +91,7 @@ export const initSocket = (httpServer: HttpServer): Server => {
         return;
       }
 
-      console.log(`[QUESTION RECEIVED] ${questionId}`);
+      console.log(`[QUESTION RECEIVED] ${questionId} (socket: ${socket.id}, gameId: ${payload.gameId}, playerId: ${payload.playerId})`);
       processingQuestions.add(questionId);
 
       try {
@@ -116,6 +116,7 @@ export const initSocket = (httpServer: HttpServer): Server => {
           roundNumber: result.game.roundNumber,
           sequenceId: questionEntry?.sequenceId
         };
+        console.log(`[WS_EMIT] chat_message (player question) to room ${payload.gameId}`);
         getSocketServer().to(payload.gameId).emit('chat_message', chatMsg);
 
         // 2. Emit Narrator Response via unified pipeline

@@ -91,3 +91,111 @@ Backend listening on port 3000
 [SERVER] Backend started with Socket.IO
 [SERVER] Environment validated
 Backend listening on port 3000
+2:09:25 PM [tsx] change in ./src/engine/game-engine.ts Restarting...
+c[CONFIG] OpenAI API key detected
+node:internal/modules/cjs/loader:1383
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '../utils/id-generator.js'
+Require stack:
+- /app/apps/backend/src/engine/game-engine.ts
+- /app/apps/backend/src/models/dependencies.ts
+- /app/apps/backend/src/controllers/game.controller.ts
+- /app/apps/backend/src/routes/game.routes.ts
+- /app/apps/backend/src/app.ts
+- /app/apps/backend/src/main.ts
+    at node:internal/modules/cjs/loader:1383:15
+    at nextResolveSimple (/app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:4:1004)
+    at /app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:3:2630
+    at /app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1542
+    at resolveTsPaths (/app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:4:760)
+    at /app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:4:1102
+    at m._resolveFilename (file:///app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-B7jrtLTO.mjs:1:789)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/app/apps/backend/src/engine/game-engine.ts',
+    '/app/apps/backend/src/models/dependencies.ts',
+    '/app/apps/backend/src/controllers/game.controller.ts',
+    '/app/apps/backend/src/routes/game.routes.ts',
+    '/app/apps/backend/src/app.ts',
+    '/app/apps/backend/src/main.ts'
+  ]
+}
+
+Node.js v22.22.1
+2:10:59 PM [tsx] change in ./src/websocket/socket.ts Rerunning...
+c[CONFIG] OpenAI API key detected
+node:internal/modules/cjs/loader:1383
+  const err = new Error(message);
+              ^
+
+Error: Cannot find module '../utils/id-generator.js'
+Require stack:
+- /app/apps/backend/src/engine/game-engine.ts
+- /app/apps/backend/src/models/dependencies.ts
+- /app/apps/backend/src/controllers/game.controller.ts
+- /app/apps/backend/src/routes/game.routes.ts
+- /app/apps/backend/src/app.ts
+- /app/apps/backend/src/main.ts
+    at node:internal/modules/cjs/loader:1383:15
+    at nextResolveSimple (/app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:4:1004)
+    at /app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:3:2630
+    at /app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1542
+    at resolveTsPaths (/app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:4:760)
+    at /app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:4:1102
+    at m._resolveFilename (file:///app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-B7jrtLTO.mjs:1:789)
+    at defaultResolveImpl (node:internal/modules/cjs/loader:1025:19)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1030:22)
+    at Function._load (node:internal/modules/cjs/loader:1192:37) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [
+    '/app/apps/backend/src/engine/game-engine.ts',
+    '/app/apps/backend/src/models/dependencies.ts',
+    '/app/apps/backend/src/controllers/game.controller.ts',
+    '/app/apps/backend/src/routes/game.routes.ts',
+    '/app/apps/backend/src/app.ts',
+    '/app/apps/backend/src/main.ts'
+  ]
+}
+
+Node.js v22.22.1
+2:13:40 PM [tsx] change in ./src/engine/game-engine.ts Rerunning...
+c[CONFIG] OpenAI API key detected
+[DB] SQLite initialized at /app/apps/backend/game.db
+/app/apps/backend/src/main.ts:15
+  gameEngine.setSystemEventListener((gameId, message, type, roundNumber, sequenceId) => {
+             ^
+
+TypeError: import_dependencies.gameEngine.setSystemEventListener is not a function
+    at bootstrap (/app/apps/backend/src/main.ts:15:14)
+    at <anonymous> (/app/apps/backend/src/main.ts:31:1)
+    at Object.<anonymous> (/app/apps/backend/src/main.ts:31:11)
+    at Module._compile (node:internal/modules/cjs/loader:1705:14)
+    at Object.transformer (/app/node_modules/.pnpm/tsx@4.21.0/node_modules/tsx/dist/register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1441:32)
+    at Function._load (node:internal/modules/cjs/loader:1263:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:328:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:237:24)
+    at cjsLoader (node:internal/modules/esm/translators:309:5)
+
+Node.js v22.22.1
+2:16:36 PM [tsx] unlink in ./src/engine/game-engine.ts Rerunning...
+c[CONFIG] OpenAI API key detected
+[DB] SQLite initialized at /app/apps/backend/game.db
+(node:22098) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[SERVER] Backend started with Socket.IO
+[SERVER] Environment validated
+Backend listening on port 3000
+2:16:55 PM [tsx] change in ./src/engine/game-engine.ts Restarting...
+c[CONFIG] OpenAI API key detected
+[DB] SQLite initialized at /app/apps/backend/game.db
+(node:22356) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[SERVER] Backend started with Socket.IO
+[SERVER] Environment validated
+Backend listening on port 3000
