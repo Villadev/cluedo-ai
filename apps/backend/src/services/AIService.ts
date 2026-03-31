@@ -68,12 +68,25 @@ export class AIService {
     }
   }
 
+
+  private shuffle<T>(array: T[]): T[] {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j] as T, newArray[i] as T];
+    }
+    return newArray;
+  }
+
   public async generateCaseSkeleton(difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<FullCase>> {
+    const shuffledWeapons = this.shuffle(WEAPONS);
+    const shuffledLocations = this.shuffle(LOCATIONS);
+
     const instruction = `Crea l'esquelet d'un cas d'assassinat en català.
 Retorna un JSON amb:
 - victim: Nom de la víctima.
-- weapon: Una arma de la llista: ${WEAPONS.join(', ')}.
-- location: Un lloc de la llista: ${LOCATIONS.join(', ')}.
+- weapon: Una arma de la llista: ${shuffledWeapons.join(', ')}.
+- location: Un lloc de la llista: ${shuffledLocations.join(', ')}.
 - assassin: Nom del futur assassí (serà un dels personatges).
 - crimeWindow: { start: "HH:MM", end: "HH:MM" } (finestra d'unes 2 hores).
 

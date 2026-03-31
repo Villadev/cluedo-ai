@@ -200,6 +200,13 @@ export class GameEngine {
 
     this.emitStateChange(game.id, game.state);
 
+    const msg = `Comença la ronda ${game.roundNumber}.`;
+    console.log("[ROUND START DETECTED]", game.roundNumber);
+    if (this.onSystemEvent) {
+      this.onSystemEvent(game.id, msg, 'system', game.roundNumber, game.nextSequenceId++);
+    }
+    this.store.save(game);
+
     // Reveal Round 1 clues when playing actually starts
     await this.revealCluesForRound(game, 1);
 
@@ -654,7 +661,7 @@ export class GameEngine {
     });
 
     if (this.onSystemEvent) {
-      this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
+      this.onSystemEvent(game.id, msg, 'system', game.roundNumber, game.nextSequenceId++);
     }
 
     // Save game state BEFORE revealing clues to avoid overwriting async clue persistence
