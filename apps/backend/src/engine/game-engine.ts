@@ -573,6 +573,9 @@ export class GameEngine {
       roundNumber: game.roundNumber,
       nextSequenceId: game.nextSequenceId,
       state: game.state,
+      generationPhase: game.generationPhase,
+      generationError: game.generationError,
+      generationAttempts: game.generationAttempts,
       errors: errorLogger.getLogs()
     };
   }

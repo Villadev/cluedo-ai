@@ -189,18 +189,36 @@ Regles:
 Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
 
     const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "clues", (data) => {
-      if (!data.clues) return false;
+      if (!data.clues) {
+        console.warn("[CLUES VALIDATION] Missing 'clues' root object");
+        return false;
+      }
 
       const missing = this.validateClueCoverage({ clues: data.clues } as FullCase, maxRounds);
-      if (missing.length > 0) return false;
+      if (missing.length > 0) {
+        console.warn(`[CLUES VALIDATION] Missing rounds: ${missing.join(', ')}`);
+        return false;
+      }
 
       // Validate each clue has required non-empty text and type
-      for (const roundClues of Object.values(data.clues)) {
-        if (!Array.isArray(roundClues)) return false;
-        for (const clue of roundClues) {
-          if (!clue.text || typeof clue.text !== 'string' || clue.text.trim() === '') return false;
-          if (!clue.type || typeof clue.type !== 'string') return false;
-          if (typeof clue.isTrue !== 'boolean') return false;
+      for (const [roundKey, roundClues] of Object.entries(data.clues)) {
+        if (!Array.isArray(roundClues)) {
+          console.warn(`[CLUES VALIDATION] ${roundKey} is not an array`);
+          return false;
+        }
+        for (const [idx, clue] of roundClues.entries()) {
+          if (!clue.text || typeof clue.text !== 'string' || clue.text.trim() === '') {
+            console.warn(`[CLUES VALIDATION] ${roundKey}[${idx}] has empty or invalid text`);
+            return false;
+          }
+          if (!clue.type || typeof clue.type !== 'string') {
+            console.warn(`[CLUES VALIDATION] ${roundKey}[${idx}] has missing or invalid type`);
+            return false;
+          }
+          if (typeof clue.isTrue !== 'boolean') {
+            console.warn(`[CLUES VALIDATION] ${roundKey}[${idx}] has missing or invalid isTrue boolean`);
+            return false;
+          }
         }
       }
       return true;
@@ -268,17 +286,42 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
         const responseText = completion.choices[0]?.message.content;
         if (!responseText) throw new Error("Empty response");
 
-        const data = JSON.parse(responseText) as T;
+        let data: T;
+        try {
+          data = JSON.parse(responseText) as T;
+        } catch (parseError: any) {
+          errorLogger.push(`OPENAI_${stepName.toUpperCase()}_PARSE`, {
+            message: `JSON parse failed on attempt ${attempts}: ${parseError.message}`,
+            stepName,
+            attempt: attempts,
+            responseSample: responseText.substring(0, 200)
+          });
+          throw parseError;
+        }
+
         if (validator(data)) {
           return data;
         }
-        console.warn(`[OPENAI] Validation failed for step: ${stepName}`);
+
+        const validationMsg = `Validation failed for step: ${stepName} on attempt ${attempts}`;
+        console.warn(`[OPENAI] ${validationMsg}`);
+        errorLogger.push(`OPENAI_${stepName.toUpperCase()}_VALIDATION`, {
+          message: validationMsg,
+          stepName,
+          attempt: attempts,
+          dataSample: JSON.stringify(data).substring(0, 200)
+        });
       } catch (error: any) {
         if (error.name === 'AbortError') {
            console.warn(`[OPENAI] Step ${stepName} aborted during attempt ${attempts}`);
            throw error;
         }
         console.error(`[OPENAI ERROR] Step: ${stepName}, Attempt: ${attempts}`, error.message);
+        errorLogger.push(`OPENAI_${stepName.toUpperCase()}_RETRY`, {
+          message: `Attempt ${attempts} failed: ${error.message}`,
+          stepName,
+          attempt: attempts
+        });
         if (attempts >= maxRetries) throw error;
         await new Promise(res => setTimeout(res, 1000 * attempts));
       }
