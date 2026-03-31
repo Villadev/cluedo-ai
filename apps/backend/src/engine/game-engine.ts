@@ -453,19 +453,21 @@ export class GameEngine {
           this.onSystemEvent(game.id, narrative, 'clue', game.roundNumber, game.nextSequenceId++);
         }
 
+        const safeText = clue.text || 'Pista no disponible temporalment';
         this.recordTimelineEvent(game, {
           type: 'CLUE',
           roundNumber: clue.roundNumber,
-          text: clue.text,
+          text: safeText,
           isTrue: clue.isTrue,
-          description: `Pista revelada: ${clue.text}`
+          description: `Pista revelada: ${safeText}`
         });
       } catch (error) {
         console.error("Error generating clue narration:", error);
         if (this.onSystemEvent) {
-          console.log(`[CLUE GENERATED] (fallback)`, clue.text);
+          const fallbackText = clue.text || 'Pista no disponible temporalment';
+          console.log(`[CLUE GENERATED] (fallback)`, fallbackText);
           console.log(`[CLUE ENQUEUED]`);
-          this.onSystemEvent(game.id, clue.text, 'clue', game.roundNumber, game.nextSequenceId++);
+          this.onSystemEvent(game.id, fallbackText, 'clue', game.roundNumber, game.nextSequenceId++);
         }
       }
     }

@@ -336,6 +336,46 @@ gameRouter.get('/:id/questions', asyncHandler((req: Request, res: Response) => c
  *       200:
  *         description: Estat de la partida obtingut.
  */
+/**
+ * @openapi
+ * /game/{id}/players:
+ *   get:
+ *     summary: Llistar participants
+ *     description: Retorna la llista completa de participants amb els seus personatges (si estan assignats).
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Llista de participants obtinguda.
+ */
+gameRouter.get('/:id/players', asyncHandler((req: Request, res: Response) => controller.getPlayers(req, res)));
+
+/**
+ * @openapi
+ * /game/{id}/solution:
+ *   get:
+ *     summary: Obtenir solució
+ *     description: Retorna la solució del cas (assassí, arma, lloc) si ja ha estat generada.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     responses:
+ *       200:
+ *         description: Solució del cas obtinguda.
+ */
+gameRouter.get('/:id/solution', asyncHandler((req: Request, res: Response) => controller.getSolution(req, res)));
+
 gameRouter.get('/:id/state', asyncHandler((req: Request, res: Response) => controller.getState(req, res)));
 
 /**

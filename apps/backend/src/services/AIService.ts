@@ -189,8 +189,21 @@ Regles:
 Retorna un JSON amb l'estructura "clues": { "round1": [...], ... }`;
 
     const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "clues", (data) => {
+      if (!data.clues) return false;
+
       const missing = this.validateClueCoverage({ clues: data.clues } as FullCase, maxRounds);
-      return missing.length === 0;
+      if (missing.length > 0) return false;
+
+      // Validate each clue has required non-empty text and type
+      for (const roundClues of Object.values(data.clues)) {
+        if (!Array.isArray(roundClues)) return false;
+        for (const clue of roundClues) {
+          if (!clue.text || typeof clue.text !== 'string' || clue.text.trim() === '') return false;
+          if (!clue.type || typeof clue.type !== 'string') return false;
+          if (typeof clue.isTrue !== 'boolean') return false;
+        }
+      }
+      return true;
     }, 3, signal);
 
     return result.clues;

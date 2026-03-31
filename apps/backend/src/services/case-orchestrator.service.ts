@@ -261,9 +261,9 @@ export class CaseOrchestratorService {
       cluesForRound.forEach((c: AIServiceClue) => {
         allClues.push({
           id: generateId(),
-          type: c.type,
-          text: c.text,
-          isTrue: c.isTrue,
+          type: c.type || 'rumor',
+          text: c.text || 'Pista no disponible temporalment',
+          isTrue: typeof c.isTrue === 'boolean' ? c.isTrue : true,
           roundNumber: roundNum,
           createdAt: nowIso()
         });
