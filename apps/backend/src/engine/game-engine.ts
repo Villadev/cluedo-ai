@@ -284,9 +284,7 @@ export class GameEngine {
       throw new Error('La partida no està en curs');
     }
 
-    if (game.players[game.currentTurnIndex]?.id !== player.id) {
-      throw new Error("No és el teu torn");
-    }
+
 
     this.assertActivePlayer(player);
 
@@ -335,9 +333,7 @@ export class GameEngine {
       throw new Error('La partida no està en curs');
     }
 
-    if (game.players[game.currentTurnIndex]?.id !== player.id) {
-      throw new Error("No és el teu torn");
-    }
+
 
     this.assertActivePlayer(player);
 
@@ -677,6 +673,7 @@ export class GameEngine {
     const firstRealPlayerIndex = game.players.findIndex(p => p.type === 'real');
     game.currentTurnIndex = firstRealPlayerIndex >= 0 ? firstRealPlayerIndex : 0;
     game.updatedAt = nowIso();
+    this.store.save(game);
   }
 
   public getGameStateInfo(gameId: string): any {

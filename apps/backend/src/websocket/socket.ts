@@ -6,7 +6,7 @@ import { Player, PublicGameView, ChatMessage, GameState, Difficulty, GenerationP
 
 let io: Server | null = null;
 
-// Message Queue
+// Output Message Queue (Narrator/System)
 interface QueueItem {
   gameId: string;
   message: string;
@@ -20,7 +20,16 @@ interface QueueItem {
 const messageQueue: QueueItem[] = [];
 let isProcessingQueue = false;
 
-const processingQuestions = new Set<string>();
+// Input Question Queue per Game
+interface QuestionTask {
+  gameId: string;
+  playerId: string;
+  message: string;
+  socketId: string;
+}
+
+const questionQueuesByGame = new Map<string, QuestionTask[]>();
+const isProcessingByGame = new Map<string, boolean>();
 
 export const initSocket = (httpServer: HttpServer): Server => {
   io = new Server(httpServer, {
@@ -74,7 +83,7 @@ export const initSocket = (httpServer: HttpServer): Server => {
     socket.on('update_difficulty', (payload: { gameId: string; difficulty: Difficulty }) => {
       console.log('WS_EVENT: update_difficulty', payload);
       try {
-        const game = gameEngine.updateDifficulty(payload.gameId, payload.difficulty);
+        gameEngine.updateDifficulty(payload.gameId, payload.difficulty);
         const gameInfo = gameEngine.getGameStateInfo(payload.gameId);
         emitGameStateUpdate(payload.gameId, gameInfo);
       } catch (error: any) {
@@ -83,71 +92,22 @@ export const initSocket = (httpServer: HttpServer): Server => {
       }
     });
 
-    socket.on('question', async (payload: { gameId: string; playerId: string; message: string }) => {
-      const questionId = `${payload.gameId}-${payload.playerId}-${payload.message}`;
+    socket.on('question', (payload: { gameId: string; playerId: string; message: string }) => {
+      const task: QuestionTask = {
+        gameId: payload.gameId,
+        playerId: payload.playerId,
+        message: payload.message,
+        socketId: socket.id
+      };
 
-      if (processingQuestions.has(questionId)) {
-        console.log(`[QUESTION DUPLICATE PREVENTED] ${questionId}`);
-        return;
+      console.log(`[QUESTION ENQUEUED] Game: ${task.gameId}, Player: ${task.playerId}`);
+
+      if (!questionQueuesByGame.has(task.gameId)) {
+        questionQueuesByGame.set(task.gameId, []);
       }
+      questionQueuesByGame.get(task.gameId)!.push(task);
 
-      console.log(`[QUESTION RECEIVED] ${questionId} (socket: ${socket.id}, gameId: ${payload.gameId}, playerId: ${payload.playerId})`);
-      processingQuestions.add(questionId);
-
-      try {
-        const result = await gameEngine.askQuestion(payload.gameId, {
-          playerId: payload.playerId,
-          question: payload.message
-        });
-
-        console.log(`[ANSWER GENERATED] ${questionId}`);
-
-        const chatHistory = result.game.chatHistory;
-        const questionEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 2);
-        const responseEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 1);
-
-        // 1. Emit Player Question
-        const chatMsg = {
-          type: 'player',
-          playerId: payload.playerId,
-          playerName: questionEntry?.playerName || 'Jugador',
-          message: payload.message,
-          timestamp: questionEntry?.timestamp || Date.now(),
-          roundNumber: result.game.roundNumber,
-          sequenceId: questionEntry?.sequenceId
-        };
-        console.log(`[WS_EMIT] chat_message (player question) to room ${payload.gameId}`);
-        getSocketServer().to(payload.gameId).emit('chat_message', chatMsg);
-
-        // 2. Emit Narrator Response via unified pipeline
-        sendNarratorMessage(
-          payload.gameId,
-          result.response,
-          'narrator',
-          result.game.roundNumber,
-          responseEntry?.sequenceId
-        );
-
-        console.log(`[ANSWER ENQUEUED] ${questionId}`);
-
-        // Delay to ensure messages are processed in order before round transition
-        await new Promise(res => setTimeout(res, 100));
-
-        // Advance round if everyone has acted
-        await gameEngine.nextTurn(payload.gameId);
-
-        // Get updated game state after turn advancement
-        const updatedGame = gameEngine.getGameStateInfo(payload.gameId);
-
-        // Also update game state for everyone
-        emitGameStateUpdate(payload.gameId, updatedGame);
-      } catch (error: any) {
-        console.error('WS_ERROR processing question:', error);
-        socket.emit('error', { message: error.message || 'Error processing question' });
-      } finally {
-        // Clear from processing after a reasonable time to allow future questions
-        setTimeout(() => processingQuestions.delete(questionId), 5000);
-      }
+      processQuestionQueue(task.gameId);
     });
 
     socket.on('disconnect', () => {
@@ -156,6 +116,67 @@ export const initSocket = (httpServer: HttpServer): Server => {
   });
 
   return io;
+};
+
+const processQuestionQueue = async (gameId: string): Promise<void> => {
+  if (isProcessingByGame.get(gameId) || !questionQueuesByGame.has(gameId)) return;
+
+  const queue = questionQueuesByGame.get(gameId)!;
+  if (queue.length === 0) return;
+
+  isProcessingByGame.set(gameId, true);
+
+  while (queue.length > 0) {
+    const task = queue.shift()!;
+    console.log(`[QUESTION WORKER] Processing task for Game: ${task.gameId}, Player: ${task.playerId}`);
+
+    try {
+      const result = await gameEngine.askQuestion(task.gameId, {
+        playerId: task.playerId,
+        question: task.message
+      });
+
+      const chatHistory = result.game.chatHistory;
+      const questionEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 2);
+      const responseEntry = chatHistory.find(m => m.sequenceId === result.game.nextSequenceId - 1);
+
+      // 1. Emit Player Question
+      const chatMsg = {
+        type: 'player',
+        playerId: task.playerId,
+        playerName: questionEntry?.playerName || 'Jugador',
+        message: task.message,
+        timestamp: questionEntry?.timestamp || Date.now(),
+        roundNumber: result.game.roundNumber,
+        sequenceId: questionEntry?.sequenceId
+      };
+      console.log(`[WS_EMIT] chat_message (player question) to room ${task.gameId}`);
+      getSocketServer().to(task.gameId).emit('chat_message', chatMsg);
+
+      // 2. Emit Narrator Response
+      sendNarratorMessage(
+        task.gameId,
+        result.response,
+        'narrator',
+        result.game.roundNumber,
+        responseEntry?.sequenceId
+      );
+
+      // 3. Round management & state update
+      await gameEngine.nextTurn(task.gameId);
+      const updatedGame = gameEngine.getGameStateInfo(task.gameId);
+      emitGameStateUpdate(task.gameId, updatedGame);
+
+    } catch (error: any) {
+      console.error(`WS_ERROR processing question for game ${task.gameId}:`, error);
+      getSocketServer().to(task.socketId).emit('error', { message: error.message || 'Error processing question' });
+    }
+
+    // Safety delay to avoid AI rate limits or UI jitter
+    await new Promise(res => setTimeout(res, 200));
+  }
+
+  isProcessingByGame.set(gameId, false);
 };
 
 const getSocketServer = (): Server => {
@@ -173,12 +194,10 @@ export const emitPlayerJoined = (gameId: string, player: Player): void => {
 export const emitGameStateUpdate = (gameId: string, status: any): void => {
   console.log(`WS_EMIT: game_state_update to room ${gameId}`);
 
-  // If we just got a string (legacy/direct call), wrap it in an object
   const payload = typeof status === 'string'
     ? { gameId, state: status }
     : { gameId, ...status };
 
-  // Compatibility fix: frontends might expect 'status' property for the main state string
   if (payload.state && !payload.status) {
     payload.status = payload.state;
   }
@@ -258,7 +277,6 @@ const processQueue = async (): Promise<void> => {
     console.log(`[QUEUE WORKER] Emitting ${type} to room ${gameId}: ${message.substring(0, 30)}...`);
     getSocketServer().to(gameId).emit('chat_message', systemMsg);
 
-    // Also persist to chat history, unless it is a narrator message (already persisted in askQuestion)
     try {
       if (type !== 'narrator') {
         gameEngine.recordChatMessage(gameId, {
@@ -274,7 +292,6 @@ const processQueue = async (): Promise<void> => {
       console.warn(`[QUEUE WORKER] Could not persist message to history for game ${gameId}`);
     }
 
-    // Small delay between messages to ensure order in frontend
     await new Promise(res => setTimeout(res, 150));
   }
 

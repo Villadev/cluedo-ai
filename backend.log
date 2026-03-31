@@ -199,3 +199,35 @@ Backend listening on port 3000
 [SERVER] Backend started with Socket.IO
 [SERVER] Environment validated
 Backend listening on port 3000
+2:50:03 PM [tsx] change in ./src/engine/game-engine.ts Restarting...
+c[CONFIG] OpenAI API key detected
+[DB] SQLite initialized at /app/apps/backend/game.db
+(node:24385) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[SERVER] Backend started with Socket.IO
+[SERVER] Environment validated
+Backend listening on port 3000
+2:50:25 PM [tsx] change in ./src/engine/game-engine.ts Restarting...
+c[CONFIG] OpenAI API key detected
+[DB] SQLite initialized at /app/apps/backend/game.db
+(node:24656) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[SERVER] Backend started with Socket.IO
+[SERVER] Environment validated
+Backend listening on port 3000
+2:51:12 PM [tsx] change in ./src/engine/game-engine.ts Restarting...
+c[CONFIG] OpenAI API key detected
+[DB] SQLite initialized at /app/apps/backend/game.db
+(node:25187) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[SERVER] Backend started with Socket.IO
+[SERVER] Environment validated
+Backend listening on port 3000
+2:52:39 PM [tsx] change in ./src/websocket/socket.ts Restarting...
+c[CONFIG] OpenAI API key detected
+[DB] SQLite initialized at /app/apps/backend/game.db
+(node:26239) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[SERVER] Backend started with Socket.IO
+[SERVER] Environment validated
+Backend listening on port 3000
