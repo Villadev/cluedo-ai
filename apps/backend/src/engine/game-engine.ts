@@ -430,6 +430,7 @@ export class GameEngine {
     }
 
     game.updatedAt = nowIso();
+    this.store.save(game);
   }
 
   private async revealCluesForRound(game: Game, roundNumber: number): Promise<void> {

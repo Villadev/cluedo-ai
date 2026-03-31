@@ -37,8 +37,12 @@ export class ChatService implements OnDestroy {
     // Basic deduplication for live messages if they have sequenceId
     if (message.sequenceId !== undefined) {
       const exists = this.messagesSubject.value.some(m => m.sequenceId === message.sequenceId);
-      if (exists) return;
+      if (exists) {
+        console.log(`[CHAT_SERVICE] Duplicate message ignored: sequenceId=${message.sequenceId}`);
+        return;
+      }
     }
+    console.log(`[CHAT_SERVICE] Adding message: type=${message.type}, sequenceId=${message.sequenceId}`);
     this.messagesSubject.next([...this.messagesSubject.value, message]);
   }
 
@@ -130,6 +134,7 @@ export class ChatService implements OnDestroy {
         this.addSystemMessage('system', 'La ronda ha finalitzat. Revisa les pistes.');
         break;
       case 'resync_data':
+        console.log(`[CHAT_SERVICE] Resync data received`, event.payload);
         if (event.payload?.chatHistory) {
           this.applyResyncedHistory(event.payload.chatHistory);
         }
