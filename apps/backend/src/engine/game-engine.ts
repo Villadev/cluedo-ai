@@ -370,7 +370,7 @@ export class GameEngine {
       });
 
       if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
+        this.onSystemEvent(game.id, msg, 'system', game.roundNumber, game.nextSequenceId++);
       }
       this.emitStateChange(game.id, game.state);
     } else {
@@ -386,7 +386,7 @@ export class GameEngine {
       });
 
       if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
+        this.onSystemEvent(game.id, msg, 'system', game.roundNumber, game.nextSequenceId++);
       }
     }
 
@@ -643,7 +643,7 @@ export class GameEngine {
       });
 
       if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
+        this.onSystemEvent(game.id, msg, 'system', game.roundNumber, game.nextSequenceId++);
       }
       this.emitStateChange(game.id, game.state);
       return;

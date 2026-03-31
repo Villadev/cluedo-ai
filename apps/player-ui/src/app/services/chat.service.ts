@@ -61,46 +61,7 @@ export class ChatService implements OnDestroy {
     this.gameService.getChatHistory(gameId).subscribe({
       next: (response) => {
         if (response.success && response.data) {
-          const historyMessages: ChatMessage[] = [];
-          const seenSequenceIds = new Set<number>();
-
-          response.data.forEach((msg: ChatHistoryMessage) => {
-            if (msg.sequenceId !== undefined && seenSequenceIds.has(msg.sequenceId)) {
-              return;
-            }
-            if (msg.sequenceId !== undefined) {
-              seenSequenceIds.add(msg.sequenceId);
-            }
-
-            const typeMap: Record<string, ChatMessageType> = {
-              'player': 'question',
-              'narrator': 'response',
-              'system': 'system',
-              'clue': 'clue'
-            };
-
-            historyMessages.push({
-              id: crypto.randomUUID(),
-              type: typeMap[msg.type] || 'system',
-              sender: msg.playerName,
-              message: msg.message,
-              timestamp: new Date(msg.timestamp),
-              round: msg.roundNumber,
-              sequenceId: msg.sequenceId
-            });
-          });
-
-          // Merge with current messages, prioritizing history but avoiding duplicates
-          const currentMessages = this.messagesSubject.value;
-          const merged = [...historyMessages];
-
-          currentMessages.forEach(curr => {
-            if (curr.sequenceId === undefined || !seenSequenceIds.has(curr.sequenceId)) {
-              merged.push(curr);
-            }
-          });
-
-          this.messagesSubject.next(merged.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()));
+          this.applyResyncedHistory(response.data);
         }
       },
       error: (err) => {
@@ -114,13 +75,6 @@ export class ChatService implements OnDestroy {
       case 'chat_message':
         this.handleChatMessage(event.payload);
         break;
-      case 'clue':
-        // this.addSystemMessage('clue', event.payload); // Removed: Handled via 'chat_message'
-        break;
-      case 'system_event':
-      case 'system_message':
-        // this.addSystemMessage('system', event.payload); // Removed: Handled via 'chat_message'
-        break;
       case 'round_state':
         if (event.payload && typeof event.payload === 'object' && 'canAskQuestion' in event.payload) {
           this.canAskQuestionSubject.next(!!event.payload.canAskQuestion);
@@ -128,13 +82,8 @@ export class ChatService implements OnDestroy {
         break;
       case 'round_start':
         this.canAskQuestionSubject.next(true);
-        // Ephemeral local messages removed to avoid duplication with backend-persisted ones
-        break;
-      case 'round_end':
-        // Ephemeral local messages removed
         break;
       case 'resync_data':
-        console.log(`[CHAT_SERVICE] Resync data received`, event.payload);
         if (event.payload?.chatHistory) {
           this.applyResyncedHistory(event.payload.chatHistory);
         }
@@ -158,7 +107,8 @@ export class ChatService implements OnDestroy {
       message = "No és el teu torn.";
     }
 
-    this.addSystemMessage('system', `⚠️ Error: ${message}`);
+    // Log error for UI only
+    console.warn(`[CHAT_ERROR] ${message}`);
     this.errorSubject.next(message);
   }
 
@@ -170,29 +120,18 @@ export class ChatService implements OnDestroy {
       'clue': 'clue'
     };
 
-    const messages: ChatMessage[] = [];
-    const seenSequenceIds = new Set<number>();
+    const historyMessages: ChatMessage[] = history.map((msg) => ({
+      id: crypto.randomUUID(),
+      type: typeMap[msg.type] || 'system',
+      sender: msg.playerName,
+      message: msg.message,
+      timestamp: new Date(msg.timestamp),
+      round: msg.roundNumber,
+      sequenceId: msg.sequenceId
+    }));
 
-    history.forEach((msg) => {
-      if (msg.sequenceId !== undefined && seenSequenceIds.has(msg.sequenceId)) {
-        return;
-      }
-      if (msg.sequenceId !== undefined) {
-        seenSequenceIds.add(msg.sequenceId);
-      }
-
-      messages.push({
-        id: crypto.randomUUID(),
-        type: typeMap[msg.type] || 'system',
-        sender: msg.playerName,
-        message: msg.message,
-        timestamp: new Date(msg.timestamp),
-        round: msg.roundNumber,
-        sequenceId: msg.sequenceId
-      });
-    });
-
-    this.messagesSubject.next(messages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()));
+    // For player-ui, we replace the state entirely on resync/load to match master-ui behavior
+    this.messagesSubject.next(historyMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()));
   }
 
   private handleChatMessage(payload: any): void {
@@ -229,25 +168,5 @@ export class ChatService implements OnDestroy {
     this.addMessage(message);
   }
 
-  private addSystemMessage(type: ChatMessageType, payload: any): void {
-    let content = '';
-    if (typeof payload === 'string') {
-      content = payload;
-    } else if (payload && typeof payload === 'object' && 'message' in payload) {
-      content = payload.message;
-    } else if (payload && typeof payload === 'object' && 'text' in payload) {
-      content = payload.text;
-    }
 
-    if (!content) return;
-
-    this.addMessage({
-      id: crypto.randomUUID(),
-      type: type,
-      message: content,
-      timestamp: new Date(),
-      round: payload?.roundNumber,
-      sequenceId: payload?.sequenceId
-    });
-  }
 }
