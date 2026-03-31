@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, signal, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, effect, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GameApiService, PublicPlayerView } from '../../services/game-api.service';
+import { WebSocketService } from '../../services/websocket.service';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 // PrimeNG imports
 import { ButtonModule } from 'primeng/button';
@@ -28,6 +30,8 @@ import { ConfirmationService } from 'primeng/api';
 export class ParticipantsComponent {
   private readonly gameApiService = inject(GameApiService);
   private readonly confirmationService = inject(ConfirmationService);
+  private readonly webSocketService = inject(WebSocketService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly participants = signal<PublicPlayerView[]>([]);
   readonly loading = signal<boolean>(false);
@@ -57,6 +61,22 @@ export class ParticipantsComponent {
         this.error.set('No hi ha cap partida activa. Per favor, crea o uneix-te a una partida primer.');
       }
     });
+
+    this.webSocketService.events$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((event) => {
+        if (
+          event.event === 'player_joined' ||
+          event.event === 'game_state_update' ||
+          event.event === 'game_state_updated' ||
+          event.event === 'resync_data'
+        ) {
+          const id = this.gameId();
+          if (id) {
+            this.fetchParticipants(id);
+          }
+        }
+      });
   }
 
   protected fetchParticipants(id: string): void {

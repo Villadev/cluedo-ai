@@ -96,7 +96,10 @@ export class SolutionComponent implements OnDestroy {
           } else {
             this.solution.set(response.data);
             this.error.set(null);
-            this.stopPolling(); // Stop polling once solution is found
+            // Keep polling until done or narratives complete
+            if (this.gameState()?.generationPhase === "DONE") {
+              this.stopPolling();
+            }
           }
         } else {
           this.error.set(response.error || 'Error en obtenir la solució');

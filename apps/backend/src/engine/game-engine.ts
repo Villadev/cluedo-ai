@@ -195,12 +195,14 @@ export class GameEngine {
       description: "L'investigació ha començat."
     });
 
+    // Save game state BEFORE revealing clues to avoid overwriting async clue persistence
+    this.store.save(game);
+
     this.emitStateChange(game.id, game.state);
 
     // Reveal Round 1 clues when playing actually starts
     await this.revealCluesForRound(game, 1);
 
-    this.store.save(game);
     return game;
   }
 
@@ -271,9 +273,7 @@ export class GameEngine {
         if (exists) return;
     }
 
-    game.chatHistory.push(message);
-    game.updatedAt = nowIso();
-    this.store.save(game);
+    this.store.appendChatMessage(gameId, message);
   }
 
   public async askQuestion(gameId: string, input: AskQuestionInput): Promise<{ game: Game, response: string }> {
@@ -654,6 +654,9 @@ export class GameEngine {
     if (this.onSystemEvent) {
       this.onSystemEvent(game.id, msg, undefined, game.roundNumber, game.nextSequenceId++);
     }
+
+    // Save game state BEFORE revealing clues to avoid overwriting async clue persistence
+    this.store.save(game);
 
     await this.revealCluesForRound(game, game.roundNumber);
 

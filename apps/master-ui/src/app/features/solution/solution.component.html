@@ -28,7 +28,7 @@
     </div>
   }
 
-  @if (!solution() && gameState()?.generationPhase && gameState()?.generationPhase !== 'DONE' && gameState()?.generationPhase !== 'IDLE') {
+  @if (gameState()?.generationPhase && gameState()?.generationPhase !== 'DONE' && gameState()?.generationPhase !== 'IDLE') {
     <p-card header="GENERACIÓ EN CURS" styleClass="mb-4 shadow-2">
       <div class="flex flex-column gap-3">
         <div class="flex justify-content-between align-items-center">
@@ -37,7 +37,11 @@
         </div>
         <p-progressBar [value]="getProgressValue()" [showValue]="false"></p-progressBar>
         <p class="text-sm text-gray-500 italic">
-          S'està generant el cas per la IA. Això pot trigar un parell de minuts.
+          @if (solution()) {
+            S'estan generant els darrers detalls (narratives, pistes, etc).
+          } @else {
+            S'està generant el cas per la IA. Això pot trigar un parell de minuts.
+          }
         </p>
         @if (gameState()?.generationError) {
             <p-message severity="warn" [text]="gameState()?.generationError || ''"></p-message>
