@@ -125,6 +125,11 @@ export class GameService implements OnDestroy {
     return this.http.get<ApiResponse<PublicPlayerView[]>>(`${this.baseUrl}/game/${gameId}/players`);
   }
 
+
+  getSolution(gameId: string): Observable<ApiResponse<any>> {
+    return this.http.get<ApiResponse<any>>(`${this.baseUrl}/game/${gameId}/solution`);
+  }
+
   getGame(gameId: string, playerId?: string): Observable<ApiResponse<PublicGameView>> {
     const url = playerId ? `${this.baseUrl}/game/${gameId}?playerId=${playerId}` : `${this.baseUrl}/game/${gameId}`;
     return this.http.get<ApiResponse<PublicGameView>>(url);

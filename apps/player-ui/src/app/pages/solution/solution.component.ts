@@ -44,18 +44,24 @@ export class SolutionComponent implements OnInit {
 
   private fetchGameData(): void {
     this.loading.set(true);
-    this.gameService.getGame(this.gameId).subscribe({
+    this.gameService.getSolution(this.gameId).subscribe({
       next: (response) => {
         if (response.success && response.data) {
-          if (response.data.state === 'FINISHED' && response.data.result) {
-            this.result.set(response.data.result);
-          } else if (response.data.state !== 'FINISHED') {
-            this.error.set('La partida encara no ha finalitzat.');
+          if (response.data.message) {
+            this.error.set(response.data.message);
           } else {
-            this.error.set('No s\'ha trobat la resolució de la partida.');
+            // Map backend GameSolution to GameResult if necessary, or just set it
+            const sol = response.data;
+            this.result.set({
+              winner: 'INVESTIGATORS', // Simplified for player view
+              killer: sol.assassin,
+              weapon: sol.weapon,
+              location: sol.location,
+              finalNarrative: sol.finalNarrative
+            });
           }
         } else {
-          this.error.set(response.error || 'Error en obtenir la informació de la partida.');
+          this.error.set(response.error || 'Error en obtenir la solució de la partida.');
         }
         this.loading.set(false);
       },

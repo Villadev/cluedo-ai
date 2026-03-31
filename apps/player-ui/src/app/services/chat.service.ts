@@ -115,11 +115,11 @@ export class ChatService implements OnDestroy {
         this.handleChatMessage(event.payload);
         break;
       case 'clue':
-        this.addSystemMessage('clue', event.payload);
+        // this.addSystemMessage('clue', event.payload); // Removed: Handled via 'chat_message'
         break;
       case 'system_event':
       case 'system_message':
-        this.addSystemMessage('system', event.payload);
+        // this.addSystemMessage('system', event.payload); // Removed: Handled via 'chat_message'
         break;
       case 'round_state':
         if (event.payload && typeof event.payload === 'object' && 'canAskQuestion' in event.payload) {
@@ -128,10 +128,10 @@ export class ChatService implements OnDestroy {
         break;
       case 'round_start':
         this.canAskQuestionSubject.next(true);
-        this.addSystemMessage('system', 'Comença una nova ronda d\'investigació. Pots fer una pregunta.');
+        // Ephemeral local messages removed to avoid duplication with backend-persisted ones
         break;
       case 'round_end':
-        this.addSystemMessage('system', 'La ronda ha finalitzat. Revisa les pistes.');
+        // Ephemeral local messages removed
         break;
       case 'resync_data':
         console.log(`[CHAT_SERVICE] Resync data received`, event.payload);
