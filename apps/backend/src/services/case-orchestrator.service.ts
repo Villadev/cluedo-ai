@@ -13,6 +13,7 @@ import {
   AIServiceCharacter
 } from '../types/game.types.js';
 import { emitGenerationProgress, emitGameStateUpdate } from '../websocket/socket.js';
+import { errorLogger } from '../utils/error-logger.js';
 import { generateId, nowIso } from '../utils/id.js';
 import { env } from '../config/env.js';
 
@@ -131,6 +132,12 @@ export class CaseOrchestratorService {
 
     } catch (error: any) {
       console.error(`[ORCHESTRATOR ERROR] Game ${gameId}:`, error.message);
+      errorLogger.push('ORCHESTRATOR_STEP_FAILURE', {
+        gameId,
+        phase: game.generationPhase,
+        message: error.message || 'Error desconegut durant la generació',
+        stack: error.stack
+      });
       this.handleFailure(gameId, error.message || 'Error desconegut durant la generació');
     } finally {
       clearTimeout(globalTimeout);
