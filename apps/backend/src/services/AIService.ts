@@ -2,9 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { openaiClient } from '../config/openai.js';
 import { errorLogger } from '../utils/error-logger.js';
-import { FullCase, Difficulty, AIServiceCharacter, AIServiceClue } from '../types/game.types.js';
+import { FullCase, Difficulty, AIServiceCharacter, AIServiceClue, GenerationPhase } from '../types/game.types.js';
 import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 import { env } from '../config/env.js';
+import { telemetryService } from './telemetry.service.js';
 
 const resolveContextPath = (fileName: string): string => {
   const candidatePaths = [
@@ -78,7 +79,7 @@ export class AIService {
     return newArray;
   }
 
-  public async generateCaseSkeleton(difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<FullCase>> {
+  public async generateCaseSkeleton(gameId: string, difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<FullCase>> {
     const shuffledWeapons = this.shuffle(WEAPONS);
     const shuffledLocations = this.shuffle(LOCATIONS);
 
@@ -94,12 +95,19 @@ Regles:
 - Tria una arma i un lloc realistes per al context d'un poble.
 - L'assassí ha de tenir un nom català o comú a la zona.`;
 
-    return this.callOpenAIWithRetry<Partial<FullCase>>(instruction, "skeleton", (data) => {
-      return !!(data.victim && data.weapon && data.location && data.assassin && data.crimeWindow);
+    return this.callOpenAIWithRetry<Partial<FullCase>>(gameId, instruction, "skeleton", "SKELETON", (data) => {
+      const valid = !!(data.victim && data.weapon && data.location && data.assassin && data.crimeWindow);
+      return {
+        valid,
+        details: {
+          assassinExpected: data.assassin,
+          assassinMatched: !!data.assassin
+        }
+      };
     }, 3, signal);
   }
 
-  public async generateBasicCharacters(caseBible: Partial<FullCase>, expectedCount: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+  public async generateBasicCharacters(gameId: string, caseBible: Partial<FullCase>, expectedCount: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
     const instruction = `Crea exactament ${expectedCount} personatges per a un Cluedo en català.
 Assassí: ${caseBible.assassin}. Víctima: ${caseBible.victim}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
 
@@ -107,13 +115,25 @@ Retorna un JSON amb "characters": [
   { "name": "...", "profession": "...", "possibleMotive": "..." }
 ] (exactament ${expectedCount} elements, un d'ells ha de ser ${caseBible.assassin})`;
 
-    const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(instruction, "characters_basic", (data) => {
-      return Array.isArray(data.characters) && data.characters.length === expectedCount && data.characters.some(c => c.name === caseBible.assassin);
+    const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, "characters_basic", "CHARACTERS", (data) => {
+      const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
+      const assassinMatched = Array.isArray(data.characters) && data.characters.some(c => c.name === caseBible.assassin);
+      const valid = returnedCount === expectedCount && assassinMatched;
+
+      return {
+        valid,
+        details: {
+          expectedCount,
+          returnedCount,
+          assassinExpected: caseBible.assassin,
+          assassinMatched
+        }
+      };
     }, 3, signal);
     return result.characters;
   }
 
-  public async enrichCharacters(caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
+  public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Enriqueix aquests personatges per al Cluedo en català.
 Víctima: ${caseBible.victim}. Crim: de ${caseBible.crimeWindow?.start} a ${caseBible.crimeWindow?.end} a ${caseBible.location} amb ${caseBible.weapon}.
@@ -129,8 +149,13 @@ Per a cada personatge, genera:
 
 Retorna JSON amb "characters": [ { ...full_details } ]`;
 
-    const result = await this.callOpenAIWithRetry<{ characters: AIServiceCharacter[] }>(instruction, "characters_enrich", (data) => {
-      return Array.isArray(data.characters) && data.characters.length === characters.length;
+    const result = await this.callOpenAIWithRetry<{ characters: AIServiceCharacter[] }>(gameId, instruction, "characters_enrich", "CHARACTERS", (data) => {
+      const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
+      const expectedCount = characters.length;
+      return {
+        valid: returnedCount === expectedCount,
+        details: { expectedCount, returnedCount }
+      };
     }, 3, signal);
 
     return this.normalizeCharacters(result.characters, characters, caseBible);
@@ -175,12 +200,7 @@ Retorna JSON amb "characters": [ { ...full_details } ]`;
       });
   }
 
-  public async generateCharacters(caseBible: FullCase, expectedCount: number, difficulty: Difficulty): Promise<AIServiceCharacter[]> {
-    const basics = await this.generateBasicCharacters(caseBible, expectedCount, difficulty);
-    return this.enrichCharacters(caseBible, basics, difficulty);
-  }
-
-  public async generateNarratives(caseBible: FullCase, difficulty: Difficulty, signal?: AbortSignal): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
+  public async generateNarratives(gameId: string, caseBible: FullCase, difficulty: Difficulty, signal?: AbortSignal): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
     const instruction = `Genera dues narratives per al cas d'assassinat en català.
 Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
 
@@ -196,9 +216,11 @@ Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBibl
 
 Retorna un JSON amb "introductionNarrative" i "solutionNarrative".`;
 
-    return this.callOpenAIWithRetry<{ introductionNarrative: string, solutionNarrative: string }>(instruction, "narratives", (data) => {
+    return this.callOpenAIWithRetry<{ introductionNarrative: string, solutionNarrative: string }>(gameId, instruction, "narratives", "NARRATIVES", (data) => {
       const validIntro = this.isValidIntro(data.introductionNarrative, caseBible.weapon, caseBible.location);
-      return !!(data.introductionNarrative && data.solutionNarrative && validIntro);
+      return {
+        valid: !!(data.introductionNarrative && data.solutionNarrative && validIntro)
+      };
     }, 3, signal);
   }
 
@@ -223,7 +245,7 @@ Retorna un JSON amb "introductionNarrative" i "solutionNarrative".`;
     }
   }
 
-  public async generateCluesByRounds(caseBible: FullCase, maxRounds: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Record<string, AIServiceClue[]>> {
+  public async generateCluesByRounds(gameId: string, caseBible: FullCase, maxRounds: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Record<string, AIServiceClue[]>> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Genera pistes progressives per a ${maxRounds} rondes en català.
 ${diffContext}
@@ -245,7 +267,7 @@ Retorna un JSON amb l'estructura exacta:
   }
 }`;
 
-    const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "clues", (data) => {
+    const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(gameId, instruction, "clues", "CLUES", (data) => {
       this.normalizeCluesResponse(data);
 
       const errors: string[] = [];
@@ -257,34 +279,9 @@ Retorna un JSON amb l'estructura exacta:
         if (missing.length > 0) {
           errors.push(`Missing rounds: ${missing.join(', ')}`);
         }
-
-        // Validate each clue has required non-empty text and type
-        for (const [roundKey, roundClues] of Object.entries(data.clues)) {
-          if (!Array.isArray(roundClues)) {
-            errors.push(`${roundKey} is not an array`);
-            continue;
-          }
-          for (const [idx, clue] of roundClues.entries()) {
-            if (!clue.text || typeof clue.text !== 'string' || clue.text.trim() === '') {
-              errors.push(`${roundKey}[${idx}] has empty or invalid text`);
-            }
-            if (!clue.type || typeof clue.type !== 'string') {
-              errors.push(`${roundKey}[${idx}] has missing or invalid type`);
-            }
-            if (typeof clue.isTrue !== 'boolean') {
-              errors.push(`${roundKey}[${idx}] has missing or invalid isTrue boolean`);
-            }
-          }
-        }
       }
 
-      if (errors.length > 0) {
-        console.warn(`[CLUES VALIDATION FAILED] ${errors.join(' | ')}`);
-        // We'll pass the errors via a custom property to be picked up by callOpenAIWithRetry if it supports it
-        // Since we can't easily change the generic T, we just log it for now.
-        return false;
-      }
-      return true;
+      return { valid: errors.length === 0 };
     }, 3, signal);
 
     return result.clues;
@@ -302,7 +299,7 @@ Retorna un JSON amb l'estructura exacta:
     return missing;
   }
 
-  public async recoverMissingClues(caseData: FullCase, missingRounds: string[], difficulty: Difficulty, signal?: AbortSignal): Promise<FullCase> {
+  public async recoverMissingClues(gameId: string, caseData: FullCase, missingRounds: string[], difficulty: Difficulty, signal?: AbortSignal): Promise<FullCase> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const caseSummary = `Víctima: ${caseData.victim}, Arma: ${caseData.weapon}, Lloc: ${caseData.location}, Assassí: ${caseData.assassin}.`;
 
@@ -313,8 +310,8 @@ Genera almenys 2 pistes per a cadascuna d'aquestes rondes.
 Retorna JSON: { "clues": { "roundX": [...] } }`;
 
     try {
-      const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(instruction, "recovery", (data) => {
-        return !!data.clues;
+      const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(gameId, instruction, "recovery", "RECOVERY", (data) => {
+        return { valid: !!data.clues };
       }, 2, signal);
 
       for (const round of missingRounds) {
@@ -329,16 +326,35 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
     return caseData;
   }
 
-  private async callOpenAIWithRetry<T>(instruction: string, stepName: string, validator: (data: T) => boolean, maxRetries: number = 3, signal?: AbortSignal): Promise<T> {
+  private async callOpenAIWithRetry<T>(
+    gameId: string,
+    instruction: string,
+    stepName: string,
+    phase: GenerationPhase,
+    validator: (data: T) => { valid: boolean, details?: any },
+    maxRetries: number = 3,
+    signal?: AbortSignal
+  ): Promise<T> {
     let attempts = 0;
     while (attempts < maxRetries) {
       attempts++;
-      if (signal?.aborted) throw new Error(`Step ${stepName} aborted before attempt ${attempts}`);
+      const startedAt = Date.now();
+      const model = 'gpt-4o-mini';
+
+      if (signal?.aborted) {
+        const endedAt = Date.now();
+        telemetryService.record({
+          gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+          startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+          outcome: 'aborted', model, errorMessage: 'Request aborted before call'
+        });
+        throw new Error(`Step ${stepName} aborted before attempt ${attempts}`);
+      }
 
       try {
         console.log(`[OPENAI] Step: ${stepName} (Attempt ${attempts}/${maxRetries})`);
         const completion = await openaiClient.chat.completions.create({
-          model: 'gpt-4o-mini',
+          model,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: instruction + "\n\nRespon exclusivament en JSON." }
@@ -346,50 +362,63 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
           response_format: { type: "json_object" }
         }, { signal });
 
+        const endedAt = Date.now();
         const responseText = completion.choices[0]?.message.content;
+        const usage = completion.usage ? {
+          prompt_tokens: completion.usage.prompt_tokens,
+          completion_tokens: completion.usage.completion_tokens,
+          total_tokens: completion.usage.total_tokens
+        } : undefined;
+
         if (!responseText) throw new Error("Empty response");
 
         let data: T;
         try {
           data = JSON.parse(responseText) as T;
         } catch (parseError: any) {
-          errorLogger.push(`OPENAI_${stepName.toUpperCase()}_PARSE`, {
-            message: `JSON parse failed on attempt ${attempts}: ${parseError.message}`,
-            stepName,
-            attempt: attempts,
-            responseSample: responseText.substring(0, 200)
+          telemetryService.record({
+            gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+            startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+            outcome: 'error', model, usage, errorMessage: `JSON parse error: ${parseError.message}`
           });
           throw parseError;
         }
 
-        if (validator(data)) {
+        const { valid, details } = validator(data);
+
+        if (valid) {
+          telemetryService.record({
+            gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+            startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+            outcome: 'success', model, usage, validationDetails: details
+          });
           return data;
         }
 
-        const validationMsg = `Validation failed for step: ${stepName} on attempt ${attempts}`;
-        console.warn(`[OPENAI] ${validationMsg}`);
-        errorLogger.push(`OPENAI_${stepName.toUpperCase()}_VALIDATION`, {
-          message: validationMsg,
-          stepName,
-          attempt: attempts,
-          dataSample: JSON.stringify(data).substring(0, 200)
+        telemetryService.record({
+          gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+          startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+          outcome: 'validation_failed', model, usage, validationDetails: details,
+          errorMessage: `Validation failed for ${stepName}`
         });
+
       } catch (error: any) {
-        if (error.name === 'AbortError') {
-           console.warn(`[OPENAI] Step ${stepName} aborted during attempt ${attempts}`);
-           throw error;
-        }
-        console.error(`[OPENAI ERROR] Step: ${stepName}, Attempt: ${attempts}`, error.message);
-        errorLogger.push(`OPENAI_${stepName.toUpperCase()}_RETRY`, {
-          message: `Attempt ${attempts} failed: ${error.message}`,
-          stepName,
-          attempt: attempts
+        const endedAt = Date.now();
+        const isAbort = error.name === 'AbortError' || signal?.aborted;
+        const outcome = isAbort ? 'aborted' : (error.message?.includes('timeout') ? 'timeout' : 'error');
+
+        telemetryService.record({
+          gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+          startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+          outcome, model, errorMessage: error.message
         });
+
+        if (isAbort) throw error;
         if (attempts >= maxRetries) throw error;
         await new Promise(res => setTimeout(res, 1000 * attempts));
       }
     }
-    throw new Error(`Failed step ${stepName} after ${maxRetries} attempts. Check server logs for validation errors.`);
+    throw new Error(`Failed step ${stepName} after ${maxRetries} attempts.`);
   }
 
   private isValidIntro(intro: string, weapon: string, location: string): boolean {
@@ -421,7 +450,7 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
     return true;
   }
 
-  public async respondToQuestion(publicGameState: string, question: string, difficulty: Difficulty = 'hard'): Promise<{ response: string }> {
+  public async respondToQuestion(gameId: string, publicGameState: string, question: string, difficulty: Difficulty = 'hard'): Promise<{ response: string }> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Respon la pregunta de l'investigador de manera molt directa i breu (màxim 15 paraules).
 ${diffContext}
@@ -435,7 +464,7 @@ Estructura JSON:
 {
   "response": "..."
 }`;
-    const result = await this.generateNarrative({ instruction, publicGameState, question, json: true }, 150);
+    const result = await this.generateNarrative(gameId, { instruction, publicGameState, question, json: true }, 150);
     try {
       return JSON.parse(result);
     } catch (e) {
@@ -443,21 +472,30 @@ Estructura JSON:
     }
   }
 
-  public async generateClueNarration(publicGameState: string, clueDescription: string, difficulty: Difficulty = 'hard'): Promise<string> {
+  public async generateClueNarration(gameId: string, publicGameState: string, clueDescription: string, difficulty: Difficulty = 'hard'): Promise<string> {
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Narra una pista o rumor de manera breu i directa (màxim 20 paraules).
 ${diffContext}
 Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el lloc, però sigues concís. Respon en català.`;
-    return this.generateNarrative({ instruction, publicGameState, clueDescription }, 100);
+    return this.generateNarrative(gameId, { instruction, publicGameState, clueDescription }, 100);
   }
 
-  public async generatePrivateMessage(privateContext: string): Promise<string> {
+  public async generatePrivateMessage(gameId: string, privateContext: string): Promise<string> {
     const instruction = 'Redacta un missatge privat i segur, alineat amb la partida i sense revelar informació aliena. Respon sempre en català.';
-    return this.generateNarrative({ instruction, privateContext }, 220);
+    return this.generateNarrative(gameId, { instruction, privateContext }, 220);
   }
 
-  private async generateNarrative(payload: OpenAICallInput, maxTokens: number): Promise<string> {
+  private async generateNarrative(gameId: string, payload: OpenAICallInput, maxTokens: number): Promise<string> {
+    const startedAt = Date.now();
+    const model = 'gpt-4o-mini';
+
     if (!process.env.OPENAI_API_KEY) {
+      const endedAt = Date.now();
+      telemetryService.record({
+        gameId, phase: 'IDLE', stepLabel: 'narrative', stepName: 'narrative', attempt: 1,
+        startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+        outcome: 'error', model, errorMessage: 'OPENAI_API_KEY not configured'
+      });
       const error = new Error("OPENAI_API_KEY not configured");
       errorLogger.push("OPENAI", error);
       throw error;
@@ -477,7 +515,7 @@ Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el 
 
     try {
       const completion = await openaiClient.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model,
         max_tokens: maxTokens,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
@@ -486,13 +524,34 @@ Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el 
         response_format: payload.json ? { type: "json_object" } : undefined
       }, { signal: payload.signal });
 
+      const endedAt = Date.now();
       const outputText = completion.choices[0]?.message.content?.trim();
-      if (!outputText) {
-        throw new Error('Resposta buida del model');
-      }
+      const usage = completion.usage ? {
+        prompt_tokens: completion.usage.prompt_tokens,
+        completion_tokens: completion.usage.completion_tokens,
+        total_tokens: completion.usage.total_tokens
+      } : undefined;
+
+      if (!outputText) throw new Error('Resposta buida del model');
+
+      telemetryService.record({
+        gameId, phase: 'IDLE', stepLabel: 'narrative', stepName: 'narrative', attempt: 1,
+        startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+        outcome: 'success', model, usage
+      });
 
       return outputText;
     } catch (error: any) {
+      const endedAt = Date.now();
+      const isAbort = error.name === 'AbortError' || payload.signal?.aborted;
+      const outcome = isAbort ? 'aborted' : 'error';
+
+      telemetryService.record({
+        gameId, phase: 'IDLE', stepLabel: 'narrative', stepName: 'narrative', attempt: 1,
+        startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+        outcome, model, errorMessage: error.message
+      });
+
       console.error("[OPENAI ERROR]", error.message || error);
       errorLogger.push("OPENAI", error);
       throw new Error('Servei narratiu no disponible temporalment.');

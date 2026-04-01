@@ -16,6 +16,7 @@ import {
 import { errorLogger } from '../utils/error-logger.js';
 import { generateId, nowIso } from '../utils/id.js';
 import { env } from '../config/env.js';
+import { telemetryService } from './telemetry.service.js';
 
 
 export type GenerationProgressListener = (gameId: string, progress: {
@@ -67,7 +68,8 @@ export class CaseOrchestratorService {
       let fullCase = await this.executeStep<Partial<FullCase>>(
         gameId,
         GenerationPhases.SKELETON,
-        (sig) => this.aiService.generateCaseSkeleton(difficulty, sig),
+        "skeleton",
+        (sig) => this.aiService.generateCaseSkeleton(gameId, difficulty, sig),
         globalController.signal
       );
 
@@ -93,7 +95,8 @@ export class CaseOrchestratorService {
       const basicCharacters = await this.executeStep<Partial<AIServiceCharacter>[]>(
         gameId,
         GenerationPhases.CHARACTERS,
-        (sig) => this.aiService.generateBasicCharacters(fullCase, expectedCount, difficulty, sig),
+        "characters_basic",
+        (sig) => this.aiService.generateBasicCharacters(gameId, fullCase, expectedCount, difficulty, sig),
         globalController.signal
       );
 
@@ -101,7 +104,8 @@ export class CaseOrchestratorService {
       const aiCharacters = await this.executeStep<AIServiceCharacter[]>(
         gameId,
         GenerationPhases.CHARACTERS,
-        (sig) => this.aiService.enrichCharacters(fullCase, basicCharacters, difficulty, sig),
+        "characters_enrich",
+        (sig) => this.aiService.enrichCharacters(gameId, fullCase, basicCharacters, difficulty, sig),
         globalController.signal
       );
 
@@ -116,7 +120,8 @@ export class CaseOrchestratorService {
       const narratives = await this.executeStep<{ introductionNarrative: string, solutionNarrative: string }>(
         gameId,
         GenerationPhases.NARRATIVES,
-        (sig) => this.aiService.generateNarratives(fullCase as FullCase, difficulty, sig),
+        "narratives",
+        (sig) => this.aiService.generateNarratives(gameId, fullCase as FullCase, difficulty, sig),
         globalController.signal
       );
       fullCase.introductionNarrative = narratives.introductionNarrative;
@@ -133,7 +138,8 @@ export class CaseOrchestratorService {
       const clues = await this.executeStep<Record<string, AIServiceClue[]>>(
         gameId,
         GenerationPhases.CLUES,
-        (sig) => this.aiService.generateCluesByRounds(fullCase as FullCase, maxRounds, difficulty, sig),
+        "clues",
+        (sig) => this.aiService.generateCluesByRounds(gameId, fullCase as FullCase, maxRounds, difficulty, sig),
         globalController.signal
       );
       fullCase.clues = clues;
@@ -144,7 +150,8 @@ export class CaseOrchestratorService {
         const recoveredClues = await this.executeStep<FullCase>(
           gameId,
           GenerationPhases.RECOVERY,
-          (sig) => this.aiService.recoverMissingClues(fullCase as FullCase, missingRounds, difficulty, sig),
+          "recovery",
+          (sig) => this.aiService.recoverMissingClues(gameId, fullCase as FullCase, missingRounds, difficulty, sig),
           globalController.signal
         );
         fullCase = recoveredClues;
@@ -169,12 +176,13 @@ export class CaseOrchestratorService {
   private async executeStep<T>(
     gameId: string,
     phase: GenerationPhase,
+    stepName: string,
     task: (sig: AbortSignal) => Promise<T>,
     globalSignal: AbortSignal
   ): Promise<T> {
-    const stepStartTime = Date.now();
-
+    const startedAt = Date.now();
     this.updateGenerationMetadata(gameId, phase, 1);
+
     if (this.onGenerationProgress) this.onGenerationProgress(gameId, {
       phase,
       attempt: 1,
@@ -193,8 +201,26 @@ export class CaseOrchestratorService {
 
     try {
       const result = await task(stepController.signal);
+      const endedAt = Date.now();
+
+      telemetryService.record({
+        gameId, phase, stepLabel: stepName, stepName: 'orch:' + stepName, attempt: 1,
+        startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+        outcome: 'success', model: 'orchestrator'
+      });
+
       return result;
     } catch (err: any) {
+      const endedAt = Date.now();
+      const isAbort = globalSignal.aborted || stepController.signal.aborted;
+      const outcome = isAbort ? 'aborted' : (err.message?.includes('timeout') ? 'timeout' : 'error');
+
+      telemetryService.record({
+        gameId, phase, stepLabel: stepName, stepName: 'orch:' + stepName, attempt: 1,
+        startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+        outcome, model: 'orchestrator', errorMessage: err.message
+      });
+
       if (globalSignal.aborted) throw new Error('Global generation timeout exceeded');
       if (stepController.signal.aborted) throw new Error(`Step ${phase} timeout`);
       throw err;
