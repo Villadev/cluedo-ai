@@ -141,13 +141,13 @@ ${diffContext}
 
 Personatges: ${JSON.stringify(characters.map(c => c.name))}
 
-Per a cada personatge, genera:
+Per a cada personatge, genera (màxim 1-2 frases per camp textual):
 - description, personality
 - secret (fet inconfessable), secretKnowledge (pista sobre un altre)
 - rumor
 - coartada: { location, timeStart, timeEnd, witness, credibility ("alta"|"mitjana"|"baixa") }
 
-Retorna JSON amb "characters": [ { name, description, personality, secret, secretKnowledge, rumor, coartada } ]`;
+Retorna JSON amb "characters": [ { name, description, personality, secret, secretKnowledge, rumor, coartada } ]. Respon exclusivament en JSON.`;
 
     const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
       const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
@@ -168,11 +168,11 @@ ${diffContext}
 
 Personatges: ${JSON.stringify(characters.map(c => c.name))}
 
-Per a cada personatge, genera:
+Per a cada personatge, genera (màxim 1-2 frases per camp textual):
 - relationships (com es porta amb els altres)
 - tensions (conflictes recents)
 
-Retorna JSON amb "characters": [ { name, relationships, tensions } ]`;
+Retorna JSON amb "characters": [ { name, relationships, tensions } ]. Respon exclusivament en JSON.`;
 
     const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
       const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
@@ -187,10 +187,6 @@ Retorna JSON amb "characters": [ { name, relationships, tensions } ]`;
   }
 
   public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
-      // Legacy method for compatibility if needed, but we should use the split ones in Orchestrator.
-      // Implementing it as a single pass for now or just calling the split ones?
-      // Better to keep it simple and just do the split ones in Orchestrator.
-      // But let's provide a working fallback here if someone calls it.
       const profiles = await this.enrichCharacterProfilesBatch(gameId, caseBible, characters, difficulty, "characters_enrich_legacy_profiles", signal);
       const relations = await this.enrichCharacterRelationsBatch(gameId, profiles, difficulty, "characters_enrich_legacy_relations", signal);
 

@@ -70,6 +70,11 @@
               <div class="text-xs text-500">P: {{ data.generationTelemetry.summary.totalPromptTokens | number }} | C: {{ data.generationTelemetry.summary.totalCompletionTokens | number }}</div>
             </p-card>
           </div>
+          <div class="col-12">
+            <p-card header="Temps de Generació Total" class="text-center">
+              <div class="text-2xl font-bold">{{ formattedTotalTime() }}</div>
+            </p-card>
+          </div>
        </div>
 
        <div class="grid mb-4">

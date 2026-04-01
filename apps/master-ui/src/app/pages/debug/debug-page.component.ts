@@ -52,6 +52,19 @@ export class DebugPageComponent implements OnInit {
     };
   });
 
+  protected readonly totalTimeMs = computed(() => {
+    return this.debugData()?.generationTelemetry?.totalTimeMs || 0;
+  });
+
+  protected readonly formattedTotalTime = computed(() => {
+    const ms = this.totalTimeMs();
+    if (!ms) return '-';
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${ms} ms (${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')})`;
+  });
+
   protected readonly tokensChartData = computed(() => {
     const events = this.debugData()?.generationTelemetry?.events || [];
     const groups: Record<string, number> = {};

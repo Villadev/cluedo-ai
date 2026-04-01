@@ -3,6 +3,7 @@ import { GenerationTelemetry, GenerationTelemetryEvent, GenerationTelemetrySumma
 class TelemetryService {
   private events: GenerationTelemetryEvent[] = [];
   private readonly MAX_EVENTS = 1000;
+  private gameTotalTimes: Map<string, number> = new Map();
 
   public record(event: GenerationTelemetryEvent): void {
     this.events.push(event);
@@ -12,11 +13,16 @@ class TelemetryService {
     console.log(`[TELEMETRY] ${event.stepLabel} (${event.attempt}) - ${event.outcome} (${event.durationMs}ms) for game ${event.gameId}`);
   }
 
+  public setTotalTime(gameId: string, ms: number): void {
+    this.gameTotalTimes.set(gameId, ms);
+  }
+
   public getForGame(gameId: string): GenerationTelemetry {
     const gameEvents = this.events.filter(e => e.gameId === gameId);
     return {
       events: gameEvents,
-      summary: this.calculateSummary(gameEvents)
+      summary: this.calculateSummary(gameEvents),
+      totalTimeMs: this.gameTotalTimes.get(gameId)
     };
   }
 
@@ -43,6 +49,7 @@ class TelemetryService {
 
   public clear(): void {
     this.events = [];
+    this.gameTotalTimes.clear();
   }
 }
 

@@ -59,8 +59,11 @@ export class CaseOrchestratorService {
   }
 
   public async generateCase(gameId: string): Promise<void> {
+    const globalStartTime = Date.now();
     const game = this.store.getById(gameId);
     if (!game) throw new Error('Game not found');
+
+    console.log(`[ORCHESTRATOR] Starting case generation for game ${gameId} (Batch Size: ${this.BATCH_SIZE}, Players: ${game.players.length})`);
 
     const expectedCount = game.players.length;
     const difficulty = game.difficulty;
@@ -141,7 +144,6 @@ export class CaseOrchestratorService {
           );
         } catch (error) {
           console.warn(`[ORCHESTRATOR] Relations subpass failed for batch ${batchInfo}. Using fallback.`);
-          // relations will remain empty, normalization will handle it.
         }
 
         const batchEnriched = this.aiService.normalizeCharacters(relations, profiles, fullCase);
@@ -197,8 +199,15 @@ export class CaseOrchestratorService {
       }
 
       this.finalizeGame(gameId, fullCase as FullCase);
+      const totalTimeMs = Date.now() - globalStartTime;
+      console.log("[GENERATION] Total time:", totalTimeMs, "ms");
+      telemetryService.setTotalTime(gameId, totalTimeMs);
 
     } catch (error: any) {
+      const totalTimeMs = Date.now() - globalStartTime;
+      console.log("[GENERATION] Total time:", totalTimeMs, "ms");
+      telemetryService.setTotalTime(gameId, totalTimeMs);
+
       console.error(`[ORCHESTRATOR ERROR] Game ${gameId}:`, error.message);
       errorLogger.push('ORCHESTRATOR_STEP_FAILURE', {
         gameId,

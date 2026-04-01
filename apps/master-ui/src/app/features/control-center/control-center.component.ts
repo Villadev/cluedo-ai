@@ -72,6 +72,8 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   protected readonly solutionStatus = signal<string>('Solution pending...');
   protected readonly showCopyFeedback = signal<boolean>(false);
   protected readonly playersCount = signal<number>(0);
+  protected readonly elapsedTime = signal<number>(0);
+  private timerInterval: any;
 
   protected readonly difficultyOptions = [
     { label: 'Fàcil', value: 'easy' },
@@ -106,6 +108,15 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       } else {
         this.websocketService.disconnect();
         this.gameStateService.setState('NONE');
+      }
+    });
+
+    effect(() => {
+      const state = this.gameState();
+      if (state === 'GENERATING') {
+        this.startTimer();
+      } else {
+        this.stopTimer();
       }
     });
 
@@ -459,4 +470,28 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       setTimeout(() => this.showCopyFeedback.set(false), 2000);
     });
   }
+
+  private startTimer() {
+    if (this.timerInterval) return;
+    const startTime = Date.now();
+    this.timerInterval = setInterval(() => {
+      this.elapsedTime.set(Date.now() - startTime);
+    }, 1000);
+  }
+
+  private stopTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = undefined;
+    }
+    this.elapsedTime.set(0);
+  }
+
+  protected readonly formattedElapsed = computed(() => {
+    const ms = this.elapsedTime();
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')}`;
+  });
 }
