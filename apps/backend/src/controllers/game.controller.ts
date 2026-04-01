@@ -18,8 +18,23 @@ const playerSecretParamsSchema = z.object({ id: z.string().uuid(), playerId: z.s
 const logEventSchema = z.object({ type: z.string().min(1), description: z.string() });
 const createSchema = z.object({ maxRounds: z.number().int().min(1).optional() });
 const userParamsSchema = z.object({ id: z.string().uuid(), userId: z.string().uuid() });
+const updateSettingsSchema = z.object({
+  maxRounds: z.number().int().min(1).optional(),
+  difficulty: z.enum(['easy', 'medium', 'hard', 'extreme']).optional()
+}).refine(data => data.maxRounds !== undefined || data.difficulty !== undefined, {
+  message: 'Almenys un camp (maxRounds o difficulty) ha de ser present'
+});
 
 export class GameController {
+  public async updateSettings(req: Request, res: Response): Promise<void> {
+    const gameId = this.getGameId(req);
+    const settings = updateSettingsSchema.parse(req.body);
+    const game = gameEngine.updateLobbySettings(gameId, settings);
+
+    emitGameStateUpdate(gameId, gameEngine.getGameStateInfo(gameId));
+    res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
+  }
+
   public async createGame(req: Request, res: Response): Promise<void> {
     const { maxRounds } = createSchema.parse(req.body || {});
     const game = gameEngine.createGame(maxRounds);

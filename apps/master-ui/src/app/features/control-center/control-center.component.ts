@@ -412,15 +412,31 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   }
 
   protected onMaxRoundsChange(value: number): void {
-    this.maxRounds.set(value);
+    const val = Number(value);
+    if (isNaN(val) || val < 1) return;
+
+    this.maxRounds.set(val);
+    const id = this.gameId();
+    if (id && this.gameState() === 'LOBBY') {
+      this.gameApiService.updateLobbySettings(id, { maxRounds: val }).subscribe({
+        error: (err) => this.error.set(err.error?.error || 'Error al guardar les rondes')
+      });
+    }
   }
 
   protected onDifficultyChange(value: Difficulty): void {
     if (!value) return;
     this.difficulty.set(value);
     const id = this.gameId();
-    if (id) {
-      this.updateDifficulty(value);
+    if (id && this.gameState() === 'LOBBY') {
+      this.gameApiService.updateLobbySettings(id, { difficulty: value }).subscribe({
+        next: () => {
+          // També emetem via WS per retrocompatibilitat i feedback immediat si cal,
+          // tot i que el PATCH ja emet un estat actualitzat.
+          this.updateDifficulty(value);
+        },
+        error: (err) => this.error.set(err.error?.error || 'Error al guardar la dificultat')
+      });
     }
   }
 
