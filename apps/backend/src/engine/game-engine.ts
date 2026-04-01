@@ -359,6 +359,7 @@ export class GameEngine {
 
 
 
+
     this.assertActivePlayer(player);
 
     if (player.accusedThisRound) {
@@ -496,6 +497,35 @@ export class GameEngine {
       description: `S'ha canviat la dificultat a: ${difficulty}`
     });
 
+    this.store.save(game);
+    return game;
+  }
+
+  public updateLobbySettings(gameId: string, settings: { maxRounds?: number, difficulty?: Difficulty }): Game {
+    const game = this.getGameOrThrow(gameId);
+    if (game.state !== "LOBBY") {
+       throw new Error("Només es poden canviar els ajustos a la sala du0027espera");
+    }
+
+    if (settings.maxRounds !== undefined) {
+      if (!Number.isInteger(settings.maxRounds) || settings.maxRounds < 1) {
+        throw new Error("El nombre de rondes ha de ser un enter major o igual a 1");
+      }
+      game.maxRounds = settings.maxRounds;
+    }
+
+    if (settings.difficulty !== undefined) {
+      const oldDifficulty = game.difficulty;
+      game.difficulty = settings.difficulty;
+      if (oldDifficulty !== settings.difficulty) {
+        this.recordTimelineEvent(game, {
+          type: "DIFFICULTY_CHANGED",
+          description: `Su0027ha canviat la dificultat a: ${settings.difficulty}`
+        });
+      }
+    }
+
+    game.updatedAt = nowIso();
     this.store.save(game);
     return game;
   }

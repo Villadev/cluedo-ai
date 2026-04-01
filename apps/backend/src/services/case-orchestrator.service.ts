@@ -122,7 +122,7 @@ export class CaseOrchestratorService {
         const batchInfo = `${i + 1}/${characterChunks.length}`;
 
         // Pass A: Profiles
-        const profileStepLabel = `CHARACTERS_PROFILE_BATCH_${i + 1}_OF_${characterChunks.length}`;
+        const profileStepLabel = `CHARACTERS_PROFILE_BATCH ${batchInfo}`;
         const profiles = await this.executeStep<Partial<AIServiceCharacter>[]>(
           gameId,
           GenerationPhases.CHARACTERS,
@@ -133,7 +133,7 @@ export class CaseOrchestratorService {
 
         // Pass B: Relations (Robust: fallback if fails)
         let relations: Partial<AIServiceCharacter>[] = [];
-        const relationsStepLabel = `CHARACTERS_RELATIONS_BATCH_${i + 1}_OF_${characterChunks.length}`;
+        const relationsStepLabel = `CHARACTERS_RELATIONS_BATCH ${batchInfo}`;
         try {
           relations = await this.executeStep<Partial<AIServiceCharacter>[]>(
             gameId,
@@ -144,7 +144,6 @@ export class CaseOrchestratorService {
           );
         } catch (error) {
           console.warn(`[ORCHESTRATOR] Relations subpass failed for batch ${batchInfo}. Using fallback.`);
-          // relations will remain empty, normalization will handle it.
         }
 
         const batchEnriched = this.aiService.normalizeCharacters(relations, profiles, fullCase);
@@ -200,7 +199,6 @@ export class CaseOrchestratorService {
       }
 
       this.finalizeGame(gameId, fullCase as FullCase);
-
       const totalTimeMs = Date.now() - globalStartTime;
       console.log("[GENERATION] Total time:", totalTimeMs, "ms");
       telemetryService.setTotalTime(gameId, totalTimeMs);

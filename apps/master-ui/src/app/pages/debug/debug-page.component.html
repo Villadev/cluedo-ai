@@ -64,17 +64,17 @@
               <div class="text-xs text-500">VF: {{ data.generationTelemetry.summary.totalValidationFailed }} | AB: {{ data.generationTelemetry.summary.totalAborted }}</div>
             </p-card>
           </div>
-              <div class="col-12 md:col-8 lg:col-4">
-                <p-card header="Consum de Tokens" class="text-center">
-                  <div class="text-2xl font-bold">{{ data.generationTelemetry.summary.totalTokens | number }}</div>
-                  <div class="text-xs text-500">P: {{ data.generationTelemetry.summary.totalPromptTokens | number }} | C: {{ data.generationTelemetry.summary.totalCompletionTokens | number }}</div>
-                </p-card>
-              </div>
-              <div class="col-12">
-                <p-card header="Temps de Generació Total" class="text-center">
-                  <div class="text-2xl font-bold">{{ formattedTotalTime() }}</div>
-                </p-card>
-              </div>
+          <div class="col-12 md:col-8 lg:col-4">
+            <p-card header="Consum de Tokens" class="text-center">
+              <div class="text-2xl font-bold">{{ data.generationTelemetry.summary.totalTokens | number }}</div>
+              <div class="text-xs text-500">P: {{ data.generationTelemetry.summary.totalPromptTokens | number }} | C: {{ data.generationTelemetry.summary.totalCompletionTokens | number }}</div>
+            </p-card>
+          </div>
+          <div class="col-12">
+            <p-card header="Temps de Generació Total" class="text-center">
+              <div class="text-2xl font-bold">{{ formattedTotalTime() }}</div>
+            </p-card>
+          </div>
        </div>
 
        <div class="grid mb-4">

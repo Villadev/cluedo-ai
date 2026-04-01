@@ -187,10 +187,6 @@ Retorna JSON amb "characters": [ { name, relationships, tensions } ]. Respon exc
   }
 
   public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
-      // Legacy method for compatibility if needed, but we should use the split ones in Orchestrator.
-      // Implementing it as a single pass for now or just calling the split ones?
-      // Better to keep it simple and just do the split ones in Orchestrator.
-      // But let's provide a working fallback here if someone calls it.
       const profiles = await this.enrichCharacterProfilesBatch(gameId, caseBible, characters, difficulty, "characters_enrich_legacy_profiles", signal);
       const relations = await this.enrichCharacterRelationsBatch(gameId, profiles, difficulty, "characters_enrich_legacy_relations", signal);
 

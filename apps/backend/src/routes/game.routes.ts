@@ -16,6 +16,41 @@ const controller = new GameController();
  *         description: Partida creada.
  */
 gameRouter.post('/', asyncHandler((req: Request, res: Response) => controller.createGame(req, res)));
+/**
+ * @openapi
+ * /game/{id}/settings:
+ *   patch:
+ *     summary: Actualitzar ajustos de la sala d'espera
+ *     description: Permet canviar el nombre de rondes i la dificultat abans de començar la partida.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID de la partida
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               maxRounds:
+ *                 type: integer
+ *                 minimum: 1
+ *                 description: Nombre màxim de rondes
+ *               difficulty:
+ *                 type: string
+ *                 enum: [easy, medium, hard, extreme]
+ *                 description: Nivell de dificultat
+ *     responses:
+ *       200:
+ *         description: Ajustos actualitzats correctament.
+ */
+gameRouter.patch('/:id/settings', asyncHandler((req: Request, res: Response) => controller.updateSettings(req, res)));
+
 gameRouter.delete('/', asyncHandler((req: Request, res: Response) => controller.deleteAllGames(req, res)));
 gameRouter.get('/', asyncHandler((req: Request, res: Response) => controller.listAllGames(req, res)));
 

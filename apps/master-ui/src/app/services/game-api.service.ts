@@ -322,4 +322,7 @@ export class GameApiService {
   listAllGames(): Observable<ApiResponse<any[]>> {
     return this.http.get<ApiResponse<any[]>>(`${this.baseUrl}/game`);
   }
+  updateLobbySettings(gameId: string, settings: { maxRounds?: number, difficulty?: Difficulty }): Observable<ApiResponse<PublicGameView>> {
+    return this.http.patch<ApiResponse<PublicGameView>>(`${this.baseUrl}/game/${gameId}/settings`, settings);
+  }
 }
