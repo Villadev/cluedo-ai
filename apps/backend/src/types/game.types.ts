@@ -303,3 +303,62 @@ export interface FullCase {
   difficulty?: Difficulty;
   clues: Record<string, AIServiceClue[]>;
 }
+
+export interface GenerationTelemetryEvent {
+  gameId: string;
+  phase: GenerationPhase;
+  stepLabel: string;
+  stepName: string;
+  attempt: number;
+  startAt: number;
+  endAt: number;
+  durationMs: number;
+  outcome: 'success' | 'validation_failed' | 'timeout' | 'aborted' | 'error';
+  errorMessage?: string;
+  model: string;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+  validationDetails?: {
+    expectedCount?: number;
+    returnedCount?: number;
+    assassinExpected?: string;
+    assassinMatched?: boolean;
+  };
+}
+
+export interface GenerationTelemetrySummary {
+  totalCalls: number;
+  totalAttempts: number;
+  avgDurationMs: number;
+  p95DurationMs: number;
+  totalValidationFailed: number;
+  totalAborted: number;
+  totalTimeouts: number;
+  totalErrors: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  totalTokens: number;
+}
+
+export interface GenerationTelemetry {
+  events: GenerationTelemetryEvent[];
+  summary: GenerationTelemetrySummary;
+}
+
+export interface DebugData {
+  game: Game;
+  players: Player[];
+  characters: Character[];
+  clues: Clue[];
+  roundNumber: number;
+  nextSequenceId: number;
+  state: GameState;
+  generationPhase?: GenerationPhase;
+  generationError?: string;
+  generationAttempts?: number;
+  errors: any[];
+  generationTelemetry: GenerationTelemetry;
+}

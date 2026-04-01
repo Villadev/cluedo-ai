@@ -1,13 +1,17 @@
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, inject, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { GameApiService, DebugData } from '../../services/game-api.service';
+import { GameApiService, DebugData, GenerationTelemetryEvent } from '../../services/game-api.service';
 import { CardModule } from 'primeng/card';
 import { ButtonModule } from 'primeng/button';
 import { AccordionModule } from 'primeng/accordion';
+import { TableModule } from 'primeng/table';
+import { ChartModule } from 'primeng/chart';
+import { TagModule } from 'primeng/tag';
 
 @Component({
   selector: 'app-debug-page',
-  imports: [CommonModule, CardModule, ButtonModule, AccordionModule],
+  standalone: true,
+  imports: [CommonModule, CardModule, ButtonModule, AccordionModule, TableModule, ChartModule, TagModule],
   template: `
     <div class="p-4">
       <div class="flex justify-content-between align-items-center mb-4">
@@ -47,6 +51,92 @@ import { AccordionModule } from 'primeng/accordion';
           </div>
         </div>
 
+        <div class="mt-4" *ngIf="data.generationTelemetry && data.generationTelemetry.events.length > 0">
+           <h2 class="text-2xl font-bold mb-3">Telemetria de Generació</h2>
+
+           <div class="grid mb-4">
+              <div class="col-12 md:col-4 lg:col-2">
+                <p-card header="Total Crides" class="text-center">
+                  <div class="text-3xl font-bold">{{ data.generationTelemetry.summary.totalCalls }}</div>
+                  <div class="text-sm text-500">({{ data.generationTelemetry.summary.totalAttempts }} intents)</div>
+                </p-card>
+              </div>
+              <div class="col-12 md:col-4 lg:col-2">
+                <p-card header="Temps Mitjà" class="text-center">
+                  <div class="text-3xl font-bold text-blue-600">{{ data.generationTelemetry.summary.avgDurationMs | number:'1.0-0' }}ms</div>
+                </p-card>
+              </div>
+              <div class="col-12 md:col-4 lg:col-2">
+                <p-card header="p95 Duration" class="text-center">
+                  <div class="text-3xl font-bold text-purple-600">{{ data.generationTelemetry.summary.p95DurationMs | number:'1.0-0' }}ms</div>
+                </p-card>
+              </div>
+              <div class="col-12 md:col-4 lg:col-2">
+                <p-card header="Errors / Timeouts" class="text-center">
+                  <div class="text-3xl font-bold text-red-600">
+                    {{ data.generationTelemetry.summary.totalErrors + data.generationTelemetry.summary.totalTimeouts }}
+                  </div>
+                  <div class="text-xs text-500">VF: {{ data.generationTelemetry.summary.totalValidationFailed }} | AB: {{ data.generationTelemetry.summary.totalAborted }}</div>
+                </p-card>
+              </div>
+              <div class="col-12 md:col-8 lg:col-4">
+                <p-card header="Consum de Tokens" class="text-center">
+                  <div class="text-2xl font-bold">{{ data.generationTelemetry.summary.totalTokens | number }}</div>
+                  <div class="text-xs text-500">P: {{ data.generationTelemetry.summary.totalPromptTokens | number }} | C: {{ data.generationTelemetry.summary.totalCompletionTokens | number }}</div>
+                </p-card>
+              </div>
+           </div>
+
+           <div class="grid mb-4">
+              <div class="col-12 lg:col-6">
+                 <p-card header="Durada per Crida (ms)">
+                    <p-chart type="bar" [data]="durationChartData()" [options]="chartOptions"></p-chart>
+                 </p-card>
+              </div>
+              <div class="col-12 md:col-6 lg:col-3">
+                 <p-card header="Distribució de Resultats">
+                    <p-chart type="doughnut" [data]="outcomeChartData()" [options]="chartOptions"></p-chart>
+                 </p-card>
+              </div>
+              <div class="col-12 md:col-6 lg:col-3">
+                 <p-card header="Tokens per Pas">
+                    <p-chart type="pie" [data]="tokensChartData()" [options]="chartOptions"></p-chart>
+                 </p-card>
+              </div>
+           </div>
+
+           <p-card header="Events de Generació Detallats" class="mb-4">
+              <p-table [value]="data.generationTelemetry.events" [paginator]="true" [rows]="10" responsiveLayout="scroll" sortField="startAt" [sortOrder]="-1">
+                <ng-template pTemplate="header">
+                  <tr>
+                    <th pSortableColumn="startAt">Hora <p-sortIcon field="startAt"></p-sortIcon></th>
+                    <th pSortableColumn="phase">Fase <p-sortIcon field="phase"></p-sortIcon></th>
+                    <th pSortableColumn="stepLabel">Pas <p-sortIcon field="stepLabel"></p-sortIcon></th>
+                    <th pSortableColumn="durationMs">Temps <p-sortIcon field="durationMs"></p-sortIcon></th>
+                    <th pSortableColumn="outcome">Resultat <p-sortIcon field="outcome"></p-sortIcon></th>
+                    <th>Tokens</th>
+                    <th>Detalls</th>
+                  </tr>
+                </ng-template>
+                <ng-template pTemplate="body" let-event>
+                  <tr>
+                    <td>{{ event.startAt | date:'HH:mm:ss' }}</td>
+                    <td>{{ event.phase }}</td>
+                    <td>{{ event.stepLabel }} ({{ event.attempt }})</td>
+                    <td>{{ event.durationMs }}ms</td>
+                    <td>
+                      <p-tag [severity]="getOutcomeSeverity(event.outcome)" [value]="event.outcome"></p-tag>
+                    </td>
+                    <td>{{ event.usage?.total_tokens || '-' }}</td>
+                    <td>
+                      <button *ngIf="event.validationDetails || event.errorMessage" pButton icon="pi pi-info-circle" class="p-button-text p-button-sm" (click)="showDetails(event)"></button>
+                    </td>
+                  </tr>
+                </ng-template>
+              </p-table>
+           </p-card>
+        </div>
+
         <p-accordion [multiple]="true" class="mt-4">
           <p-accordionTab header="Errors del Servidor (Recents)">
             <div *ngIf="data.errors.length === 0" class="p-3 text-green-600 font-bold">
@@ -70,10 +160,6 @@ import { AccordionModule } from 'primeng/accordion';
             <pre class="bg-gray-900 text-white p-3 border-round overflow-auto" style="max-height: 400px"><code>{{ data.game | json }}</code></pre>
           </p-accordionTab>
 
-          <p-accordionTab header="Errors (Raw JSON)">
-            <pre class="bg-gray-900 text-white p-3 border-round overflow-auto" style="max-height: 400px"><code>{{ data.errors | json }}</code></pre>
-          </p-accordionTab>
-
           <p-accordionTab header="Jugadors">
             <pre class="bg-gray-900 text-white p-3 border-round overflow-auto" style="max-height: 400px"><code>{{ data.players | json }}</code></pre>
           </p-accordionTab>
@@ -83,7 +169,11 @@ import { AccordionModule } from 'primeng/accordion';
         </p-accordion>
       </div>
     </div>
-  `
+  `,
+  styles: [`
+    :host ::ng-deep .p-card-header { padding: 1rem 1rem 0 1rem; }
+    :host ::ng-deep .p-card-body { padding: 0 1rem 1rem 1rem; }
+  `]
 })
 export class DebugPageComponent implements OnInit {
   private readonly gameApi = inject(GameApiService);
@@ -91,6 +181,62 @@ export class DebugPageComponent implements OnInit {
   protected readonly debugData = signal<DebugData | null>(null);
   protected readonly loading = signal(false);
   protected readonly error = signal<string | null>(null);
+
+  protected readonly durationChartData = computed(() => {
+    const events = this.debugData()?.generationTelemetry?.events || [];
+    return {
+      labels: events.map((_, i) => `#${i+1}`),
+      datasets: [
+        {
+          label: 'Durada (ms)',
+          data: events.map(e => e.durationMs),
+          backgroundColor: '#3B82F6',
+          borderColor: '#2563EB',
+          fill: false
+        }
+      ]
+    };
+  });
+
+  protected readonly outcomeChartData = computed(() => {
+    const events = this.debugData()?.generationTelemetry?.events || [];
+    const counts: Record<string, number> = {};
+    events.forEach(e => counts[e.outcome] = (counts[e.outcome] || 0) + 1);
+
+    return {
+      labels: Object.keys(counts),
+      datasets: [{
+        data: Object.values(counts),
+        backgroundColor: ['#10B981', '#F59E0B', '#EF4444', '#6366F1', '#6B7280']
+      }]
+    };
+  });
+
+  protected readonly tokensChartData = computed(() => {
+    const events = this.debugData()?.generationTelemetry?.events || [];
+    const groups: Record<string, number> = {};
+
+    events.forEach(e => {
+        const stepName = e.stepLabel.split(' ')[0] || 'unknown';
+        groups[stepName] = (groups[stepName] || 0) + (e.usage?.total_tokens || 0);
+    });
+
+    return {
+      labels: Object.keys(groups),
+      datasets: [{
+        data: Object.values(groups),
+        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#6366F1', '#EC4899', '#8B5CF6']
+      }]
+    };
+  });
+
+  protected chartOptions = {
+    plugins: {
+      legend: { position: 'bottom' }
+    },
+    maintainAspectRatio: false,
+    aspectRatio: 2
+  };
 
   ngOnInit(): void {
     this.loadDebugData();
@@ -120,5 +266,26 @@ export class DebugPageComponent implements OnInit {
         this.loading.set(false);
       }
     });
+  }
+
+  getOutcomeSeverity(outcome: string): 'success' | 'warning' | 'danger' | 'info' {
+    switch (outcome) {
+      case 'success': return 'success';
+      case 'validation_failed': return 'warning';
+      case 'timeout':
+      case 'aborted':
+      case 'error': return 'danger';
+      default: return 'info';
+    }
+  }
+
+  showDetails(event: GenerationTelemetryEvent): void {
+      const details = {
+          outcome: event.outcome,
+          errorMessage: event.errorMessage,
+          validation: event.validationDetails,
+          usage: event.usage
+      };
+      alert(JSON.stringify(details, null, 2));
   }
 }

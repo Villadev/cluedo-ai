@@ -22,11 +22,13 @@ import {
   WinnerType,
   GameSolution,
   AIServiceClue,
+DebugData,
   GameResult,
   GenerationPhases
 } from '../types/game.types.js';
 import { generateId, nowIso } from '../utils/id.js';
 import { HttpError } from '../utils/http-error.js';
+import { telemetryService } from "../services/telemetry.service.js";
 import { errorLogger } from '../utils/error-logger.js';
 import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 
@@ -570,7 +572,7 @@ export class GameEngine {
     }
   }
 
-  public getDebugData(gameId: string): any {
+  public getDebugData(gameId: string): DebugData {
     const game = this.getGameOrThrow(gameId);
     return {
       game,
@@ -583,7 +585,7 @@ export class GameEngine {
       generationPhase: game.generationPhase,
       generationError: game.generationError,
       generationAttempts: game.generationAttempts,
-      errors: errorLogger.getLogs()
+      errors: errorLogger.getLogs(), generationTelemetry: telemetryService.getForGame(gameId)
     };
   }
 
