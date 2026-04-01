@@ -152,6 +152,7 @@ export interface GenerationTelemetrySummary {
 export interface GenerationTelemetry {
   events: GenerationTelemetryEvent[];
   summary: GenerationTelemetrySummary;
+  totalTimeMs?: number;
 }
 
 export interface DebugData {

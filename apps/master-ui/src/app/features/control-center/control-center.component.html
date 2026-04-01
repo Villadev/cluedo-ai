@@ -88,15 +88,20 @@
                 [disabled]="loading()"
               ></button>
             } @else if (gameState() === 'GENERATING') {
-               <button
-                pButton
-                [label]="progressLabel()"
-                icon="pi pi-spin pi-spinner"
-                severity="warning"
-                [loading]="true"
-                [disabled]="true"
-                class="w-full"
-              ></button>
+               <div class="w-full flex flex-column gap-2">
+                 <button
+                  pButton
+                  [label]="progressLabel()"
+                  icon="pi pi-spin pi-spinner"
+                  severity="warning"
+                  [loading]="true"
+                  [disabled]="true"
+                  class="w-full"
+                ></button>
+                <div class="text-center p-2 bg-yellow-50 border-round border-1 border-yellow-200">
+                  <span class="text-xl font-bold text-yellow-700">Temps transcorregut: {{ formattedElapsed() }}</span>
+                </div>
+               </div>
             } @else if (gameState() === 'PLAYER_INFO') {
                 <button
                 pButton

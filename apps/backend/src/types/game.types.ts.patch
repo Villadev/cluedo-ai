@@ -1,0 +1,12 @@
+<<<<<<< SEARCH
+export interface GenerationTelemetry {
+  events: GenerationTelemetryEvent[];
+  summary: GenerationTelemetrySummary;
+}
+=======
+export interface GenerationTelemetry {
+  events: GenerationTelemetryEvent[];
+  summary: GenerationTelemetrySummary;
+  totalTimeMs?: number;
+}
+>>>>>>> REPLACE

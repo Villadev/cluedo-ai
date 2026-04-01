@@ -1,0 +1,74 @@
+<<<<<<< SEARCH
+  protected readonly playersCount = signal<number>(0);
+
+  protected readonly difficultyOptions = [
+=======
+  protected readonly playersCount = signal<number>(0);
+  protected readonly elapsedTime = signal<number>(0);
+  private timerInterval: any;
+
+  protected readonly difficultyOptions = [
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+    this.subscriptions.add(
+      this.websocketService.events$.subscribe(event => {
+=======
+    effect(() => {
+      const state = this.gameState();
+      if (state === 'GENERATING') {
+        this.startTimer();
+      } else {
+        this.stopTimer();
+      }
+    });
+
+    this.subscriptions.add(
+      this.websocketService.events$.subscribe(event => {
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  protected copyGameLink(): void {
+    const id = this.gameId();
+    if (!id) return;
+    const url = `${window.location.origin}/player?gameId=${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      this.showCopyFeedback.set(true);
+      setTimeout(() => this.showCopyFeedback.set(false), 2000);
+    });
+  }
+}
+=======
+  protected copyGameLink(): void {
+    const id = this.gameId();
+    if (!id) return;
+    const url = `${window.location.origin}/player?gameId=${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      this.showCopyFeedback.set(true);
+      setTimeout(() => this.showCopyFeedback.set(false), 2000);
+    });
+  }
+
+  private startTimer() {
+    if (this.timerInterval) return;
+    const startTime = Date.now();
+    this.timerInterval = setInterval(() => {
+      this.elapsedTime.set(Date.now() - startTime);
+    }, 1000);
+  }
+
+  private stopTimer() {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = undefined;
+    }
+    this.elapsedTime.set(0);
+  }
+
+  protected readonly formattedElapsed = computed(() => {
+    const ms = this.elapsedTime();
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${m.toString().padStart(2, '0')}:${r.toString().padStart(2, '0')}`;
+  });
+}
+>>>>>>> REPLACE

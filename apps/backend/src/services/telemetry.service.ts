@@ -12,11 +12,18 @@ class TelemetryService {
     console.log(`[TELEMETRY] ${event.stepLabel} (${event.attempt}) - ${event.outcome} (${event.durationMs}ms) for game ${event.gameId}`);
   }
 
+  private gameTotalTimes: Map<string, number> = new Map();
+
+  public setTotalTime(gameId: string, ms: number): void {
+    this.gameTotalTimes.set(gameId, ms);
+  }
+
   public getForGame(gameId: string): GenerationTelemetry {
     const gameEvents = this.events.filter(e => e.gameId === gameId);
     return {
       events: gameEvents,
-      summary: this.calculateSummary(gameEvents)
+      summary: this.calculateSummary(gameEvents),
+      totalTimeMs: this.gameTotalTimes.get(gameId)
     };
   }
 

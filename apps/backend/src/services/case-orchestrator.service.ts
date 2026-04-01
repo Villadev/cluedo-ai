@@ -59,6 +59,7 @@ export class CaseOrchestratorService {
   }
 
   public async generateCase(gameId: string): Promise<void> {
+    const globalStartTime = Date.now();
     const game = this.store.getById(gameId);
     if (!game) throw new Error('Game not found');
 
@@ -200,7 +201,15 @@ export class CaseOrchestratorService {
 
       this.finalizeGame(gameId, fullCase as FullCase);
 
+      const totalTimeMs = Date.now() - globalStartTime;
+      console.log("[GENERATION] Total time:", totalTimeMs, "ms");
+      telemetryService.setTotalTime(gameId, totalTimeMs);
+
     } catch (error: any) {
+      const totalTimeMs = Date.now() - globalStartTime;
+      console.log("[GENERATION] Total time:", totalTimeMs, "ms");
+      telemetryService.setTotalTime(gameId, totalTimeMs);
+
       console.error(`[ORCHESTRATOR ERROR] Game ${gameId}:`, error.message);
       errorLogger.push('ORCHESTRATOR_STEP_FAILURE', {
         gameId,
