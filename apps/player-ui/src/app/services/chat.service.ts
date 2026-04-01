@@ -43,7 +43,7 @@ export class ChatService implements OnDestroy {
       }
     }
     console.log(`[CHAT_SERVICE] Adding message: type=${message.type}, sequenceId=${message.sequenceId}`);
-    this.messagesSubject.next([...this.messagesSubject.value, message]);
+    const updated = [...this.messagesSubject.value, message]; this.messagesSubject.next(updated.sort((a, b) => (a.sequenceId || 0) - (b.sequenceId || 0) || a.timestamp.getTime() - b.timestamp.getTime()));
   }
 
   sendQuestion(gameId: string, playerId: string, message: string): void {
@@ -115,7 +115,7 @@ export class ChatService implements OnDestroy {
   private applyResyncedHistory(history: ChatHistoryMessage[]): void {
     const typeMap: Record<string, ChatMessageType> = {
       'player': 'question',
-      'narrator': 'response',
+      'narrator': 'response', 'response': 'response',
       'system': 'system',
       'clue': 'clue'
     };
@@ -131,7 +131,7 @@ export class ChatService implements OnDestroy {
     }));
 
     // For player-ui, we replace the state entirely on resync/load to match master-ui behavior
-    this.messagesSubject.next(historyMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime()));
+    this.messagesSubject.next(historyMessages.sort((a, b) => (a.sequenceId || 0) - (b.sequenceId || 0) || a.timestamp.getTime() - b.timestamp.getTime()));
   }
 
   private handleChatMessage(payload: any): void {

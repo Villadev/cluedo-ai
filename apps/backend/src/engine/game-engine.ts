@@ -34,7 +34,7 @@ const MAX_PLAYERS = 17;
 const MIN_SUSPECTS = 4;
 
 export class GameEngine {
-  private onSystemEvent?: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number) => void;
+  private onSystemEvent?: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number, timestamp?: number) => void;
   private onGameStateChange?: (gameId: string, state: GameState) => void;
   private orchestrator: CaseOrchestratorService;
 
@@ -45,9 +45,26 @@ export class GameEngine {
     this.orchestrator = new CaseOrchestratorService(aiService, store);
   }
 
-  public setSystemEventListener(listener: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number) => void): void {
+  public setSystemEventListener(listener: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number, timestamp?: number) => void): void {
     this.onSystemEvent = listener;
   }
+  private pushSystemMessage(game: Game, message: string, type: ChatMessage['type'] = 'system'): { seq: number, timestamp: number } {
+    const timestamp = Date.now();
+    const sequenceId = game.nextSequenceId++;
+    const playerName = type === 'clue' || type === 'narrator' ? 'Narrador 🕵️‍♂️' : 'Sistema ⚙️';
+
+    game.chatHistory.push({
+      type,
+      message,
+      timestamp,
+      roundNumber: game.roundNumber,
+      sequenceId,
+      playerName
+    } as any);
+
+    return { seq: sequenceId, timestamp };
+  }
+
 
   public setGameStateChangeListener(listener: (gameId: string, state: GameState) => void): void {
     this.onGameStateChange = listener;
@@ -202,9 +219,7 @@ export class GameEngine {
 
     const msg = `Comença la ronda ${game.roundNumber}.`;
     console.log("[ROUND START DETECTED]", game.roundNumber);
-    if (this.onSystemEvent) {
-      this.onSystemEvent(game.id, msg, 'system', game.roundNumber, game.nextSequenceId++);
-    }
+    { const { seq, timestamp } = this.pushSystemMessage(game, msg); if (this.onSystemEvent) { this.onSystemEvent(game.id, msg, 'system', game.roundNumber, seq, timestamp); } }
     this.store.save(game);
 
     // Reveal Round 1 clues when playing actually starts
@@ -369,9 +384,7 @@ export class GameEngine {
         description: msg
       });
 
-      if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg, 'system', game.roundNumber, game.nextSequenceId++);
-      }
+      { const { seq, timestamp } = this.pushSystemMessage(game, msg); if (this.onSystemEvent) { this.onSystemEvent(game.id, msg, 'system', game.roundNumber, seq, timestamp); } }
       this.emitStateChange(game.id, game.state);
     } else {
       player.accusationCooldown = 2;
@@ -385,9 +398,7 @@ export class GameEngine {
         description: msg
       });
 
-      if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg, 'system', game.roundNumber, game.nextSequenceId++);
-      }
+      { const { seq, timestamp } = this.pushSystemMessage(game, msg); if (this.onSystemEvent) { this.onSystemEvent(game.id, msg, 'system', game.roundNumber, seq, timestamp); } }
     }
 
     game.updatedAt = nowIso();
@@ -452,10 +463,7 @@ export class GameEngine {
         const narrative = await this.aiService.generateClueNarration(publicStateStr, clue.text, game.difficulty);
         console.log(`[CLUE GENERATED]`, narrative);
 
-        if (this.onSystemEvent) {
-          console.log(`[CLUE ENQUEUED]`);
-          this.onSystemEvent(game.id, narrative, 'clue', game.roundNumber, game.nextSequenceId++);
-        }
+        if (this.onSystemEvent) { const res = this.pushSystemMessage(game, narrative, 'clue'); this.onSystemEvent(game.id, narrative, 'clue', game.roundNumber, res.seq, res.timestamp); }
 
         const safeText = clue.text || 'Pista no disponible temporalment';
         this.recordTimelineEvent(game, {
@@ -467,12 +475,7 @@ export class GameEngine {
         });
       } catch (error) {
         console.error("Error generating clue narration:", error);
-        if (this.onSystemEvent) {
-          const fallbackText = clue.text || 'Pista no disponible temporalment';
-          console.log(`[CLUE GENERATED] (fallback)`, fallbackText);
-          console.log(`[CLUE ENQUEUED]`);
-          this.onSystemEvent(game.id, fallbackText, 'clue', game.roundNumber, game.nextSequenceId++);
-        }
+        if (this.onSystemEvent) { const fallbackText = clue.text || 'Pista no disponible temporalment'; const resF = this.pushSystemMessage(game, fallbackText, 'clue'); this.onSystemEvent(game.id, fallbackText, 'clue', game.roundNumber, resF.seq, resF.timestamp); }
       }
     }
   }
@@ -642,9 +645,7 @@ export class GameEngine {
         description: msg
       });
 
-      if (this.onSystemEvent) {
-        this.onSystemEvent(game.id, msg, 'system', game.roundNumber, game.nextSequenceId++);
-      }
+      { const { seq, timestamp } = this.pushSystemMessage(game, msg); if (this.onSystemEvent) { this.onSystemEvent(game.id, msg, 'system', game.roundNumber, seq, timestamp); } }
       this.emitStateChange(game.id, game.state);
       return;
     }
@@ -660,9 +661,7 @@ export class GameEngine {
       description: `Ronda ${game.roundNumber} iniciada`
     });
 
-    if (this.onSystemEvent) {
-      this.onSystemEvent(game.id, msg, 'system', game.roundNumber, game.nextSequenceId++);
-    }
+    { const { seq, timestamp } = this.pushSystemMessage(game, msg); if (this.onSystemEvent) { this.onSystemEvent(game.id, msg, 'system', game.roundNumber, seq, timestamp); } }
 
     // Save game state BEFORE revealing clues to avoid overwriting async clue persistence
     this.store.save(game);
