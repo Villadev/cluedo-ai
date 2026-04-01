@@ -1,0 +1,60 @@
+<<<<<<< SEARCH
+  public async enrichCharacterProfilesBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
+    const instruction = `Enriqueix el perfil d'aquests personatges (Cluedo en català).
+Víctima: ${caseBible.victim}. Crim: de ${caseBible.crimeWindow?.start} a ${caseBible.crimeWindow?.end} a ${caseBible.location} amb ${caseBible.weapon}.
+${diffContext}
+
+Personatges: ${JSON.stringify(characters.map(c => c.name))}
+
+Per a cada personatge, genera:
+- description, personality
+- secret (fet inconfessable), secretKnowledge (pista sobre un altre)
+- rumor
+- coartada: { location, timeStart, timeEnd, witness, credibility ("alta"|"mitjana"|"baixa") }
+
+Retorna JSON amb "characters": [ { name, description, personality, secret, secretKnowledge, rumor, coartada } ]`;
+=======
+  public async enrichCharacterProfilesBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
+    const instruction = `Enriqueix el perfil d'aquests personatges (Cluedo en català).
+Víctima: ${caseBible.victim}. Crim: de ${caseBible.crimeWindow?.start} a ${caseBible.crimeWindow?.end} a ${caseBible.location} amb ${caseBible.weapon}.
+${diffContext}
+
+Personatges: ${JSON.stringify(characters.map(c => c.name))}
+
+Per a cada personatge, genera (màxim 1-2 frases per camp textual):
+- description, personality
+- secret (fet inconfessable), secretKnowledge (pista sobre un altre)
+- rumor
+- coartada: { location, timeStart, timeEnd, witness, credibility ("alta"|"mitjana"|"baixa") }
+
+Retorna JSON amb "characters": [ { name, description, personality, secret, secretKnowledge, rumor, coartada } ]. Respon exclusivament en JSON.`;
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  public async enrichCharacterRelationsBatch(gameId: string, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
+    const instruction = `Defineix les relacions i tensions entre aquests personatges (Cluedo en català).
+${diffContext}
+
+Personatges: ${JSON.stringify(characters.map(c => c.name))}
+
+Per a cada personatge, genera:
+- relationships (com es porta amb els altres)
+- tensions (conflictes recents)
+
+Retorna JSON amb "characters": [ { name, relationships, tensions } ]`;
+=======
+  public async enrichCharacterRelationsBatch(gameId: string, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
+    const instruction = `Defineix les relacions i tensions entre aquests personatges (Cluedo en català).
+${diffContext}
+
+Personatges: ${JSON.stringify(characters.map(c => c.name))}
+
+Per a cada personatge, genera (màxim 1-2 frases per camp textual):
+- relationships (com es porta amb els altres)
+- tensions (conflictes recents)
+
+Retorna JSON amb "characters": [ { name, relationships, tensions } ]. Respon exclusivament en JSON.`;
+>>>>>>> REPLACE

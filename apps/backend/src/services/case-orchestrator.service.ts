@@ -62,6 +62,8 @@ export class CaseOrchestratorService {
     const game = this.store.getById(gameId);
     if (!game) throw new Error('Game not found');
 
+    console.log(`[ORCHESTRATOR] Starting case generation for game ${gameId} (Batch Size: ${this.BATCH_SIZE}, Players: ${game.players.length})`);
+
     const expectedCount = game.players.length;
     const difficulty = game.difficulty;
     const maxRounds = game.maxRounds;
@@ -119,7 +121,7 @@ export class CaseOrchestratorService {
         const batchInfo = `${i + 1}/${characterChunks.length}`;
 
         // Pass A: Profiles
-        const profileStepLabel = `CHARACTERS_PROFILE_BATCH ${batchInfo}`;
+        const profileStepLabel = `CHARACTERS_PROFILE_BATCH_${i + 1}_OF_${characterChunks.length}`;
         const profiles = await this.executeStep<Partial<AIServiceCharacter>[]>(
           gameId,
           GenerationPhases.CHARACTERS,
@@ -130,7 +132,7 @@ export class CaseOrchestratorService {
 
         // Pass B: Relations (Robust: fallback if fails)
         let relations: Partial<AIServiceCharacter>[] = [];
-        const relationsStepLabel = `CHARACTERS_RELATIONS_BATCH ${batchInfo}`;
+        const relationsStepLabel = `CHARACTERS_RELATIONS_BATCH_${i + 1}_OF_${characterChunks.length}`;
         try {
           relations = await this.executeStep<Partial<AIServiceCharacter>[]>(
             gameId,

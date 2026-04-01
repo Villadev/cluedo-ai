@@ -1,0 +1,44 @@
+<<<<<<< SEARCH
+  public async generateCase(gameId: string): Promise<void> {
+    const game = this.store.getById(gameId);
+    if (!game) throw new Error('Game not found');
+
+    const expectedCount = game.players.length;
+=======
+  public async generateCase(gameId: string): Promise<void> {
+    const game = this.store.getById(gameId);
+    if (!game) throw new Error('Game not found');
+
+    console.log(`[ORCHESTRATOR] Starting case generation for game ${gameId} (Batch Size: ${this.BATCH_SIZE}, Players: ${game.players.length})`);
+
+    const expectedCount = game.players.length;
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+        // Pass A: Profiles
+        const profileStepLabel = `CHARACTERS_PROFILE_BATCH ${batchInfo}`;
+        const profiles = await this.executeStep<Partial<AIServiceCharacter>[]>(
+          gameId,
+          GenerationPhases.CHARACTERS,
+          profileStepLabel,
+          (sig) => this.aiService.enrichCharacterProfilesBatch(gameId, fullCase, chunk, difficulty, profileStepLabel, sig),
+          globalController.signal
+        );
+
+        // Pass B: Relations (Robust: fallback if fails)
+        let relations: Partial<AIServiceCharacter>[] = [];
+        const relationsStepLabel = `CHARACTERS_RELATIONS_BATCH ${batchInfo}`;
+=======
+        // Pass A: Profiles
+        const profileStepLabel = `CHARACTERS_PROFILE_BATCH_${i + 1}_OF_${characterChunks.length}`;
+        const profiles = await this.executeStep<Partial<AIServiceCharacter>[]>(
+          gameId,
+          GenerationPhases.CHARACTERS,
+          profileStepLabel,
+          (sig) => this.aiService.enrichCharacterProfilesBatch(gameId, fullCase, chunk, difficulty, profileStepLabel, sig),
+          globalController.signal
+        );
+
+        // Pass B: Relations (Robust: fallback if fails)
+        let relations: Partial<AIServiceCharacter>[] = [];
+        const relationsStepLabel = `CHARACTERS_RELATIONS_BATCH_${i + 1}_OF_${characterChunks.length}`;
+>>>>>>> REPLACE
