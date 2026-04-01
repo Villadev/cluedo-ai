@@ -31,6 +31,7 @@ export type GameStateChangeListener = (gameId: string, gameInfo: any) => void;
 export class CaseOrchestratorService {
   private readonly STEP_TIMEOUT_MS = env.GENERATION_STEP_TIMEOUT_MS;
   private readonly GLOBAL_TIMEOUT_MS = env.GENERATION_GLOBAL_TIMEOUT_MS;
+  private readonly BATCH_SIZE = env.GENERATION_CHARACTER_BATCH_SIZE;
 
 
   private onGenerationProgress?: GenerationProgressListener;
@@ -48,6 +49,14 @@ export class CaseOrchestratorService {
     private aiService: AIService,
     private store: GameStoreService
   ) {}
+
+  private chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  }
 
   public async generateCase(gameId: string): Promise<void> {
     const game = this.store.getById(gameId);
@@ -100,20 +109,50 @@ export class CaseOrchestratorService {
         globalController.signal
       );
 
-      // CHARACTERS ENRICH
-      const aiCharacters = await this.executeStep<AIServiceCharacter[]>(
-        gameId,
-        GenerationPhases.CHARACTERS,
-        "characters_enrich",
-        (sig) => this.aiService.enrichCharacters(gameId, fullCase, basicCharacters, difficulty, sig),
-        globalController.signal
-      );
+      // CHARACTERS ENRICH (Batched & Multi-pass)
+      const characterChunks = this.chunkArray(basicCharacters, this.BATCH_SIZE);
+      const enrichedCharacters: AIServiceCharacter[] = [];
 
-      fullCase.characters = aiCharacters;
+      for (let i = 0; i < characterChunks.length; i++) {
+        const chunk = characterChunks[i];
+        if (!chunk) continue;
+        const batchInfo = `${i + 1}/${characterChunks.length}`;
+
+        // Pass A: Profiles
+        const profileStepLabel = `CHARACTERS_PROFILE_BATCH ${batchInfo}`;
+        const profiles = await this.executeStep<Partial<AIServiceCharacter>[]>(
+          gameId,
+          GenerationPhases.CHARACTERS,
+          profileStepLabel,
+          (sig) => this.aiService.enrichCharacterProfilesBatch(gameId, fullCase, chunk, difficulty, profileStepLabel, sig),
+          globalController.signal
+        );
+
+        // Pass B: Relations (Robust: fallback if fails)
+        let relations: Partial<AIServiceCharacter>[] = [];
+        const relationsStepLabel = `CHARACTERS_RELATIONS_BATCH ${batchInfo}`;
+        try {
+          relations = await this.executeStep<Partial<AIServiceCharacter>[]>(
+            gameId,
+            GenerationPhases.CHARACTERS,
+            relationsStepLabel,
+            (sig) => this.aiService.enrichCharacterRelationsBatch(gameId, profiles, difficulty, relationsStepLabel, sig),
+            globalController.signal
+          );
+        } catch (error) {
+          console.warn(`[ORCHESTRATOR] Relations subpass failed for batch ${batchInfo}. Using fallback.`);
+          // relations will remain empty, normalization will handle it.
+        }
+
+        const batchEnriched = this.aiService.normalizeCharacters(relations, profiles, fullCase);
+        enrichedCharacters.push(...batchEnriched);
+      }
+
+      fullCase.characters = enrichedCharacters;
 
       // Immediate persistence of characters
       this.persistPartialData(gameId, {
-        characters: this.mapToCharacters(aiCharacters, fullCase.assassin || '')
+        characters: this.mapToCharacters(enrichedCharacters, fullCase.assassin || '')
       });
 
       // 3. NARRATIVES
@@ -191,7 +230,7 @@ export class CaseOrchestratorService {
 
     const stepController = new AbortController();
     const stepTimeout = setTimeout(() => {
-        console.warn(`[ORCHESTRATOR] Step ${phase} timeout reached for game ${gameId}`);
+        console.warn(`[ORCHESTRATOR] Step ${stepName} timeout reached for game ${gameId}`);
         stepController.abort();
     }, this.STEP_TIMEOUT_MS);
 
@@ -222,7 +261,7 @@ export class CaseOrchestratorService {
       });
 
       if (globalSignal.aborted) throw new Error('Global generation timeout exceeded');
-      if (stepController.signal.aborted) throw new Error(`Step ${phase} timeout`);
+      if (stepController.signal.aborted) throw new Error(`Step ${stepName} timeout`);
       throw err;
     } finally {
       clearTimeout(stepTimeout);

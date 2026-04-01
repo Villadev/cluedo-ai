@@ -29,8 +29,14 @@ async function testPipeline() {
     const basicCharacters = await aiService.generateBasicCharacters(gameId, fullCaseBase, 4, difficulty);
     console.log("Basic characters count:", basicCharacters.length);
 
-    console.log("\nStep 2b: Characters Enrich...");
-    const enrichedCharacters = await aiService.enrichCharacters(gameId, fullCaseBase, basicCharacters, difficulty);
+    console.log("\nStep 2b: Characters Enrich split...");
+    const profiles = await aiService.enrichCharacterProfilesBatch(gameId, fullCaseBase, basicCharacters, difficulty, "test_profiles");
+    console.log("Profiles count:", profiles.length);
+
+    const relations = await aiService.enrichCharacterRelationsBatch(gameId, profiles, difficulty, "test_relations");
+    console.log("Relations count:", relations.length);
+
+    const enrichedCharacters = aiService.normalizeCharacters(relations, profiles, fullCaseBase);
     console.log("Enriched characters count:", enrichedCharacters.length);
 
     fullCaseBase.characters = enrichedCharacters;
