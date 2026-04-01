@@ -133,23 +133,23 @@ Retorna un JSON amb "characters": [
     return result.characters;
   }
 
-  public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
+  public async enrichCharacterProfilesBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
     const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Enriqueix aquests personatges per al Cluedo en català.
+    const instruction = `Enriqueix el perfil d'aquests personatges (Cluedo en català).
 Víctima: ${caseBible.victim}. Crim: de ${caseBible.crimeWindow?.start} a ${caseBible.crimeWindow?.end} a ${caseBible.location} amb ${caseBible.weapon}.
 ${diffContext}
 
-Personatges a enriquir: ${JSON.stringify(characters.map(c => c.name))}
+Personatges: ${JSON.stringify(characters.map(c => c.name))}
 
 Per a cada personatge, genera:
 - description, personality
 - secret (fet inconfessable), secretKnowledge (pista sobre un altre)
+- rumor
 - coartada: { location, timeStart, timeEnd, witness, credibility ("alta"|"mitjana"|"baixa") }
-- rumor, relationships, tensions
 
-Retorna JSON amb "characters": [ { ...full_details } ]`;
+Retorna JSON amb "characters": [ { name, description, personality, secret, secretKnowledge, rumor, coartada } ]`;
 
-    const result = await this.callOpenAIWithRetry<{ characters: AIServiceCharacter[] }>(gameId, instruction, "characters_enrich", "CHARACTERS", (data) => {
+    const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
       const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
       const expectedCount = characters.length;
       return {
@@ -158,7 +158,43 @@ Retorna JSON amb "characters": [ { ...full_details } ]`;
       };
     }, 3, signal);
 
-    return this.normalizeCharacters(result.characters, characters, caseBible);
+    return result.characters;
+  }
+
+  public async enrichCharacterRelationsBatch(gameId: string, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+    const diffContext = this.getDifficultyInstruction(difficulty);
+    const instruction = `Defineix les relacions i tensions entre aquests personatges (Cluedo en català).
+${diffContext}
+
+Personatges: ${JSON.stringify(characters.map(c => c.name))}
+
+Per a cada personatge, genera:
+- relationships (com es porta amb els altres)
+- tensions (conflictes recents)
+
+Retorna JSON amb "characters": [ { name, relationships, tensions } ]`;
+
+    const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
+      const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
+      const expectedCount = characters.length;
+      return {
+        valid: returnedCount === expectedCount,
+        details: { expectedCount, returnedCount }
+      };
+    }, 3, signal);
+
+    return result.characters;
+  }
+
+  public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
+      // Legacy method for compatibility if needed, but we should use the split ones in Orchestrator.
+      // Implementing it as a single pass for now or just calling the split ones?
+      // Better to keep it simple and just do the split ones in Orchestrator.
+      // But let's provide a working fallback here if someone calls it.
+      const profiles = await this.enrichCharacterProfilesBatch(gameId, caseBible, characters, difficulty, "characters_enrich_legacy_profiles", signal);
+      const relations = await this.enrichCharacterRelationsBatch(gameId, profiles, difficulty, "characters_enrich_legacy_relations", signal);
+
+      return this.normalizeCharacters(relations, profiles, caseBible);
   }
 
   private normalizeToString(value: any, fallback: string): string {
@@ -175,27 +211,27 @@ Retorna JSON amb "characters": [ { ...full_details } ]`;
     return String(value) || fallback;
   }
 
-  private normalizeCharacters(aiCharacters: AIServiceCharacter[], basicCharacters: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
+  public normalizeCharacters(aiCharacters: Partial<AIServiceCharacter>[], basicCharacters: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
       return basicCharacters.map((basic, i) => {
-          const enriched = aiCharacters.find(c => c.name === basic.name) || aiCharacters[i] || ({} as AIServiceCharacter);
+          const enriched = aiCharacters.find(c => c.name === basic.name) || aiCharacters[i] || ({} as Partial<AIServiceCharacter>);
           return {
               name: basic.name || enriched.name || 'Desconegut',
               profession: basic.profession || enriched.profession || 'Sense professió',
-              description: enriched.description || 'Sense descripció',
-              personality: enriched.personality || 'Sense personalitat',
+              description: enriched.description || basic.description || 'Sense descripció',
+              personality: enriched.personality || basic.personality || 'Sense personalitat',
               possibleMotive: basic.possibleMotive || enriched.possibleMotive || 'Sense motiu',
-              secret: enriched.secret || 'Sense secret',
-              secretKnowledge: enriched.secretKnowledge || 'Sense coneixement secret',
-              coartada: enriched.coartada || {
+              secret: enriched.secret || basic.secret || 'Sense secret',
+              secretKnowledge: enriched.secretKnowledge || basic.secretKnowledge || 'Sense coneixement secret',
+              coartada: enriched.coartada || basic.coartada || {
                   location: 'Desconeguda',
                   timeStart: caseBible.crimeWindow?.start || '00:00',
                   timeEnd: caseBible.crimeWindow?.end || '00:00',
                   witness: 'Ningú',
                   credibility: 'baixa'
               },
-              rumor: this.normalizeToString(enriched.rumor, 'Cap rumor'),
-              relationships: this.normalizeToString(enriched.relationships, 'Cap relació'),
-              tensions: this.normalizeToString(enriched.tensions, 'Cap tensió')
+              rumor: this.normalizeToString(enriched.rumor || basic.rumor, 'Cap rumor'),
+              relationships: this.normalizeToString(enriched.relationships || basic.relationships, 'Cap relació'),
+              tensions: this.normalizeToString(enriched.tensions || basic.tensions, 'Cap tensió')
           } as AIServiceCharacter;
       });
   }
