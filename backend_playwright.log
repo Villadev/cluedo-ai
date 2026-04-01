@@ -1,0 +1,13 @@
+
+> @cluedo/backend@0.1.0 start /app/apps/backend
+> node dist/main.js
+
+[CONFIG] OpenAI API key detected
+[DB] SQLite initialized at /app/apps/backend/game.db
+(node:4804) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[SERVER] Backend started with Socket.IO
+[SERVER] Environment validated
+Backend listening on port 3000
+Terminated
+ ELIFECYCLE  Command failed with exit code 143.
