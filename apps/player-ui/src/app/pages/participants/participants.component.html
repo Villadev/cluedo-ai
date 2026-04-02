@@ -27,7 +27,7 @@
           </ng-template>
 
           <div class="flex flex-column gap-3">
-            @if (player.character) {
+                        @if (player.character) {
               <div>
                 <span class="font-bold">Personatge:</span>
                 <p>{{ player.character.name }}</p>
@@ -79,6 +79,20 @@
                 <div class="assassin-secret">
                   🔒 Secret del teu personatge: {{ (player.isAssassin || player.id === assassinId()) ? "ets l'assassí." : "no ets l'assassí." }}
                 </div>
+
+                @if (player.character.relationships) {
+                  <div>
+                    <span class="font-bold italic">Relacions:</span>
+                    <p>{{ player.character.relationships }}</p>
+                  </div>
+                }
+
+                @if (player.character.tensions) {
+                  <div>
+                    <span class="font-bold italic text-pink-600">Tensions:</span>
+                    <p>{{ player.character.tensions }}</p>
+                  </div>
+                }
               }
             } @else {
               <p-message severity="info" text="Esperant assignació de personatge..."></p-message>
