@@ -464,7 +464,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   protected copyGameLink(): void {
     const id = this.gameId();
     if (!id) return;
-    const url = `${window.location.origin}/player?gameId=${id}`;
+    const url = `https://player-ui.onrender.com/?gameId=${id}`;
     navigator.clipboard.writeText(url).then(() => {
       this.showCopyFeedback.set(true);
       setTimeout(() => this.showCopyFeedback.set(false), 2000);
