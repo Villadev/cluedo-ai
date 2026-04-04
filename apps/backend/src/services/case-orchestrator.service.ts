@@ -139,7 +139,7 @@ export class CaseOrchestratorService {
             gameId,
             GenerationPhases.CHARACTERS,
             relationsStepLabel,
-            (sig) => this.aiService.enrichCharacterRelationsBatch(gameId, profiles, difficulty, relationsStepLabel, sig),
+            (sig) => this.aiService.enrichCharacterRelationsBatch(gameId, fullCase, profiles, difficulty, relationsStepLabel, sig),
             globalController.signal
           );
         } catch (error) {
@@ -151,6 +151,16 @@ export class CaseOrchestratorService {
       }
 
       fullCase.characters = enrichedCharacters;
+      // Validation: Victim must not be a participant
+      if (fullCase.characters.some(c => c.name === fullCase.victim)) {
+        console.warn(`[ORCHESTRATOR] Victim name (${fullCase.victim}) collision detected with character list. Applying fallback.`);
+        fullCase.victim = `${fullCase.victim} (Víctima)`;
+      }
+
+      if (fullCase.characters.some(c => c.name === fullCase.victim)) {
+        throw new Error("Invalid game state: victim cannot be a participant");
+      }
+
 
       // Immediate persistence of characters
       this.persistPartialData(gameId, {
