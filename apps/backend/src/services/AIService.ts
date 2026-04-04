@@ -83,11 +83,11 @@ export class AIService {
     const shuffledWeapons = this.shuffle(WEAPONS);
     const shuffledLocations = this.shuffle(LOCATIONS);
 
-    const instruction = `Crea l'esquelet d'un cas d'assassinat en català.
+    const instruction = `Crea l'esquelet d'un cas d'assassinat en català. La víctima NO és un dels jugadors. La víctima ha de ser un personatge extern.
 Retorna un JSON amb:
 - victim: Nom de la víctima.
-- weapon: Una arma de la llista: ${shuffledWeapons.join(', ')}.
-- location: Un lloc de la llista: ${shuffledLocations.join(', ')}.
+- weapon: Una arma de la llista: ${shuffledWeapons.join(' , ')}.
+- location: Un lloc de la llista: ${shuffledLocations.join(' , ')}.
 - assassin: Nom del futur assassí (serà un dels personatges).
 - crimeWindow: { start: "HH:MM", end: "HH:MM" } (finestra d'unes 2 hores).
 
@@ -108,7 +108,7 @@ Regles:
   }
 
   public async generateBasicCharacters(gameId: string, caseBible: Partial<FullCase>, expectedCount: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
-    const instruction = `Crea exactament ${expectedCount} personatges per a un Cluedo en català.
+    const instruction = `Crea exactament ${expectedCount} personatges per a un Cluedo en català. La víctima NO és un dels jugadors. La víctima ha de ser un personatge extern. La víctima ha de tenir relacions o connexions amb diversos participants (p. ex., conflictes, deutes, secrets o vincles personals).
 Assassí: ${caseBible.assassin}. Víctima: ${caseBible.victim}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
 
 Retorna un JSON amb "characters": [
@@ -161,11 +161,10 @@ Retorna JSON amb "characters": [ { name, description, personality, secret, secre
     return result.characters;
   }
 
-  public async enrichCharacterRelationsBatch(gameId: string, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+  public async enrichCharacterRelationsBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
     const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Defineix les relacions i tensions entre aquests personatges (Cluedo en català).
+    const instruction = `Defineix les relacions i tensions entre aquests personatges (Cluedo en català). Assegura't d'incloure relacions i tensions amb la víctima (${caseBible.victim}).
 ${diffContext}
-
 Personatges: ${JSON.stringify(characters.map(c => c.name))}
 
 Per a cada personatge, genera (màxim 1-2 frases per camp textual):
@@ -188,7 +187,7 @@ Retorna JSON amb "characters": [ { name, relationships, tensions } ]. Respon exc
 
   public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
       const profiles = await this.enrichCharacterProfilesBatch(gameId, caseBible, characters, difficulty, "characters_enrich_legacy_profiles", signal);
-      const relations = await this.enrichCharacterRelationsBatch(gameId, profiles, difficulty, "characters_enrich_legacy_relations", signal);
+      const relations = await this.enrichCharacterRelationsBatch(gameId, caseBible, profiles, difficulty, "characters_enrich_legacy_relations", signal);
 
       return this.normalizeCharacters(relations, profiles, caseBible);
   }

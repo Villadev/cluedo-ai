@@ -33,7 +33,7 @@ async function testPipeline() {
     const profiles = await aiService.enrichCharacterProfilesBatch(gameId, fullCaseBase, basicCharacters, difficulty, "test_profiles");
     console.log("Profiles count:", profiles.length);
 
-    const relations = await aiService.enrichCharacterRelationsBatch(gameId, profiles, difficulty, "test_relations");
+    const relations = await aiService.enrichCharacterRelationsBatch(gameId, fullCaseBase, profiles, difficulty, "test_relations");
     console.log("Relations count:", relations.length);
 
     const enrichedCharacters = aiService.normalizeCharacters(relations, profiles, fullCaseBase);
