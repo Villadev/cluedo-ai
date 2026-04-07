@@ -1,59 +1,50 @@
-import { AIService } from './AIService.js';
-import { GameStoreService } from './game-store.service.js';
-import { telemetryService } from './telemetry.service.js';
-import { errorLogger } from '../utils/error-logger.js';
+import { generateId } from '../utils/id';
 import {
-  FullCase,
-  Difficulty,
-  AIServiceCharacter,
-  AIServiceClue,
-  GenerationPhase,
-  GenerationPhases,
-  Game,
-  GameStates,
-  Character,
-  Clue
-} from '../types/game.types.js';
-import { generateId } from '../utils/id.js';
-import { env } from '../config/env.js';
-
-const nowIso = () => new Date().toISOString();
+  Game, Character, Player, Clue, ClueType, GameState, GameStates,
+  GenerationPhase, GenerationPhases, FullCase, AIServiceClue, AIServiceCharacter,
+  DetectiveMatrix, Alibi, Difficulty
+} from '../types/game.types';
+import { GameStoreService } from './game-store.service';
+import { AIService } from './AIService';
+import { nowIso } from '../utils/id';
+import { telemetryService } from './telemetry.service';
+import { errorLogger } from '../utils/error-logger';
+import { env } from '../config/env';
+import { buildDetectiveMatrix } from '../game/detective-matrix';
+import { validateCase } from '../game/case-validation';
 
 export class CaseOrchestratorService {
-  private readonly STEP_TIMEOUT_MS = env.GENERATION_STEP_TIMEOUT_MS;
-  private readonly GLOBAL_TIMEOUT_MS = env.GENERATION_GLOBAL_TIMEOUT_MS;
-  private readonly BATCH_SIZE = env.GENERATION_CHARACTER_BATCH_SIZE;
-
-  public onGenerationProgress?: (gameId: string, progress: { phase: GenerationPhase, attempt: number, elapsedMs: number, error?: string }) => void;
-  public onGameStateChange?: (gameId: string, state: any) => void;
+  private STEP_TIMEOUT_MS = env.GENERATION_STEP_TIMEOUT_MS || 90000;
+  private GLOBAL_TIMEOUT_MS = env.GENERATION_GLOBAL_TIMEOUT_MS || 600000;
 
   constructor(
+    private store: GameStoreService,
     private aiService: AIService,
-    private store: GameStoreService
+    private onGameStateChange?: (gameId: string, state: any) => void,
+    private onGenerationProgress?: (gameId: string, progress: any) => void
   ) {}
 
   public setGenerationProgressListener(listener: (gameId: string, progress: any) => void) {
     this.onGenerationProgress = listener;
   }
 
-  public setGameStateChangeListener(listener: (gameId: string, gameInfo: any) => void) {
+  public setGameStateChangeListener(listener: (gameId: string, state: any) => void) {
     this.onGameStateChange = listener;
   }
 
-  public async generateCase(gameId: string, difficulty: Difficulty, maxRounds: number) {
-    const globalStartTime = Date.now();
+  public async generateCase(gameId: string, maxRounds: number = 3) {
     const game = this.store.getById(gameId);
     if (!game) return;
 
+    const difficulty = game.difficulty || 'hard';
+    const globalStartTime = Date.now();
     const globalController = new AbortController();
     const globalTimeout = setTimeout(() => {
-        console.error(`[ORCHESTRATOR] Global generation timeout for game ${gameId}`);
+        console.error(`[ORCHESTRATOR] Global timeout reached for game ${gameId}`);
         globalController.abort();
     }, this.GLOBAL_TIMEOUT_MS);
 
     try {
-      let fullCase: Partial<FullCase> = {};
-
       // 1. SKELETON
       const skeleton = await this.executeStep<Partial<FullCase>>(
         gameId,
@@ -62,75 +53,50 @@ export class CaseOrchestratorService {
         (sig) => this.aiService.generateCaseSkeleton(gameId, difficulty, sig),
         globalController.signal
       );
-      fullCase = { ...skeleton, characters: [], clues: {} };
+
+      let fullCase: Partial<FullCase> = {
+        ...skeleton,
+        clues: {}
+      };
 
       // Immediate persistence of solution seed
       this.persistPartialData(gameId, {
+        murder: {
+          killerPlayerId: '', // To be filled in finalize
+          weapon: skeleton.weapon || '',
+          location: skeleton.location || '',
+          victim: skeleton.victim || '',
+          crimeWindow: skeleton.crimeWindow || { start: "20:00", end: "21:00" }
+        },
         solution: {
           assassin: skeleton.assassin || '',
           weapon: skeleton.weapon || '',
           location: skeleton.location || '',
           victimName: skeleton.victim || '',
           finalNarrative: ''
-        },
-        murder: {
-            killerPlayerId: '',
-            weapon: skeleton.weapon || '',
-            location: skeleton.location || '',
-            victim: skeleton.victim || '',
-            crimeWindow: skeleton.crimeWindow
         }
       });
 
-      // 2. CHARACTERS BASIC
-      const expectedCount = game.players.length;
-      const allowedPlayerNames = game.players.map(p => p.nickname).filter(Boolean);
-
-      const basicCharacters = await this.executeStep<Partial<AIServiceCharacter>[]>(
+      // 2. CHARACTERS
+      const basicCharacters = await this.executeStep<AIServiceCharacter[]>(
         gameId,
         GenerationPhases.CHARACTERS,
         "characters_basic",
-        (sig) => this.aiService.generateBasicCharacters(gameId, fullCase, expectedCount, allowedPlayerNames, difficulty, sig),
+        (sig) => this.aiService.generateBasicCharacters(gameId, game.players.map(p => p.nickname), skeleton.assassin || '', skeleton.victim || '', difficulty, sig),
         globalController.signal
       );
 
-      // CHARACTERS ENRICH (Batched & Multi-pass)
-      const characterChunks = this.chunkArray(basicCharacters, this.BATCH_SIZE);
-      const enrichedChunks = await Promise.all(characterChunks.map((chunk, index) =>
-        this.executeStep<Partial<AIServiceCharacter>[]>(
-            gameId,
-            GenerationPhases.CHARACTERS,
-            `characters_enrich_batch_${index}`,
-            (sig) => this.aiService.enrichCharacters(gameId, fullCase, chunk, difficulty, sig),
-            globalController.signal
-        )
-      ));
-
-      const enrichedCharacters = enrichedChunks.flat() as AIServiceCharacter[];
+      const enrichedCharacters = await this.executeStep<AIServiceCharacter[]>(
+        gameId,
+        GenerationPhases.CHARACTERS,
+        "characters_enrich",
+        (sig) => this.aiService.enrichCharacters(gameId, basicCharacters, fullCase as FullCase, difficulty, sig),
+        globalController.signal
+      );
       fullCase.characters = enrichedCharacters;
 
-      // Post-generation safety validation
-      const finalNames = fullCase.characters.map(c => c.name?.trim().toLowerCase());
-      const normalizedAllowed = allowedPlayerNames.map(n => n.trim().toLowerCase());
-      const allNamesValid = finalNames.every(name => normalizedAllowed.includes(name || ''));
-
-      if (!allNamesValid) {
-          throw new Error("Invalid character names generated: names do not match allowed player names");
-      }
-
-      // Validation: Victim must not be a participant
-      if (fullCase.characters.some(c => c.name === fullCase.victim)) {
-        console.warn(`[ORCHESTRATOR] Victim name (${fullCase.victim}) collision detected with character list. Applying fallback.`);
-        fullCase.victim = `${fullCase.victim} (Víctima)`;
-      }
-
-      telemetryService.record({
-        gameId, phase: GenerationPhases.CHARACTERS, stepLabel: 'characters_complete', stepName: 'orch:chars_done', attempt: 1,
-        startAt: Date.now(), endAt: Date.now(), durationMs: 0, outcome: 'success', model: 'orchestrator'
-      });
-
       // 3. NARRATIVES
-      const narratives = await this.executeStep<{ introductionNarrative: string, solutionNarrative: string }>(
+      const narratives = await this.executeStep<{ introductionNarrative: string; solutionNarrative: string }>(
         gameId,
         GenerationPhases.NARRATIVES,
         "narratives",
@@ -170,7 +136,7 @@ export class CaseOrchestratorService {
         fullCase = recoveredClues;
       }
 
-      this.finalizeGame(gameId, fullCase as FullCase);
+      this.finalizeGame(gameId, fullCase as FullCase, maxRounds);
       const totalTimeMs = Date.now() - globalStartTime;
       console.log("[GENERATION] Total time:", totalTimeMs, "ms");
       telemetryService.setTotalTime(gameId, totalTimeMs);
@@ -180,7 +146,7 @@ export class CaseOrchestratorService {
       console.log("[GENERATION] Total time:", totalTimeMs, "ms");
       telemetryService.setTotalTime(gameId, totalTimeMs);
 
-      console.error(`[ORCHESTRATOR ERROR] Game ${gameId}:`, error.message);
+      console.error(`[ORCHESTRATOR ERROR] Game ${gameId}: `, error.message);
       errorLogger.push('ORCHESTRATOR_STEP_FAILURE', {
         gameId,
         phase: game.generationPhase,
@@ -273,7 +239,7 @@ export class CaseOrchestratorService {
     }
   }
 
-  private mapToCharacters(aiCharacters: any[], assassinName: string): Character[] {
+  private mapToCharacters(aiCharacters: AIServiceCharacter[], assassinName: string): Character[] {
     return aiCharacters.map(c => ({
       id: generateId(),
       name: c.name || 'Sense nom',
@@ -291,14 +257,6 @@ export class CaseOrchestratorService {
     }));
   }
 
-  private chunkArray<T>(array: T[], size: number): T[][] {
-    const chunks: T[][] = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunks.push(array.slice(i, i + size));
-    }
-    return chunks;
-  }
-
   private shuffle<T>(array: T[]): T[] {
     const newArray = [...array];
     for (let i = newArray.length - 1; i > 0; i--) {
@@ -308,17 +266,143 @@ export class CaseOrchestratorService {
     return newArray;
   }
 
-  private finalizeGame(gameId: string, caseData: FullCase) {
+  private finalizeGame(gameId: string, caseData: FullCase, maxRounds: number) {
     const game = this.store.getById(gameId);
     if (!game) return;
 
-    // Use already persisted solution/murder seed if available
+    // 1. Initial Mapping
+    const characters = this.mapToCharacters(caseData.characters, caseData.assassin);
+    game.characters = characters;
+
+    // 2. Assign Alibis (Deterministic)
+    const locations = ['Celler', 'Cuina', 'Jardí', 'Habitació', 'Sala', 'Garate', 'Biblioteca'];
+    const killer = characters.find(c => c.isAssassin);
+
+    // Pick 1-2 liars including killer
+    const innocentCharacters = characters.filter(c => !c.isAssassin);
+    const shuffledInnocents = this.shuffle(innocentCharacters);
+    const additionalLiar = shuffledInnocents[0];
+
+    characters.forEach(char => {
+        const isLiar = char.isAssassin || char.id === additionalLiar?.id;
+        char.alibi = {
+            location: locations[Math.floor(Math.random() * locations.length)],
+            timeStart: 2000,
+            timeEnd: 2100,
+            witnessId: isLiar ? undefined : shuffledInnocents.find(i => i.id !== char.id)?.id,
+            credibility: char.isAssassin ? 0 : (isLiar ? 1 : 2),
+            isLie: isLiar
+        };
+    });
+
+    // 3. Generate Clues (Backend Logic)
+    const generatedClues: Clue[] = [];
+
+    // 2 Facts about killer
+    if (killer) {
+        for (let i = 0; i < 2; i++) {
+            generatedClues.push({
+                id: generateId(),
+                type: 'evidence',
+                text: `S'ha trobat un rastre que apunta directament a ${killer.name}.`,
+                isTrue: true,
+                truth: true,
+                subjects: [killer.id],
+                weight: 2,
+                roundNumber: 1 + i,
+                createdAt: nowIso()
+            });
+        }
+    }
+
+    // 2 Contradictions
+    characters.filter(c => c.alibi?.isLie).forEach((liar, idx) => {
+        if (idx < 2) {
+            generatedClues.push({
+                id: generateId(),
+                type: 'contradiction',
+                text: `La coartada de ${liar.name} no s'aguanta per enlloc.`,
+                isTrue: true,
+                truth: false,
+                subjects: [liar.id],
+                weight: 1,
+                roundNumber: 1 + idx,
+                createdAt: nowIso()
+            });
+        }
+    });
+
+    // 2 Timeline clues
+    characters.slice(0, 2).forEach((char, idx) => {
+        generatedClues.push({
+            id: generateId(),
+            type: 'witness',
+            text: `Algú va veure a ${char.name} a prop de la zona a les 20:30.`,
+            isTrue: true,
+            truth: true,
+            subjects: [char.id],
+            weight: 1,
+            roundNumber: 1 + idx,
+            createdAt: nowIso()
+        });
+    });
+
+    // 1 Misleading
+    const randomInnocent = shuffledInnocents[1] || shuffledInnocents[0];
+    if (randomInnocent) {
+        generatedClues.push({
+            id: generateId(),
+            type: 'rumor',
+            text: `Es diu que ${randomInnocent.name} tenia un deute pendent.`,
+            isTrue: false,
+            truth: false,
+            subjects: [randomInnocent.id],
+            weight: 0,
+            roundNumber: 3,
+            createdAt: nowIso()
+        });
+    }
+
+    // Mix with AI descriptions if available
+    const aiClues: AIServiceClue[] = [];
+    Object.values(caseData.clues).forEach(roundClues => {
+        aiClues.push(...roundClues);
+    });
+
+    generatedClues.forEach((clue, idx) => {
+        if (aiClues[idx]) {
+            clue.text = aiClues[idx].text;
+        }
+    });
+
+    game.clues = generatedClues;
+
+    // 4. Build Matrix
+    const matrix = buildDetectiveMatrix({
+        characters,
+        clues: generatedClues
+    });
+    game.detectiveMatrix = matrix;
+
+    // 5. Validate
+    const validation = validateCase({
+        characters,
+        clues: generatedClues,
+        matrix
+    });
+
+    if (!validation.valid) {
+        console.error("[ORCHESTRATOR] Validation failed:", validation.errors);
+        throw new Error("CASE_VALIDATION_FAILED: " + validation.errors.join(", "));
+    }
+
+    // Finalize state
     game.murder = {
       killerPlayerId: game.murder?.killerPlayerId || '',
       weapon: caseData.weapon,
       location: caseData.location,
       victim: caseData.victim,
-      crimeWindow: caseData.crimeWindow
+      crimeWindow: caseData.crimeWindow || { start: "20:00", end: "21:00" }
     };
 
     game.introNarrative = caseData.introductionNarrative;
@@ -329,9 +413,6 @@ export class CaseOrchestratorService {
       victimName: caseData.victim,
       finalNarrative: caseData.solutionNarrative
     };
-
-    const characters = this.mapToCharacters(caseData.characters, caseData.assassin);
-    game.characters = characters;
 
     // Randomize character-to-player assignment
     const shuffledPlayers = this.shuffle(game.players);
@@ -346,24 +427,6 @@ export class CaseOrchestratorService {
         }
       }
     });
-
-    const allClues: Clue[] = [];
-    Object.entries(caseData.clues).forEach(([roundKey, cluesForRound]) => {
-      const roundNum = parseInt(roundKey.replace('round', ''));
-      if (isNaN(roundNum)) return;
-
-      cluesForRound.forEach((c: AIServiceClue) => {
-        allClues.push({
-          id: generateId(),
-          type: c.type || 'rumor',
-          text: c.text || 'Pista no disponible temporalment',
-          isTrue: typeof c.isTrue === 'boolean' ? c.isTrue : true,
-          roundNumber: roundNum,
-          createdAt: nowIso()
-        });
-      });
-    });
-    game.clues = allClues;
 
     game.generationPhase = GenerationPhases.DONE;
     game.state = GameStates.PLAYER_INFO;
