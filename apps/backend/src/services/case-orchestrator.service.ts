@@ -1,170 +1,132 @@
 import { AIService } from './AIService.js';
 import { GameStoreService } from './game-store.service.js';
+import { telemetryService } from './telemetry.service.js';
+import { errorLogger } from '../utils/error-logger.js';
 import {
   FullCase,
   Difficulty,
+  AIServiceCharacter,
+  AIServiceClue,
   GenerationPhase,
   GenerationPhases,
   Game,
   GameStates,
   Character,
-  Clue,
-  AIServiceClue,
-  AIServiceCharacter
+  Clue
 } from '../types/game.types.js';
-
-import { errorLogger } from '../utils/error-logger.js';
-import { generateId, nowIso } from '../utils/id.js';
+import { generateId } from '../utils/id.js';
 import { env } from '../config/env.js';
-import { telemetryService } from './telemetry.service.js';
 
-
-export type GenerationProgressListener = (gameId: string, progress: {
-  phase: GenerationPhase;
-  attempt: number;
-  elapsedMs: number;
-  error?: string;
-}) => void;
-
-export type GameStateChangeListener = (gameId: string, gameInfo: any) => void;
+const nowIso = () => new Date().toISOString();
 
 export class CaseOrchestratorService {
   private readonly STEP_TIMEOUT_MS = env.GENERATION_STEP_TIMEOUT_MS;
   private readonly GLOBAL_TIMEOUT_MS = env.GENERATION_GLOBAL_TIMEOUT_MS;
   private readonly BATCH_SIZE = env.GENERATION_CHARACTER_BATCH_SIZE;
 
-
-  private onGenerationProgress?: GenerationProgressListener;
-  private onGameStateChange?: GameStateChangeListener;
-
-  public setGenerationProgressListener(listener: GenerationProgressListener) {
-    this.onGenerationProgress = listener;
-  }
-
-  public setGameStateChangeListener(listener: GameStateChangeListener) {
-    this.onGameStateChange = listener;
-  }
+  public onGenerationProgress?: (gameId: string, progress: { phase: GenerationPhase, attempt: number, elapsedMs: number, error?: string }) => void;
+  public onGameStateChange?: (gameId: string, state: any) => void;
 
   constructor(
     private aiService: AIService,
     private store: GameStoreService
   ) {}
 
-  private chunkArray<T>(array: T[], size: number): T[][] {
-    const chunks: T[][] = [];
-    for (let i = 0; i < array.length; i += size) {
-      chunks.push(array.slice(i, i + size));
-    }
-    return chunks;
+  public setGenerationProgressListener(listener: (gameId: string, progress: any) => void) {
+    this.onGenerationProgress = listener;
   }
 
-  public async generateCase(gameId: string): Promise<void> {
+  public setGameStateChangeListener(listener: (gameId: string, gameInfo: any) => void) {
+    this.onGameStateChange = listener;
+  }
+
+  public async generateCase(gameId: string, difficulty: Difficulty, maxRounds: number) {
     const globalStartTime = Date.now();
     const game = this.store.getById(gameId);
-    if (!game) throw new Error('Game not found');
-
-    console.log(`[ORCHESTRATOR] Starting case generation for game ${gameId} (Batch Size: ${this.BATCH_SIZE}, Players: ${game.players.length})`);
-
-    const expectedCount = game.players.length;
-    const difficulty = game.difficulty;
-    const maxRounds = game.maxRounds;
+    if (!game) return;
 
     const globalController = new AbortController();
     const globalTimeout = setTimeout(() => {
-      console.warn(`[ORCHESTRATOR] Global timeout reached for game ${gameId}`);
-      globalController.abort();
+        console.error(`[ORCHESTRATOR] Global generation timeout for game ${gameId}`);
+        globalController.abort();
     }, this.GLOBAL_TIMEOUT_MS);
 
     try {
+      let fullCase: Partial<FullCase> = {};
+
       // 1. SKELETON
-      let fullCase = await this.executeStep<Partial<FullCase>>(
+      const skeleton = await this.executeStep<Partial<FullCase>>(
         gameId,
         GenerationPhases.SKELETON,
         "skeleton",
         (sig) => this.aiService.generateCaseSkeleton(gameId, difficulty, sig),
         globalController.signal
       );
+      fullCase = { ...skeleton, characters: [], clues: {} };
 
-      // Early persistence of solution seed
+      // Immediate persistence of solution seed
       this.persistPartialData(gameId, {
-        murder: {
-          killerPlayerId: '',
-          weapon: fullCase.weapon || '',
-          location: fullCase.location || '',
-          victim: fullCase.victim || '',
-          crimeWindow: fullCase.crimeWindow
-        },
         solution: {
-          assassin: fullCase.assassin || '',
-          weapon: fullCase.weapon || '',
-          location: fullCase.location || '',
-          victimName: fullCase.victim || '',
+          assassin: skeleton.assassin || '',
+          weapon: skeleton.weapon || '',
+          location: skeleton.location || '',
+          victimName: skeleton.victim || '',
           finalNarrative: ''
+        },
+        murder: {
+            killerPlayerId: '',
+            weapon: skeleton.weapon || '',
+            location: skeleton.location || '',
+            victim: skeleton.victim || '',
+            crimeWindow: skeleton.crimeWindow
         }
       });
 
       // 2. CHARACTERS BASIC
+      const expectedCount = game.players.length;
+      const allowedPlayerNames = game.players.map(p => p.nickname).filter(Boolean);
+
       const basicCharacters = await this.executeStep<Partial<AIServiceCharacter>[]>(
         gameId,
         GenerationPhases.CHARACTERS,
         "characters_basic",
-        (sig) => this.aiService.generateBasicCharacters(gameId, fullCase, expectedCount, difficulty, sig),
+        (sig) => this.aiService.generateBasicCharacters(gameId, fullCase, expectedCount, allowedPlayerNames, difficulty, sig),
         globalController.signal
       );
 
       // CHARACTERS ENRICH (Batched & Multi-pass)
       const characterChunks = this.chunkArray(basicCharacters, this.BATCH_SIZE);
-      const enrichedCharacters: AIServiceCharacter[] = [];
-
-      for (let i = 0; i < characterChunks.length; i++) {
-        const chunk = characterChunks[i];
-        if (!chunk) continue;
-        const batchInfo = `${i + 1}/${characterChunks.length}`;
-
-        // Pass A: Profiles
-        const profileStepLabel = `CHARACTERS_PROFILE_BATCH ${batchInfo}`;
-        const profiles = await this.executeStep<Partial<AIServiceCharacter>[]>(
-          gameId,
-          GenerationPhases.CHARACTERS,
-          profileStepLabel,
-          (sig) => this.aiService.enrichCharacterProfilesBatch(gameId, fullCase, chunk, difficulty, profileStepLabel, sig),
-          globalController.signal
-        );
-
-        // Pass B: Relations (Robust: fallback if fails)
-        let relations: Partial<AIServiceCharacter>[] = [];
-        const relationsStepLabel = `CHARACTERS_RELATIONS_BATCH ${batchInfo}`;
-        try {
-          relations = await this.executeStep<Partial<AIServiceCharacter>[]>(
+      const enrichedChunks = await Promise.all(characterChunks.map((chunk, index) =>
+        this.executeStep<Partial<AIServiceCharacter>[]>(
             gameId,
             GenerationPhases.CHARACTERS,
-            relationsStepLabel,
-            (sig) => this.aiService.enrichCharacterRelationsBatch(gameId, fullCase, profiles, difficulty, relationsStepLabel, sig),
+            `characters_enrich_batch_${index}`,
+            (sig) => this.aiService.enrichCharacters(gameId, fullCase, chunk, difficulty, sig),
             globalController.signal
-          );
-        } catch (error) {
-          console.warn(`[ORCHESTRATOR] Relations subpass failed for batch ${batchInfo}. Using fallback.`);
-        }
+        )
+      ));
 
-        const batchEnriched = this.aiService.normalizeCharacters(relations, profiles, fullCase);
-        enrichedCharacters.push(...batchEnriched);
+      const enrichedCharacters = enrichedChunks.flat() as AIServiceCharacter[];
+      fullCase.characters = enrichedCharacters;
+
+      // Post-generation safety validation
+      const finalNames = fullCase.characters.map(c => c.name?.trim().toLowerCase());
+      const normalizedAllowed = allowedPlayerNames.map(n => n.trim().toLowerCase());
+      const allNamesValid = finalNames.every(name => normalizedAllowed.includes(name || ''));
+
+      if (!allNamesValid) {
+          throw new Error("Invalid character names generated: names do not match allowed player names");
       }
 
-      fullCase.characters = enrichedCharacters;
       // Validation: Victim must not be a participant
       if (fullCase.characters.some(c => c.name === fullCase.victim)) {
         console.warn(`[ORCHESTRATOR] Victim name (${fullCase.victim}) collision detected with character list. Applying fallback.`);
         fullCase.victim = `${fullCase.victim} (Víctima)`;
       }
 
-      if (fullCase.characters.some(c => c.name === fullCase.victim)) {
-        throw new Error("Invalid game state: victim cannot be a participant");
-      }
-
-
-      // Immediate persistence of characters
-      this.persistPartialData(gameId, {
-        characters: this.mapToCharacters(enrichedCharacters, fullCase.assassin || '')
+      telemetryService.record({
+        gameId, phase: GenerationPhases.CHARACTERS, stepLabel: 'characters_complete', stepName: 'orch:chars_done', attempt: 1,
+        startAt: Date.now(), endAt: Date.now(), durationMs: 0, outcome: 'success', model: 'orchestrator'
       });
 
       // 3. NARRATIVES
@@ -329,6 +291,13 @@ export class CaseOrchestratorService {
     }));
   }
 
+  private chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  }
 
   private shuffle<T>(array: T[]): T[] {
     const newArray = [...array];

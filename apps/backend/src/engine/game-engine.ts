@@ -189,7 +189,7 @@ export class GameEngine {
     this.store.save(game);
 
     // Generation is async
-    this.orchestrator.generateCase(gameId).catch(err => {
+    this.orchestrator.generateCase(gameId, game.difficulty, game.maxRounds).catch(err => {
         console.error("[GAME ENGINE] Async generation error:", err);
     });
 
@@ -319,7 +319,7 @@ export class GameEngine {
     const character = game.characters.find(c => c.id === player.characterId);
     const publicStateStr = JSON.stringify(this.getPublicState(game.id, player.id));
 
-    const aiResult = await this.aiService.respondToQuestion(publicStateStr, input.question, game.difficulty);
+    const aiResult = await this.aiService.respondToQuestion(game.id, publicStateStr, input.question, game.difficulty);
 
     const questionMsg: ChatMessage = {
       type: 'player',
@@ -463,7 +463,7 @@ export class GameEngine {
 
     for (const clue of roundClues) {
       try {
-        const narrative = await this.aiService.generateClueNarration(publicStateStr, clue.text, game.difficulty);
+        const narrative = await this.aiService.generateClueNarration(game.id, publicStateStr, clue.text, game.difficulty);
         console.log(`[CLUE GENERATED]`, narrative);
 
         if (this.onSystemEvent) { const res = this.pushSystemMessage(game, narrative, 'clue'); this.onSystemEvent(game.id, narrative, 'clue', game.roundNumber, res.seq, res.timestamp); }

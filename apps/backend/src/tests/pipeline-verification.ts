@@ -2,9 +2,10 @@ import { AIService } from '../services/AIService.js';
 import { Difficulty, FullCase } from '../types/game.types.js';
 
 async function testPipeline() {
-  const aiService = new AIService();
+  const aiService = new AIService() as any;
   const difficulty: Difficulty = 'hard';
   const gameId = 'test-game-id';
+  const allowedPlayerNames = ['Joan', 'Maria', 'Pere', 'Anna'];
 
   console.log("--- Testing Pipeline steps individually ---");
 
@@ -26,7 +27,7 @@ async function testPipeline() {
     };
 
     console.log("\nStep 2a: Characters Basic...");
-    const basicCharacters = await aiService.generateBasicCharacters(gameId, fullCaseBase, 4, difficulty);
+    const basicCharacters = await aiService.generateBasicCharacters(gameId, fullCaseBase, 4, allowedPlayerNames, difficulty);
     console.log("Basic characters count:", basicCharacters.length);
 
     console.log("\nStep 2b: Characters Enrich split...");
