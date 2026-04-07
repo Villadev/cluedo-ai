@@ -32,9 +32,9 @@ const readContextFile = (absolutePath: string): string => {
 const VILLAGE_CONTEXT = readContextFile(VILLAGE_CONTEXT_PATH);
 const GAME_INSTRUCTIONS = readContextFile(INSTRUCTIONS_CONTEXT_PATH);
 
-const SYSTEM_PROMPT = `Ets el Mestre del Joc d'un Cluedo narratiu d'estil "social drama".
-- La teva narrativa és misteriosa, suggestiva i carregada de tensió.
-- Només generes narrativa i ambientació.
+const SYSTEM_PROMPT = `Ets el Mestre del Joc d'un Cluedo narratiu.
+- Prioritza la narració per deducció, no la floritura literària.
+- La teva narrativa és concisa i factual, carregada de tensió peró útil per als investigadors.
 - Sempre respon exclusivament en català.
 - Considera el context del poble i les instruccions del joc.
 - Mantingues coherència narrativa i dramàtica.`;
@@ -69,6 +69,9 @@ export class AIService {
     }
   }
 
+  private normalizeName(name: string): string {
+    return name.trim().toLowerCase();
+  }
 
   private shuffle<T>(array: T[]): T[] {
     const newArray = [...array];
@@ -99,26 +102,50 @@ Regles:
       const valid = !!(data.victim && data.weapon && data.location && data.assassin && data.crimeWindow);
       return {
         valid,
-        details: {
-          assassinExpected: data.assassin,
-          assassinMatched: !!data.assassin
-        }
+        details: { victim: !!data.victim, weapon: !!data.weapon, location: !!data.location, assassin: !!data.assassin, crimeWindow: !!data.crimeWindow }
       };
     }, 3, signal);
   }
 
-  public async generateBasicCharacters(gameId: string, caseBible: Partial<FullCase>, expectedCount: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
-    const instruction = `Crea exactament ${expectedCount} personatges per a un Cluedo en català. La víctima NO és un dels jugadors. La víctima ha de ser un personatge extern. La víctima ha de tenir relacions o connexions amb diversos participants (p. ex., conflictes, deutes, secrets o vincles personals).
-Assassí: ${caseBible.assassin}. Víctima: ${caseBible.victim}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
+  public async generateBasicCharacters(
+    gameId: string,
+    caseBible: Partial<FullCase>,
+    expectedCount: number,
+    allowedPlayerNames: string[],
+    difficulty: Difficulty,
+    signal?: AbortSignal
+  ): Promise<Partial<AIServiceCharacter>[]> {
+    const instruction = `Crea exactament ${expectedCount} personatges per a un Cluedo en català.
 
-Retorna un JSON amb "characters": [
-  { "name": "...", "profession": "...", "possibleMotive": "..." }
-] (exactament ${expectedCount} elements, un d'ells ha de ser ${caseBible.assassin})`;
+NOMS PERMESOS (usa EXCLUSIVAMENT aquests noms i no n'inventis cap):
+${allowedPlayerNames.join(', ')}
+
+Regles obligatòries:
+- Retorna exactament ${expectedCount} personatges.
+- Cada "name" ha de coincidir EXACTAMENT amb un nom permès.
+- No inventis diminutius, cognoms ni variacions.
+- Inclou exactament un personatge amb el nom "${caseBible.assassin}".
+- La víctima (${caseBible.victim}) NO pot aparèixer com a personatge.
+- Prioritza possibleMotive concret i verificable (1 frase).
+
+Context: Assassí: ${caseBible.assassin}. Víctima: ${caseBible.victim}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
+
+Retorna JSON:
+{
+  "characters": [
+    { "name": "...", "profession": "...", "possibleMotive": "..." }
+  ]
+}`;
 
     const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, "characters_basic", "CHARACTERS", (data) => {
-      const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
-      const assassinMatched = Array.isArray(data.characters) && data.characters.some(c => c.name === caseBible.assassin);
-      const valid = returnedCount === expectedCount && assassinMatched;
+      const characters = data.characters || [];
+      const returnedCount = characters.length;
+
+      const assassinMatched = characters.some(c => this.normalizeName(c.name || '') === this.normalizeName(caseBible.assassin || ''));
+      const uniqueNames = new Set(characters.map(c => this.normalizeName(c.name || '')));
+      const allNamesAllowed = characters.every(c => allowedPlayerNames.some(allowed => this.normalizeName(allowed) === this.normalizeName(c.name || '')));
+
+      const valid = returnedCount === expectedCount && assassinMatched && uniqueNames.size === expectedCount && allNamesAllowed;
 
       return {
         valid,
@@ -126,7 +153,9 @@ Retorna un JSON amb "characters": [
           expectedCount,
           returnedCount,
           assassinExpected: caseBible.assassin,
-          assassinMatched
+          assassinMatched,
+          uniqueNamesCount: uniqueNames.size,
+          allNamesAllowed
         }
       };
     }, 3, signal);
@@ -135,19 +164,31 @@ Retorna un JSON amb "characters": [
 
   public async enrichCharacterProfilesBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
     const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Enriqueix el perfil d'aquests personatges (Cluedo en català).
+    const instruction = `Enriqueix aquests personatges per a deducció (Cluedo en català).
 Víctima: ${caseBible.victim}. Crim: de ${caseBible.crimeWindow?.start} a ${caseBible.crimeWindow?.end} a ${caseBible.location} amb ${caseBible.weapon}.
 ${diffContext}
 
 Personatges: ${JSON.stringify(characters.map(c => c.name))}
 
-Per a cada personatge, genera (màxim 1-2 frases per camp textual):
-- description, personality
-- secret (fet inconfessable), secretKnowledge (pista sobre un altre)
-- rumor
+Prioritats (obligatori):
+1) possibleMotive concret (deute, gelosia, venjança, xantatge, etc.)
+2) coartada amb franja horària i testimoni
+3) secretKnowledge útil sobre un altre personatge
+
+No prioritats:
+- Descripcions literàries llargues
+- Atmosfera/floritura narrativa
+
+Per a cada personatge, limita:
+- description: màxim 1 frase curta
+- personality: màxim 1 frase curta
+- secret: 1 frase factual
+- secretKnowledge: 1 frase factual amb nom d'un altre personatge
+- rumor: 1 frase verificable
 - coartada: { location, timeStart, timeEnd, witness, credibility ("alta"|"mitjana"|"baixa") }
 
-Retorna JSON amb "characters": [ { name, description, personality, secret, secretKnowledge, rumor, coartada } ]. Respon exclusivament en JSON.`;
+Retorna només JSON:
+{ "characters": [ { name, description, personality, secret, secretKnowledge, rumor, coartada } ] }`;
 
     const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
       const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
@@ -163,15 +204,16 @@ Retorna JSON amb "characters": [ { name, description, personality, secret, secre
 
   public async enrichCharacterRelationsBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
     const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Defineix les relacions i tensions entre aquests personatges (Cluedo en català). Assegura't d'incloure relacions i tensions amb la víctima (${caseBible.victim}).
+    const instruction = `Defineix relacions per deducció entre personatges (Cluedo en català). Inclou relació amb la víctima (${caseBible.victim}).
 ${diffContext}
 Personatges: ${JSON.stringify(characters.map(c => c.name))}
 
-Per a cada personatge, genera (màxim 1-2 frases per camp textual):
-- relationships (com es porta amb els altres)
-- tensions (conflictes recents)
+Per a cada personatge:
+- relationships: 1 frase concreta amb noms
+- tensions: 1 frase concreta amb un conflicte recent i verificable
 
-Retorna JSON amb "characters": [ { name, relationships, tensions } ]. Respon exclusivament en JSON.`;
+Evita llenguatge literari o ambigu. Dona dades accionables.
+Retorna JSON: { "characters": [ { name, relationships, tensions } ] }`;
 
     const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
       const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
@@ -206,74 +248,54 @@ Retorna JSON amb "characters": [ { name, relationships, tensions } ]. Respon exc
     return String(value) || fallback;
   }
 
-  public normalizeCharacters(aiCharacters: Partial<AIServiceCharacter>[], basicCharacters: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
-      return basicCharacters.map((basic, i) => {
-          const enriched = aiCharacters.find(c => c.name === basic.name) || aiCharacters[i] || ({} as Partial<AIServiceCharacter>);
-          return {
-              name: basic.name || enriched.name || 'Desconegut',
-              profession: basic.profession || enriched.profession || 'Sense professió',
-              description: enriched.description || basic.description || 'Sense descripció',
-              personality: enriched.personality || basic.personality || 'Sense personalitat',
-              possibleMotive: basic.possibleMotive || enriched.possibleMotive || 'Sense motiu',
-              secret: enriched.secret || basic.secret || 'Sense secret',
-              secretKnowledge: enriched.secretKnowledge || basic.secretKnowledge || 'Sense coneixement secret',
-              coartada: enriched.coartada || basic.coartada || {
-                  location: 'Desconeguda',
-                  timeStart: caseBible.crimeWindow?.start || '00:00',
-                  timeEnd: caseBible.crimeWindow?.end || '00:00',
-                  witness: 'Ningú',
-                  credibility: 'baixa'
-              },
-              rumor: this.normalizeToString(enriched.rumor || basic.rumor, 'Cap rumor'),
-              relationships: this.normalizeToString(enriched.relationships || basic.relationships, 'Cap relació'),
-              tensions: this.normalizeToString(enriched.tensions || basic.tensions, 'Cap tensió')
-          } as AIServiceCharacter;
-      });
+  private normalizeCharacters(relations: Partial<AIServiceCharacter>[], profiles: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
+    const merged = profiles.map(p => {
+      const r = relations.find(rel => this.normalizeName(rel.name || '') === this.normalizeName(p.name || ''));
+      return {
+        name: this.normalizeToString(p.name, 'Anònim'),
+        profession: this.normalizeToString(p.profession, 'Desconeguda'),
+        description: this.normalizeToString(p.description, 'Sense descripció'),
+        personality: this.normalizeToString(p.personality, 'Sense personalitat'),
+        possibleMotive: this.normalizeToString(p.possibleMotive, 'Desconegut'),
+        secret: this.normalizeToString(p.secret, 'Cap secret'),
+        secretKnowledge: this.normalizeToString(p.secretKnowledge, 'Cap coneixement'),
+        coartada: p.coartada || { location: 'Desconeguda', timeStart: '00:00', timeEnd: '00:00', witness: 'Cap', credibility: 'baixa' },
+        rumor: this.normalizeToString(p.rumor, 'Cap rumor'),
+        relationships: this.normalizeToString(r?.relationships, 'Cap relació'),
+        tensions: this.normalizeToString(r?.tensions, 'Cap tensió'),
+        isAssassin: this.normalizeName(p.name || '') === this.normalizeName(caseBible.assassin || '')
+      } as AIServiceCharacter;
+    });
+
+    return merged;
   }
 
   public async generateNarratives(gameId: string, caseBible: FullCase, difficulty: Difficulty, signal?: AbortSignal): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
-    const instruction = `Genera dues narratives per al cas d'assassinat en català.
-Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
+    const diffContext = this.getDifficultyInstruction(difficulty);
+    const instruction = `Genera la introducció i la solució per a un cas de Cluedo en català.
+${diffContext}
+Context: Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
+Instruccions introducció: No revelis l'assassí, l'arma ni el lloc del crim. Sigues suggestiu.
+Instruccions solució: Explica com l'assassí va cometre el crim i per què.
 
-1. introductionNarrative (200-300 paraules):
-   - Presenta el crim i la commoció al poble.
-   - REGLA D'OR: NO mencionis l'arma (${caseBible.weapon}), ni el lloc (${caseBible.location}), ni l'assassí.
-   - NO mencionis llocs concrets del poble.
-   - Menciona la finestra temporal: ${caseBible.crimeWindow.start} - ${caseBible.crimeWindow.end}.
+Retorna JSON:
+{
+  "introductionNarrative": "...",
+  "solutionNarrative": "..."
+}`;
 
-2. solutionNarrative (200-300 paraules):
-   - Revela com ${caseBible.assassin} va matar a ${caseBible.victim} amb ${caseBible.weapon} a ${caseBible.location}.
-   - Explica el motiu i la revelació final.
+    const result = await this.callOpenAIWithRetry<{ introductionNarrative: string, solutionNarrative: string }>(gameId, instruction, "narratives", "NARRATIVES", (data) => {
+      const hasIntro = !!data.introductionNarrative && data.introductionNarrative.length > 50;
+      const hasSolution = !!data.solutionNarrative && data.solutionNarrative.length > 50;
+      const validIntro = hasIntro && this.isValidIntro(data.introductionNarrative, caseBible.weapon, caseBible.location);
 
-Retorna un JSON amb "introductionNarrative" i "solutionNarrative".`;
-
-    return this.callOpenAIWithRetry<{ introductionNarrative: string, solutionNarrative: string }>(gameId, instruction, "narratives", "NARRATIVES", (data) => {
-      const validIntro = this.isValidIntro(data.introductionNarrative, caseBible.weapon, caseBible.location);
       return {
-        valid: !!(data.introductionNarrative && data.solutionNarrative && validIntro)
+        valid: validIntro && hasSolution,
+        details: { hasIntro, hasSolution, validIntro }
       };
     }, 3, signal);
-  }
 
-  private normalizeCluesResponse(data: any): void {
-    if (!data.clues) return;
-
-    for (const roundKey of Object.keys(data.clues)) {
-      const roundClues = data.clues[roundKey];
-      if (!Array.isArray(roundClues)) continue;
-
-      for (const clue of roundClues) {
-        // Map misleading to isTrue if isTrue is missing
-        if (clue.isTrue === undefined && clue.misleading !== undefined) {
-          clue.isTrue = !clue.misleading;
-        }
-
-        // Ensure type and text fallback
-        if (clue.type === undefined) clue.type = 'rumor';
-        if (clue.text === undefined) clue.text = 'Pista no disponible temporalment';
-        if (clue.isTrue === undefined) clue.isTrue = true; // Safe default
-      }
-    }
+    return result;
   }
 
   public async generateCluesByRounds(gameId: string, caseBible: FullCase, maxRounds: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Record<string, AIServiceClue[]>> {
@@ -281,20 +303,29 @@ Retorna un JSON amb "introductionNarrative" i "solutionNarrative".`;
     const instruction = `Genera pistes progressives per a ${maxRounds} rondes en català.
 ${diffContext}
 Cas: ${caseBible.victim} mort per ${caseBible.assassin} a ${caseBible.location} amb ${caseBible.weapon}.
+Personatges: ${caseBible.characters.map(c => c.name).join(', ')}
+
+Objectiu: pistes útils per deducció, no narrativa.
+Cada pista ha d'incloure almenys UN d'aquests elements:
+- nom explícit d'un personatge
+- hora o franja temporal
+- coartada (lloc + testimoni)
+- contradicció entre declaracions
 
 Regles:
-- CADA RONDA (round1 a round${maxRounds}) ha de tenir almenys una pista.
-- Almenys un 30% de les pistes han de ser falses o enganyoses.
-- Round 1-2: Rumors. Round 3-4: Referències indirectes. Round 5+: Contradiccions clares.
-- IMPORTANT: El camp boolean per indicar veracitat és "isTrue" (true si és veritat, false si és mentida/enganyosa).
+- CADA ronda (round1..round${maxRounds}) ha de tenir >= 2 pistes.
+- 25-35% de pistes han de ser falses/enganyoses (isTrue=false).
+- Round 1-2: rumors i testimonis concrets.
+- Round 3-4: inconsistències temporals i d'alibi.
+- Round 5+: contradiccions directes que acotin sospitosos.
+- Text de pista: 1-2 frases, factual, sense floritura.
 
-Retorna un JSON amb l'estructura exacta:
+Retorna JSON exactament:
 {
   "clues": {
     "round1": [
       { "type": "rumor" | "witness" | "contradiction" | "evidence", "text": "...", "isTrue": boolean }
-    ],
-    ...
+    ]
   }
 }`;
 
@@ -310,21 +341,55 @@ Retorna un JSON amb l'estructura exacta:
         if (missing.length > 0) {
           errors.push(`Missing rounds: ${missing.join(', ')}`);
         }
+
+        // Deduction signals check
+        const characterNames = caseBible.characters.map(c => this.normalizeName(c.name));
+        const timeRegex = /\b([01]\d|2[0-3]):[0-5]\d\b/;
+        const keywordsRegex = /coartada|testimoni|contradicció/i;
+
+        Object.values(data.clues).forEach((roundClues: any[]) => {
+            roundClues.forEach(clue => {
+                if (!clue.text) errors.push("Clue text is empty");
+                if (!['rumor', 'witness', 'contradiction', 'evidence'].includes(clue.type)) errors.push(`Invalid clue type: ${clue.type}`);
+                if (typeof clue.isTrue !== 'boolean') errors.push("isTrue must be boolean");
+
+                const normalizedText = this.normalizeName(clue.text || '');
+                const hasName = characterNames.some(name => normalizedText.includes(name));
+                const hasTime = timeRegex.test(clue.text || '');
+                const hasKeyword = keywordsRegex.test(clue.text || '');
+
+                if (!hasName && !hasTime && !hasKeyword) {
+                    errors.push(`Clue lacks deduction signals: ${clue.text}`);
+                }
+            });
+        });
       }
 
-      return { valid: errors.length === 0 };
+      return { valid: errors.length === 0, details: { errors } };
     }, 3, signal);
 
     return result.clues;
   }
 
+  private normalizeCluesResponse(data: any) {
+    if (!data.clues && typeof data === 'object') {
+      const potentialClues = Object.keys(data).filter(k => k.startsWith('round'));
+      if (potentialClues.length > 0) {
+        data.clues = {};
+        potentialClues.forEach(k => {
+          data.clues[k] = data[k];
+          delete data[k];
+        });
+      }
+    }
+  }
+
   public validateClueCoverage(caseData: FullCase, maxRounds: number): string[] {
     const missing: string[] = [];
-    if (!caseData.clues) return Array.from({ length: maxRounds }, (_, i) => `round${i + 1}`);
     for (let i = 1; i <= maxRounds; i++) {
-      const roundKey = `round${i}`;
-      if (!caseData.clues[roundKey] || caseData.clues[roundKey].length === 0) {
-        missing.push(roundKey);
+      const key = `round${i}`;
+      if (!caseData.clues[key] || !Array.isArray(caseData.clues[key]) || caseData.clues[key].length === 0) {
+        missing.push(key);
       }
     }
     return missing;
@@ -332,7 +397,7 @@ Retorna un JSON amb l'estructura exacta:
 
   public async recoverMissingClues(gameId: string, caseData: FullCase, missingRounds: string[], difficulty: Difficulty, signal?: AbortSignal): Promise<FullCase> {
     const diffContext = this.getDifficultyInstruction(difficulty);
-    const caseSummary = `Víctima: ${caseData.victim}, Arma: ${caseData.weapon}, Lloc: ${caseData.location}, Assassí: ${caseData.assassin}.`;
+    const caseSummary = `Víctima: ${caseData.victim}. Assassí: ${caseData.assassin}.`;
 
     const instruction = `Respon en català. Falten pistes per a les rondes: ${missingRounds.join(', ')}.
 ${diffContext}
@@ -370,7 +435,7 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
     while (attempts < maxRetries) {
       attempts++;
       const startedAt = Date.now();
-      const model = 'gpt-4o-mini';
+      const model = env.OPENAI_MODEL;
 
       if (signal?.aborted) {
         const endedAt = Date.now();
@@ -386,6 +451,9 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
         console.log(`[OPENAI] Step: ${stepName} (Attempt ${attempts}/${maxRetries})`);
         const completion = await openaiClient.chat.completions.create({
           model,
+          temperature: env.OPENAI_TEMPERATURE,
+          frequency_penalty: env.OPENAI_FREQUENCY_PENALTY,
+          max_tokens: env.OPENAI_MAX_TOKENS_JSON,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: instruction + "\n\nRespon exclusivament en JSON." }
@@ -483,19 +551,21 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
 
   public async respondToQuestion(gameId: string, publicGameState: string, question: string, difficulty: Difficulty = 'hard'): Promise<{ response: string }> {
     const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Respon la pregunta de l'investigador de manera molt directa i breu (màxim 15 paraules).
+    const instruction = `Respon com a narrador-investigador en català.
 ${diffContext}
+
+Format obligatori:
+- 2 o 3 frases totals.
+- Frase 1 (FET): dada observable o verificable.
+- Frase 2 (CONTEXT): com encaixa amb coartades, temps o relacions.
+- Frase 3 (IMPLICACIÓ): què implica per a la deducció (sense revelar directament el culpable).
+
 Regles:
-- No utilitzis metàfores ni descripcions poètiques.
-- Dona una pista subtil o un fet concret si és possible.
-- Sigues enigmàtic peró concís.
-- Respon siempre en català.
-- Retorna la resposta en JSON.
-Estructura JSON:
-{
-  "response": "..."
-}`;
-    const result = await this.generateNarrative(gameId, { instruction, publicGameState, question, json: true }, 150);
+- No siguis poètic ni vague.
+- Prioritza dades de noms, hores, coartades, contradiccions.
+- No excedeixis 70 paraules.
+- Retorna JSON: { "response": "..." }`;
+    const result = await this.generateNarrative(gameId, { instruction, publicGameState, question, json: true }, env.OPENAI_MAX_TOKENS_NARRATOR);
     try {
       return JSON.parse(result);
     } catch (e) {
@@ -518,7 +588,7 @@ Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el 
 
   private async generateNarrative(gameId: string, payload: OpenAICallInput, maxTokens: number): Promise<string> {
     const startedAt = Date.now();
-    const model = 'gpt-4o-mini';
+    const model = env.OPENAI_MODEL;
 
     if (!process.env.OPENAI_API_KEY) {
       const endedAt = Date.now();
@@ -548,6 +618,8 @@ Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el 
       const completion = await openaiClient.chat.completions.create({
         model,
         max_tokens: maxTokens,
+        temperature: env.OPENAI_TEMPERATURE,
+        frequency_penalty: env.OPENAI_FREQUENCY_PENALTY,
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userContent }

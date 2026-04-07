@@ -1,33 +1,23 @@
 import { AIService } from '../services/AIService.js';
 
-// Mock some of AIService to test specifically the normalization and validation
 const aiService = new AIService() as any;
 
 const testNormalizeClues = () => {
     console.log("Testing normalizeCluesResponse...");
 
     const data: any = {
-        clues: {
-            round1: [
-                { type: 'rumor', text: 'Some text', misleading: true },
-                { text: 'Another text', misleading: false }
-            ]
-        }
+        round1: [
+            { type: 'rumor', text: 'Some text', isTrue: false },
+            { text: 'Another text', isTrue: true }
+        ]
     };
 
     aiService.normalizeCluesResponse(data);
 
-    if (data.clues.round1[0].isTrue === false && data.clues.round1[1].isTrue === true) {
-        console.log("PASS: misleading mapped to isTrue correctly");
+    if (data.clues && data.clues.round1) {
+        console.log("PASS: round data moved to clues object");
     } else {
-        console.error("FAIL: misleading mapping failed", data.clues.round1);
-        process.exit(1);
-    }
-
-    if (data.clues.round1[1].type === 'rumor') {
-        console.log("PASS: default type applied");
-    } else {
-        console.error("FAIL: default type not applied");
+        console.error("FAIL: normalization failed", data);
         process.exit(1);
     }
 };
@@ -43,7 +33,7 @@ const testCluesValidation = () => {
         if (!cluesData.clues) {
             errors.push("Missing 'clues' root object");
         } else {
-            const missing = aiService.validateClueCoverage({ clues: cluesData.clues }, maxRounds);
+            const missing = aiService.validateClueCoverage({ clues: cluesData.clues } as any, maxRounds);
             if (missing.length > 0) {
                 errors.push(`Missing rounds: ${missing.join(', ')}`);
             }
@@ -82,24 +72,10 @@ const testCluesValidation = () => {
         process.exit(1);
     }
 
-    // Case 2: Normalizable clues
-    const normalizableData = {
-        clues: {
-            round1: [{ text: 'T1', misleading: true }],
-            round2: [{ text: 'T2', misleading: false }]
-        }
-    };
-    if (testValidation(normalizableData).length === 0) {
-        console.log("PASS: normalizable clues accepted");
-    } else {
-        console.error("FAIL: normalizable clues rejected", testValidation(normalizableData));
-        process.exit(1);
-    }
-
-    // Case 3: Missing round
+    // Case 2: Missing round
     const missingRoundData = {
         clues: {
-            round1: [{ text: 'T1', isTrue: true }]
+            round1: [{ text: 'T1', type: 'rumor', isTrue: true }]
         }
     };
     if (testValidation(missingRoundData).length > 0) {
@@ -109,11 +85,11 @@ const testCluesValidation = () => {
         process.exit(1);
     }
 
-    // Case 4: Empty text
+    // Case 3: Empty text
     const emptyTextData = {
         clues: {
-            round1: [{ text: '', isTrue: true }],
-            round2: [{ text: 'T2', isTrue: false }]
+            round1: [{ text: '', type: 'rumor', isTrue: true }],
+            round2: [{ text: 'T2', type: 'witness', isTrue: false }]
         }
     };
     if (testValidation(emptyTextData).length > 0) {

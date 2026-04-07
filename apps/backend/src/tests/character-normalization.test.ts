@@ -23,9 +23,30 @@ const testCharacterNormalization = () => {
         }
     ];
 
-    const caseBible = { crimeWindow: { start: '00:00', end: '01:00' } };
+    const profiles = [
+        {
+            name: 'Character 1',
+            profession: 'P1',
+            description: 'D1',
+            personality: 'Pers 1',
+            secret: 'S1',
+            secretKnowledge: 'SK1',
+            coartada: { location: 'L1', timeStart: '01:00', timeEnd: '02:00', witness: 'W1', credibility: 'alta' },
+            rumor: ['Rumor 1', 'Rumor 2']
+        }
+    ];
 
-    const normalized = aiService.normalizeCharacters(aiCharacters, basicCharacters, caseBible);
+    const relations = [
+        {
+            name: 'Character 1',
+            relationships: { friend: 'F1', enemy: 'E1' },
+            tensions: 'String tension'
+        }
+    ];
+
+    const caseBible = { assassin: 'Character 1' };
+
+    const normalized = aiService.normalizeCharacters(relations, profiles, caseBible);
     const char = normalized[0];
 
     console.log("Normalized values:", {
@@ -56,8 +77,9 @@ const testCharacterNormalization = () => {
     }
 
     // Test fallbacks
-    const aiCharactersEmpty = [{}];
-    const normalizedEmpty = aiService.normalizeCharacters(aiCharactersEmpty, basicCharacters, caseBible);
+    const profilesEmpty = [{ name: 'Character 1' }];
+    const relationsEmpty = [{ name: 'Character 1' }];
+    const normalizedEmpty = aiService.normalizeCharacters(relationsEmpty, profilesEmpty, caseBible);
     const charEmpty = normalizedEmpty[0];
 
     if (charEmpty.relationships === 'Cap relació') {
