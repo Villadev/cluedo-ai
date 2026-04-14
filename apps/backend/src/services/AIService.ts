@@ -82,27 +82,51 @@ export class AIService {
     return newArray;
   }
 
-  public async generateCaseSkeleton(gameId: string, difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<FullCase>> {
+  public async generateCaseSkeleton(gameId: string, allowedParticipantNames: string[], difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<FullCase>> {
     const shuffledWeapons = this.shuffle(WEAPONS);
     const shuffledLocations = this.shuffle(LOCATIONS);
 
-    const instruction = `Crea l'esquelet d'un cas d'assassinat en català. La víctima NO és un dels jugadors. La víctima ha de ser un personatge extern.
+    const instruction = `Crea l'esquelet d'un cas d'assassinat en català.
+
+NOMS DELS PARTICIPANTS (l'assassí HA de ser un d'aquests):
+${allowedParticipantNames.join(', ')}
+
+La víctima NO pot ser cap dels participants anteriors. Ha de ser un personatge extern fictici.
+
 Retorna un JSON amb:
-- victim: Nom de la víctima.
+- victim: Nom de la víctima (externa).
 - weapon: Una arma de la llista: ${shuffledWeapons.join(' , ')}.
 - location: Un lloc de la llista: ${shuffledLocations.join(' , ')}.
-- assassin: Nom del futur assassí (serà un dels personatges).
+- assassin: Nom de l'assassí (un dels participants).
 - crimeWindow: { start: "HH:MM", end: "HH:MM" } (finestra d'unes 2 hores).
 
 Regles:
 - Tria una arma i un lloc realistes per al context d'un poble.
-- L'assassí ha de tenir un nom català o comú a la zona.`;
+- L'assassí HA de ser exactament un dels noms de la llista de participants.
+- La víctima NO pot estar a la llista de participants.`;
 
     return this.callOpenAIWithRetry<Partial<FullCase>>(gameId, instruction, "skeleton", "SKELETON", (data) => {
-      const valid = !!(data.victim && data.weapon && data.location && data.assassin && data.crimeWindow);
+      const assassinName = (data.assassin || '').trim().toLowerCase();
+      const victimName = (data.victim || '').trim().toLowerCase();
+      const normalizedParticipants = allowedParticipantNames.map(n => n.trim().toLowerCase());
+
+      const assassinInParticipants = normalizedParticipants.includes(assassinName);
+      const victimNotInParticipants = !normalizedParticipants.includes(victimName);
+
+      const hasRequiredFields = !!(data.victim && data.weapon && data.location && data.assassin && data.crimeWindow);
+      const valid = hasRequiredFields && assassinInParticipants && victimNotInParticipants;
+
       return {
         valid,
-        details: { victim: !!data.victim, weapon: !!data.weapon, location: !!data.location, assassin: !!data.assassin, crimeWindow: !!data.crimeWindow }
+        details: {
+          victim: !!data.victim,
+          weapon: !!data.weapon,
+          location: !!data.location,
+          assassin: !!data.assassin,
+          crimeWindow: !!data.crimeWindow,
+          assassinInParticipants,
+          victimNotInParticipants
+        }
       };
     }, 3, signal);
   }

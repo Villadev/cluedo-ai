@@ -54,14 +54,18 @@ export class CaseOrchestratorService {
     try {
       let fullCase: Partial<FullCase> = {};
 
+      const allowedPlayerNames = game.players.map(p => p.nickname).filter(Boolean);
       // 1. SKELETON
       const skeleton = await this.executeStep<Partial<FullCase>>(
         gameId,
         GenerationPhases.SKELETON,
         "skeleton",
-        (sig) => this.aiService.generateCaseSkeleton(gameId, difficulty, sig),
+        (sig) => this.aiService.generateCaseSkeleton(gameId, allowedPlayerNames, difficulty, sig),
         globalController.signal
       );
+      if (!skeleton.assassin || !skeleton.victim) {
+        throw new Error('Invalid skeleton: assassin must be participant and victim must be external');
+      }
       fullCase = { ...skeleton, characters: [], clues: {} };
 
       // Immediate persistence of solution seed
@@ -84,7 +88,6 @@ export class CaseOrchestratorService {
 
       // 2. CHARACTERS BASIC
       const expectedCount = game.players.length;
-      const allowedPlayerNames = game.players.map(p => p.nickname).filter(Boolean);
 
       const basicCharacters = await this.executeStep<Partial<AIServiceCharacter>[]>(
         gameId,

@@ -11,7 +11,7 @@ async function testPipeline() {
 
   try {
     console.log("Step 1: Skeleton...");
-    const skeleton = await aiService.generateCaseSkeleton(gameId, difficulty);
+    const skeleton = await aiService.generateCaseSkeleton(gameId, allowedPlayerNames, difficulty);
     console.log("Skeleton result:", JSON.stringify(skeleton, null, 2));
 
     if (!skeleton.assassin || !skeleton.victim || !skeleton.crimeWindow) {
