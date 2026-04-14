@@ -1,20 +1,26 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { openaiClient } from '../config/openai.js';
-import { errorLogger } from '../utils/error-logger.js';
-import { FullCase, Difficulty, AIServiceCharacter, AIServiceClue, GenerationPhase } from '../types/game.types.js';
-import { WEAPONS, LOCATIONS } from '../config/game-options.js';
+import {
+  FullCase,
+  AIServiceCharacter,
+  AIServiceClue,
+  Difficulty,
+  GenerationPhase,
+  GenerationPhases
+} from '../types/game.types.js';
 import { env } from '../config/env.js';
+import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 import { telemetryService } from './telemetry.service.js';
+import { errorLogger } from '../utils/error-logger.js';
 
 const resolveContextPath = (fileName: string): string => {
-  const candidatePaths = [
-    path.resolve(process.cwd(), `apps/backend/src/context/${fileName}`),
-    path.resolve(process.cwd(), `src/context/${fileName}`),
-    path.resolve(process.cwd(), `context/${fileName}`)
+  const possiblePaths = [
+    path.join(process.cwd(), 'src', 'context', fileName),
+    path.join(process.cwd(), 'apps', 'backend', 'src', 'context', fileName)
   ];
 
-  const foundPath = candidatePaths.find((candidatePath) => fs.existsSync(candidatePath));
+  const foundPath = possiblePaths.find((candidatePath) => fs.existsSync(candidatePath));
   if (!foundPath) {
     throw new Error(`No s'ha trobat el fitxer de context: ${fileName}`);
   }
@@ -272,31 +278,30 @@ Retorna JSON: { "characters": [ { name, relationships, tensions } ] }`;
     return String(value) || fallback;
   }
 
-  private normalizeCharacters(relations: Partial<AIServiceCharacter>[], profiles: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
-    const merged = profiles.map(p => {
-      const r = relations.find(rel => this.normalizeName(rel.name || '') === this.normalizeName(p.name || ''));
-      return {
-        name: this.normalizeToString(p.name, 'Anònim'),
-        profession: this.normalizeToString(p.profession, 'Desconeguda'),
-        description: this.normalizeToString(p.description, 'Sense descripció'),
-        personality: this.normalizeToString(p.personality, 'Sense personalitat'),
-        possibleMotive: this.normalizeToString(p.possibleMotive, 'Desconegut'),
-        secret: this.normalizeToString(p.secret, 'Cap secret'),
-        secretKnowledge: this.normalizeToString(p.secretKnowledge, 'Cap coneixement'),
-        coartada: p.coartada || { location: 'Desconeguda', timeStart: '00:00', timeEnd: '00:00', witness: 'Cap', credibility: 'baixa' },
-        rumor: this.normalizeToString(p.rumor, 'Cap rumor'),
-        relationships: this.normalizeToString(r?.relationships, 'Cap relació'),
-        tensions: this.normalizeToString(r?.tensions, 'Cap tensió'),
-        isAssassin: this.normalizeName(p.name || '') === this.normalizeName(caseBible.assassin || '')
-      } as AIServiceCharacter;
+  public normalizeCharacters(relations: Partial<AIServiceCharacter>[], profiles: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
+    return profiles.map(profile => {
+      const relation = relations.find(r => this.normalizeName(r.name || '') === this.normalizeName(profile.name || ''));
+      const char: AIServiceCharacter = {
+        name: profile.name || 'Sense nom',
+        profession: this.normalizeToString(profile.profession, 'Desconeguda'),
+        description: this.normalizeToString(profile.description, 'Sense descripció'),
+        personality: this.normalizeToString(profile.personality, 'Normal'),
+        possibleMotive: this.normalizeToString(profile.possibleMotive, 'Cap motiu aparent'),
+        secret: this.normalizeToString(profile.secret, 'Cap secret'),
+        secretKnowledge: this.normalizeToString(profile.secretKnowledge, 'Cap coneixement extra'),
+        rumor: this.normalizeToString(profile.rumor, 'Cap rumor'),
+        relationships: this.normalizeToString(relation?.relationships, 'Cap relació especial'),
+        tensions: this.normalizeToString(relation?.tensions, 'Cap tensió'),
+        coartada: profile.coartada || { location: 'Desconeguda', timeStart: '00:00', timeEnd: '00:00', witness: 'Cap', credibility: 'baixa' },
+        isAssassin: this.normalizeName(profile.name || '') === this.normalizeName(caseBible.assassin || '')
+      };
+      return char;
     });
-
-    return merged;
   }
 
-  public async generateNarratives(gameId: string, caseBible: FullCase, difficulty: Difficulty, signal?: AbortSignal): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
+  public async generateNarratives(gameId: string, caseBible: Partial<FullCase>, difficulty: Difficulty, signal?: AbortSignal): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
     const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Genera la introducció i la solució per a un cas de Cluedo en català.
+    const instruction = `Genera la introducció i la solució del cas en català.
 ${diffContext}
 Context: Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
 Instruccions introducció: No revelis l'assassí, l'arma ni el lloc del crim. Sigues suggestiu.
@@ -309,13 +314,28 @@ Retorna JSON:
 }`;
 
     const result = await this.callOpenAIWithRetry<{ introductionNarrative: string, solutionNarrative: string }>(gameId, instruction, "narratives", "NARRATIVES", (data) => {
-      const hasIntro = !!data.introductionNarrative && data.introductionNarrative.length > 50;
-      const hasSolution = !!data.solutionNarrative && data.solutionNarrative.length > 50;
-      const validIntro = hasIntro && this.isValidIntro(data.introductionNarrative, caseBible.weapon, caseBible.location);
+      const intro = data.introductionNarrative || '';
+      const solution = data.solutionNarrative || '';
+
+      const introLen = intro.trim().length;
+      const solutionLen = solution.trim().length;
+
+      const hasIntro = introLen > 50;
+      const hasSolution = solutionLen > 50;
+
+      const validation = this.isValidIntro(intro, caseBible.weapon || '', caseBible.location || '', caseBible.assassin || '');
+
+      const valid = hasIntro && hasSolution && validation.valid;
 
       return {
-        valid: validIntro && hasSolution,
-        details: { hasIntro, hasSolution, validIntro }
+        valid,
+        details: {
+          hasIntro,
+          introLength: introLen,
+          hasSolution,
+          solutionLength: solutionLen,
+          ...validation.details
+        }
       };
     }, 3, signal);
 
@@ -338,99 +358,60 @@ Cada pista ha d'incloure almenys UN d'aquests elements:
 
 Regles:
 - CADA ronda (round1..round${maxRounds}) ha de tenir >= 2 pistes.
-- 25-35% de pistes han de ser falses/enganyoses (isTrue=false).
-- Round 1-2: rumors i testimonis concrets.
-- Round 3-4: inconsistències temporals i d'alibi.
-- Round 5+: contradiccions directes que acotin sospitosos.
-- Text de pista: 1-2 frases, factual, sense floritura.
+- No revelis le culpable directament en les primeres rondes.
+- Retorna un JSON on les claus siguin "round1", "round2", etc.
 
-Retorna JSON exactament:
+Exemple de format:
 {
-  "clues": {
-    "round1": [
-      { "type": "rumor" | "witness" | "contradiction" | "evidence", "text": "...", "isTrue": boolean }
-    ]
-  }
+  "round1": [
+    { "type": "testimoni", "text": "...", "isTrue": true },
+    { "type": "rumor", "text": "...", "isTrue": false }
+  ]
 }`;
 
-    const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(gameId, instruction, "clues", "CLUES", (data) => {
-      this.normalizeCluesResponse(data);
+    return this.callOpenAIWithRetry<Record<string, AIServiceClue[]>>(gameId, instruction, "clues", "CLUES", (data) => {
+      const rounds = Object.keys(data);
+      const validRoundCount = rounds.length >= maxRounds;
+      const allRoundsHaveClues = rounds.every(r => Array.isArray(data[r]) && data[r].length >= 1);
 
-      const errors: string[] = [];
+      // Additional deduction quality check
+      const clues = Object.values(data).flat();
+      const hasGoodDeductionValue = clues.every(c => {
+          const text = c.text.toLowerCase();
+          const hasName = caseBible.characters.some(char => text.includes(char.name.toLowerCase()));
+          const hasTime = /\d{1,2}:\d{2}/.test(text);
+          const hasKeywords = ['coartada', 'testimoni', 'contradicció', 'mentida', 'veritat', 'vist', 'trobat'].some(k => text.includes(k));
+          return hasName || hasTime || hasKeywords;
+      });
 
-      if (!data.clues) {
-        errors.push("Missing 'clues' root object");
-      } else {
-        const missing = this.validateClueCoverage({ clues: data.clues } as FullCase, maxRounds);
-        if (missing.length > 0) {
-          errors.push(`Missing rounds: ${missing.join(', ')}`);
-        }
-
-        // Deduction signals check
-        const characterNames = caseBible.characters.map(c => this.normalizeName(c.name));
-        const timeRegex = /\b([01]\d|2[0-3]):[0-5]\d\b/;
-        const keywordsRegex = /coartada|testimoni|contradicció/i;
-
-        Object.values(data.clues).forEach((roundClues: any[]) => {
-            roundClues.forEach(clue => {
-                if (!clue.text) errors.push("Clue text is empty");
-                if (!['rumor', 'witness', 'contradiction', 'evidence'].includes(clue.type)) errors.push(`Invalid clue type: ${clue.type}`);
-                if (typeof clue.isTrue !== 'boolean') errors.push("isTrue must be boolean");
-
-                const normalizedText = this.normalizeName(clue.text || '');
-                const hasName = characterNames.some(name => normalizedText.includes(name));
-                const hasTime = timeRegex.test(clue.text || '');
-                const hasKeyword = keywordsRegex.test(clue.text || '');
-
-                if (!hasName && !hasTime && !hasKeyword) {
-                    errors.push(`Clue lacks deduction signals: ${clue.text}`);
-                }
-            });
-        });
-      }
-
-      return { valid: errors.length === 0, details: { errors } };
+      return {
+        valid: validRoundCount && allRoundsHaveClues && hasGoodDeductionValue,
+        details: { roundsCount: rounds.length, expected: maxRounds, hasGoodDeductionValue }
+      };
     }, 3, signal);
-
-    return result.clues;
   }
 
-  private normalizeCluesResponse(data: any) {
-    if (!data.clues && typeof data === 'object') {
-      const potentialClues = Object.keys(data).filter(k => k.startsWith('round'));
-      if (potentialClues.length > 0) {
-        data.clues = {};
-        potentialClues.forEach(k => {
-          data.clues[k] = data[k];
-          delete data[k];
-        });
+  public validateClueCoverage(caseData: FullCase, maxRounds: number): number[] {
+    const missingRounds: number[] = [];
+    for (let r = 1; r <= maxRounds; r++) {
+      const key = `round${r}`;
+      if (!caseData.clues[key] || caseData.clues[key].length === 0) {
+        missingRounds.push(r);
       }
     }
+    return missingRounds;
   }
 
-  public validateClueCoverage(caseData: FullCase, maxRounds: number): string[] {
-    const missing: string[] = [];
-    for (let i = 1; i <= maxRounds; i++) {
-      const key = `round${i}`;
-      if (!caseData.clues[key] || !Array.isArray(caseData.clues[key]) || caseData.clues[key].length === 0) {
-        missing.push(key);
-      }
-    }
-    return missing;
-  }
-
-  public async recoverMissingClues(gameId: string, caseData: FullCase, missingRounds: string[], difficulty: Difficulty, signal?: AbortSignal): Promise<FullCase> {
+  public async recoverMissingClues(gameId: string, caseData: FullCase, missingRounds: number[], difficulty: Difficulty, signal?: AbortSignal): Promise<FullCase> {
     const diffContext = this.getDifficultyInstruction(difficulty);
-    const caseSummary = `Víctima: ${caseData.victim}. Assassí: ${caseData.assassin}.`;
-
-    const instruction = `Respon en català. Falten pistes per a les rondes: ${missingRounds.join(', ')}.
+    const instruction = `Falten pistes per a les rondes: ${missingRounds.join(', ')}.
+Genera-les seguint el mateix format i context del cas.
 ${diffContext}
-Resum del cas: ${caseSummary}
-Genera almenys 2 pistes per a cadascuna d'aquestes rondes.
-Retorna JSON: { "clues": { "roundX": [...] } }`;
+Cas: ${caseData.victim} mort per ${caseData.assassin} a ${caseData.location} amb ${caseData.weapon}.
+Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
 
     try {
-      const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(gameId, instruction, "recovery", "RECOVERY", (data) => {
+      const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(gameId, instruction, "clues_recovery", "RECOVERY", (data) => {
         return { valid: !!data.clues };
       }, 2, signal);
 
@@ -493,7 +474,7 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
           total_tokens: completion.usage.total_tokens
         } : undefined;
 
-        if (!responseText) throw new Error("Empty response");
+        if (!responseText) throw new Error('Empty response');
 
         let data: T;
         try {
@@ -544,33 +525,45 @@ Retorna JSON: { "clues": { "roundX": [...] } }`;
     throw new Error(`Failed step ${stepName} after ${maxRetries} attempts.`);
   }
 
-  private isValidIntro(intro: string, weapon: string, location: string): boolean {
-    if (!intro) return false;
-    const lowerIntro = intro.toLowerCase();
+  private normalizeForComparison(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .replace(/[^a-z0-9\s]/g, ' ')     // Replace punctuation with space
+      .replace(/\s+/g, ' ')            // Normalize spaces
+      .trim();
+  }
 
-    if (weapon && lowerIntro.includes(weapon.toLowerCase())) return false;
-    if (location && lowerIntro.includes(location.toLowerCase())) return false;
+  private isValidIntro(intro: string, weapon: string, location: string, assassin: string): { valid: boolean, details: { mentionsWeapon: boolean, mentionsLocation: boolean, mentionsAssassin: boolean } } {
+    if (!intro) return { valid: false, details: { mentionsWeapon: false, mentionsLocation: false, mentionsAssassin: false } };
 
-    const genericForbidden = [
-      'celler', 'cuina', 'jardí', 'habitació', 'sala', 'garatge', 'biblioteca', 'bany', 'golfes', 'terrassa', 'menjador'
-    ];
+    const normIntro = this.normalizeForComparison(intro);
+    const normWeapon = this.normalizeForComparison(weapon || '');
+    const normLocation = this.normalizeForComparison(location || '');
+    const normAssassin = this.normalizeForComparison(assassin || '');
 
-    for (const word of genericForbidden) {
-      if (lowerIntro.includes(word)) return false;
-    }
+    const checkMention = (fullText: string, target: string) => {
+      if (!target) return false;
+      const escapedTarget = target.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regex = new RegExp(`\\b${escapedTarget}\\b`, 'i');
+      return regex.test(fullText);
+    };
 
-    const forbiddenKeywords = [
-      ...WEAPONS.map(w => w.toLowerCase()),
-      ...LOCATIONS.map(l => l.toLowerCase())
-    ];
+    const mentionsWeapon = checkMention(normIntro, normWeapon);
+    const mentionsLocation = checkMention(normIntro, normLocation);
+    const mentionsAssassin = checkMention(normIntro, normAssassin);
 
-    for (const keyword of forbiddenKeywords) {
-      if (keyword.length >= 4 && lowerIntro.includes(keyword)) {
-        return false;
+    const valid = !mentionsWeapon && !mentionsLocation && !mentionsAssassin;
+
+    return {
+      valid,
+      details: {
+        mentionsWeapon,
+        mentionsLocation,
+        mentionsAssassin
       }
-    }
-
-    return true;
+    };
   }
 
   public async respondToQuestion(gameId: string, publicGameState: string, question: string, difficulty: Difficulty = 'hard'): Promise<{ response: string }> {
@@ -582,7 +575,7 @@ Format obligatori:
 - 2 o 3 frases totals.
 - Frase 1 (FET): dada observable o verificable.
 - Frase 2 (CONTEXT): com encaixa amb coartades, temps o relacions.
-- Frase 3 (IMPLICACIÓ): què implica per a la deducció (sense revelar directament el culpable).
+- Frase 3 (IMPLICACIÓ): què implica per a la deducció (sense revelar directament le culpable).
 
 Regles:
 - No siguis poètic ni vague.
@@ -621,8 +614,8 @@ Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el 
         startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
         outcome: 'error', model, errorMessage: 'OPENAI_API_KEY not configured'
       });
-      const error = new Error("OPENAI_API_KEY not configured");
-      errorLogger.push("OPENAI", error);
+      const error = new Error('OPENAI_API_KEY not configured');
+      errorLogger.push('OPENAI', error);
       throw error;
     }
 
@@ -648,7 +641,7 @@ Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el 
           { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userContent }
         ],
-        response_format: payload.json ? { type: "json_object" } : undefined
+        response_format: payload.json ? { type: 'json_object' } : undefined
       }, { signal: payload.signal });
 
       const endedAt = Date.now();
@@ -679,8 +672,8 @@ Evita l'atmosfera innecessària. Utilitza descripcions si parles de l'arma o el 
         outcome, model, errorMessage: error.message
       });
 
-      console.error("[OPENAI ERROR]", error.message || error);
-      errorLogger.push("OPENAI", error);
+      console.error('[OPENAI ERROR]', error.message || error);
+      errorLogger.push('OPENAI', error);
       throw new Error('Servei narratiu no disponible temporalment.');
     }
   }

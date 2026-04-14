@@ -117,7 +117,7 @@ export interface Character {
   rumor: string;
   relationships: string;
   tensions: string;
-  isAssassin: boolean;
+  isAssassin?: boolean;
 }
 
 export interface Player {
@@ -208,6 +208,7 @@ export interface PublicCharacterView {
   rumor: string;
   relationships: string;
   tensions: string;
+  isAssassin?: boolean;
 }
 
 export interface PublicClueView {
@@ -229,7 +230,6 @@ export interface PublicPlayerView {
   askedThisRound: boolean;
   accusedThisRound: boolean;
   accusationCooldown: number;
-  isAssassin: boolean;
   type: 'real' | 'npc';
 }
 
@@ -283,6 +283,7 @@ export interface AIServiceCharacter {
   rumor: string;
   relationships: string;
   tensions: string;
+  isAssassin?: boolean;
 }
 
 export interface AIServiceClue {
