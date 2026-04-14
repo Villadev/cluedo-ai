@@ -120,6 +120,10 @@ export class GameEngine {
       throw new Error("La partida no està en fase de registre.");
     }
 
+    const normalizedNickname = nickname.trim().toLowerCase();
+    if (game.players.some(p => p.nickname.trim().toLowerCase() === normalizedNickname)) {
+      throw new Error("Aquest sobrenom ja està en ús.");
+    }
     if (game.players.length >= MAX_PLAYERS) {
       throw new Error("S'ha assolit el límit de jugadors.");
     }
@@ -163,10 +167,17 @@ export class GameEngine {
 
     if (game.players.length < MIN_SUSPECTS) {
       const npcCount = MIN_SUSPECTS - game.players.length;
+      let npcIndex = 1;
       for (let i = 0; i < npcCount; i++) {
+        let npcNickname = `Sospitós ${npcIndex}`;
+        while (game.players.some(p => p.nickname.trim().toLowerCase() === npcNickname.toLowerCase())) {
+          npcIndex++;
+          npcNickname = `Sospitós ${npcIndex}`;
+        }
+
         const npc: Player = {
           id: generateId(),
-          nickname: `Sospitós ${i + 1}`,
+          nickname: npcNickname,
           characterId: null,
           isReady: true,
           isEliminated: false,
@@ -177,6 +188,7 @@ export class GameEngine {
           type: "npc"
         };
         game.players.push(npc);
+        npcIndex++;
       }
     }
 
