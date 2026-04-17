@@ -30,7 +30,7 @@ async function testIntroValidation() {
       location: "Celler",
       assassin: "Joan",
       expected: false,
-      mentionsLocation: true
+      mentionsLocationExact: true
     },
     {
       name: "Fail: menció exacta de l'assassí",
@@ -65,7 +65,45 @@ async function testIntroValidation() {
         location: "Jardí",
         assassin: "Pau",
         expected: false,
-        mentionsLocation: true
+        mentionsLocationExact: true
+    },
+    {
+        name: "Fail: partial location with distinctive token (Torrelles)",
+        intro: "S\u0027han sentit crits a prop de Torrelles.",
+        weapon: "Veneno",
+        location: "Ajuntament de Torrelles",
+        assassin: "Lluc",
+        expected: false,
+        mentionsLocationTokens: true,
+        matchedLocationTokens: ["torrelles"]
+    },
+    {
+        name: "Fail: multiple significant tokens (Ajuntament + Torrelles)",
+        intro: "Davant de l\u0027ajuntament, a Torrelles, hi ha hagut un incident.",
+        weapon: "Veneno",
+        location: "Ajuntament de Torrelles",
+        assassin: "Lluc",
+        expected: false,
+        mentionsLocationTokens: true,
+        matchedLocationTokens: ["ajuntament", "torrelles"]
+    },
+    {
+        name: "Fail: multiple significant tokens (Biblioteca + Segarra)",
+        intro: "La biblioteca de la Segarra amaga molts secrets.",
+        weapon: "Ganivet",
+        location: "Biblioteca de la Segarra",
+        assassin: "Marta",
+        expected: false,
+        mentionsLocationTokens: true,
+        matchedLocationTokens: ["biblioteca", "segarra"]
+    },
+    {
+        name: "Pass: generic wording with common tokens (Celler -> un indret del poble)",
+        intro: "Tot ha succeït en un indret del poble que ningú vol visitar.",
+        weapon: "Corda",
+        location: "Celler del Poble",
+        assassin: "Joan",
+        expected: true
     }
   ];
 
@@ -84,13 +122,25 @@ async function testIntroValidation() {
         console.log(`  FAIL detail mentionsWeapon: expected ${tc.mentionsWeapon}, got ${details.mentionsWeapon}`);
         allPassed = false;
     }
-    if (tc.mentionsLocation !== undefined && details.mentionsLocation !== tc.mentionsLocation) {
-        console.log(`  FAIL detail mentionsLocation: expected ${tc.mentionsLocation}, got ${details.mentionsLocation}`);
+    if (tc.mentionsLocationExact !== undefined && details.mentionsLocationExact !== tc.mentionsLocationExact) {
+        console.log(`  FAIL detail mentionsLocationExact: expected ${tc.mentionsLocationExact}, got ${details.mentionsLocationExact}`);
+        allPassed = false;
+    }
+    if (tc.mentionsLocationTokens !== undefined && details.mentionsLocationTokens !== tc.mentionsLocationTokens) {
+        console.log(`  FAIL detail mentionsLocationTokens: expected ${tc.mentionsLocationTokens}, got ${details.mentionsLocationTokens}`);
         allPassed = false;
     }
     if (tc.mentionsAssassin !== undefined && details.mentionsAssassin !== tc.mentionsAssassin) {
         console.log(`  FAIL detail mentionsAssassin: expected ${tc.mentionsAssassin}, got ${details.mentionsAssassin}`);
         allPassed = false;
+    }
+    if (tc.matchedLocationTokens !== undefined) {
+        const sortedExpected = [...tc.matchedLocationTokens].sort();
+        const sortedActual = [...details.matchedLocationTokens].sort();
+        if (JSON.stringify(sortedExpected) !== JSON.stringify(sortedActual)) {
+            console.log(`  FAIL detail matchedLocationTokens: expected ${JSON.stringify(sortedExpected)}, got ${JSON.stringify(sortedActual)}`);
+            allPassed = false;
+        }
     }
   }
 
