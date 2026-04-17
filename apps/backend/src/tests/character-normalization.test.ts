@@ -82,7 +82,7 @@ const testCharacterNormalization = () => {
     const normalizedEmpty = aiService.normalizeCharacters(relationsEmpty, profilesEmpty, caseBible);
     const charEmpty = normalizedEmpty[0];
 
-    if (charEmpty.relationships === 'Cap relació') {
+    if (charEmpty.relationships === 'Cap relació especial') {
         console.log("PASS: fallback for missing field works");
     } else {
         console.error("FAIL: fallback for missing field failed", charEmpty.relationships);

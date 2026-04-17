@@ -10,6 +10,7 @@ const envSchema = z.object({
   GENERATION_STEP_TIMEOUT_MS: z.coerce.number().int().positive().default(90000),
   GENERATION_GLOBAL_TIMEOUT_MS: z.coerce.number().int().positive().default(600000),
   GENERATION_CHARACTER_BATCH_SIZE: z.coerce.number().int().positive().default(4),
+  GENERATION_CHARACTER_CONCURRENCY: z.coerce.number().int().positive().default(2),
   OPENAI_MODEL: z.string().default('gpt-4o-mini'),
   OPENAI_TEMPERATURE: z.coerce.number().default(0.4),
   OPENAI_FREQUENCY_PENALTY: z.coerce.number().default(0.2),
