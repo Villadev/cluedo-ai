@@ -304,7 +304,15 @@ Retorna JSON: { "characters": [ { name, relationships, tensions } ] }`;
     const instruction = `Genera la introducció i la solució del cas en català.
 ${diffContext}
 Context: Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
-Instruccions introducció: PROHIBICIÓ ESTRICTA: No mencionis mai pel seu nom l'assassí, l'arma ni el lloc del crim en la introducció. Sigues suggestiu.
+
+Instruccions introducció:
+PROHIBICIÓ ESTRICTA: No mencionis MAI pel seu nom l'assassí, l'arma ni el lloc del crim en la introducció.
+Pel que fa al LLOC DEL CRIM ("${caseBible.location}"):
+- Està totalment prohibit utilitzar el nom exacte, fragments del nom o topònims identificables.
+- No utilitzis sinònims ni descripcions que identifiquin de manera única l'indret exacte.
+- Utilitza termes genèrics com "un indret del poble", "una zona apartada" o "un racó fosc".
+Sigues suggestiu i crea misteri sense filtrar dades.
+
 Instruccions solució: Explica com l'assassí va cometre el crim i per què.
 
 Retorna JSON:
@@ -535,33 +543,68 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
       .trim();
   }
 
-  private isValidIntro(intro: string, weapon: string, location: string, assassin: string): { valid: boolean, details: { mentionsWeapon: boolean, mentionsLocation: boolean, mentionsAssassin: boolean } } {
-    if (!intro) return { valid: false, details: { mentionsWeapon: false, mentionsLocation: false, mentionsAssassin: false } };
+      private isValidIntro(intro: string, weapon: string, location: string, assassin: string): {
+    valid: boolean,
+    details: {
+      mentionsWeapon: boolean,
+      mentionsAssassin: boolean,
+      mentionsLocationExact: boolean,
+      mentionsLocationTokens: boolean,
+      matchedLocationTokens: string[]
+    }
+  } {
+    if (!intro) return {
+      valid: false,
+      details: {
+        mentionsWeapon: false,
+        mentionsAssassin: false,
+        mentionsLocationExact: false,
+        mentionsLocationTokens: false,
+        matchedLocationTokens: []
+      }
+    };
 
     const normIntro = this.normalizeForComparison(intro);
-    const normWeapon = this.normalizeForComparison(weapon || '');
-    const normLocation = this.normalizeForComparison(location || '');
-    const normAssassin = this.normalizeForComparison(assassin || '');
+    const normWeapon = this.normalizeForComparison(weapon || "");
+    const normLocation = this.normalizeForComparison(location || "");
+    const normAssassin = this.normalizeForComparison(assassin || "");
 
     const checkMention = (fullText: string, target: string) => {
       if (!target) return false;
-      const escapedTarget = target.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-      const regex = new RegExp(`\\b${escapedTarget}\\b`, 'i');
+      const escapedTarget = target.replace(/[-\\/\\^$*+?.()|[\]{}]/g, "\\$&");
+      const regex = new RegExp(`\\b${escapedTarget}\\b`, "i");
       return regex.test(fullText);
     };
 
     const mentionsWeapon = checkMention(normIntro, normWeapon);
-    const mentionsLocation = checkMention(normIntro, normLocation);
     const mentionsAssassin = checkMention(normIntro, normAssassin);
+    const mentionsLocationExact = checkMention(normIntro, normLocation);
 
-    const valid = !mentionsWeapon && !mentionsLocation && !mentionsAssassin;
+    // Token-based location leak detection
+    const stopwords = new Set(["de", "del", "la", "el", "l", "els", "les", "a", "al", "i", "d", "un", "una", "uns", "unes", "amb", "per", "en", "na"]);
+    const distinctiveTokens = new Set(["torrelles", "miniatura", "esglesia", "segarra", "ajuntament", "biblioteca", "cementiri", "cluedo"]);
+
+    const locationTokens = normLocation.split(" ")
+      .filter(t => t.length >= 4 && !stopwords.has(t));
+
+    const matchedLocationTokens = locationTokens.filter(token => {
+      const regex = new RegExp(`\\b${token}\\b`, "i");
+      return regex.test(normIntro);
+    });
+
+    const mentionsLocationTokens = matchedLocationTokens.length >= 2 ||
+      matchedLocationTokens.some(t => distinctiveTokens.has(t));
+
+    const valid = !mentionsWeapon && !mentionsAssassin && !mentionsLocationExact && !mentionsLocationTokens;
 
     return {
       valid,
       details: {
         mentionsWeapon,
-        mentionsLocation,
-        mentionsAssassin
+        mentionsAssassin,
+        mentionsLocationExact,
+        mentionsLocationTokens,
+        matchedLocationTokens
       }
     };
   }
