@@ -12,7 +12,8 @@ import {
   Game,
   GameStates,
   Character,
-  Clue
+  Clue,
+  RelationshipMatrix
 } from '../types/game.types.js';
 import { generateId } from '../utils/id.js';
 import { env } from '../config/env.js';
@@ -98,15 +99,25 @@ export class CaseOrchestratorService {
         globalController.signal
       );
 
+      // 3. RELATIONS MATRIX
+      const matrix = await this.executeStep<RelationshipMatrix>(
+        gameId,
+        GenerationPhases.RELATIONS_MATRIX,
+        "relations_matrix",
+        (sig) => this.aiService.generateRelationshipMatrix(gameId, fullCase, allowedPlayerNames, difficulty, sig),
+        globalController.signal
+      );
+      fullCase.relationshipMatrix = matrix;
+
       // CHARACTERS ENRICH (Batched & Multi-pass)
       const characterChunks = this.chunkArray(basicCharacters, this.BATCH_SIZE);
-      const enrichedChunks: Partial<AIServiceCharacter>[][] = [];
+      const enrichedChunks: AIServiceCharacter[][] = [];
 
       for (let i = 0; i < characterChunks.length; i += this.CONCURRENCY) {
         const batch = characterChunks.slice(i, i + this.CONCURRENCY);
         const results = await Promise.all(batch.map((chunk, batchIdx) => {
           const index = i + batchIdx;
-          return this.executeStep<Partial<AIServiceCharacter>[]>(
+          return this.executeStep<AIServiceCharacter[]>(
               gameId,
               GenerationPhases.CHARACTERS,
               `characters_enrich_batch_${index}`,
@@ -117,7 +128,7 @@ export class CaseOrchestratorService {
         enrichedChunks.push(...results);
       }
 
-      const enrichedCharacters = enrichedChunks.flat() as AIServiceCharacter[];
+      const enrichedCharacters = enrichedChunks.flat();
       fullCase.characters = enrichedCharacters;
 
       // Post-generation safety validation
@@ -140,7 +151,7 @@ export class CaseOrchestratorService {
         startAt: Date.now(), endAt: Date.now(), durationMs: 0, outcome: 'success', model: 'orchestrator'
       });
 
-      // 3. NARRATIVES
+      // 4. NARRATIVES
       const narratives = await this.executeStep<{ introductionNarrative: string, solutionNarrative: string }>(
         gameId,
         GenerationPhases.NARRATIVES,
@@ -158,7 +169,7 @@ export class CaseOrchestratorService {
         solution: currentSolution ? { ...currentSolution, finalNarrative: narratives.solutionNarrative } : null
       });
 
-      // 4. CLUES
+      // 5. CLUES
       const clues = await this.executeStep<Record<string, AIServiceClue[]>>(
         gameId,
         GenerationPhases.CLUES,
@@ -168,7 +179,7 @@ export class CaseOrchestratorService {
       );
       fullCase.clues = clues;
 
-      // 5. RECOVERY
+      // 6. RECOVERY
       const missingRounds = this.aiService.validateClueCoverage(fullCase as FullCase, maxRounds);
       if (missingRounds.length > 0) {
         const recoveredClues = await this.executeStep<FullCase>(
@@ -191,7 +202,7 @@ export class CaseOrchestratorService {
       console.log("[GENERATION] Total time:", totalTimeMs, "ms");
       telemetryService.setTotalTime(gameId, totalTimeMs);
 
-      console.error(`[ORCHESTRATOR ERROR] Game ${gameId}:`, error.message);
+      console.error(`[ORCHESTRATOR ERROR] Game ${gameId}: `, error.message);
       errorLogger.push('ORCHESTRATOR_STEP_FAILURE', {
         gameId,
         phase: game.generationPhase,

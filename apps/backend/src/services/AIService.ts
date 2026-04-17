@@ -7,7 +7,9 @@ import {
   AIServiceClue,
   Difficulty,
   GenerationPhase,
-  GenerationPhases
+  GenerationPhases,
+  RelationshipMatrix,
+  RelationshipMatrixEntry
 } from '../types/game.types.js';
 import { env } from '../config/env.js';
 import { WEAPONS, LOCATIONS } from '../config/game-options.js';
@@ -39,8 +41,8 @@ const VILLAGE_CONTEXT = readContextFile(VILLAGE_CONTEXT_PATH);
 const GAME_INSTRUCTIONS = readContextFile(INSTRUCTIONS_CONTEXT_PATH);
 
 const SYSTEM_PROMPT = `Ets el Mestre del Joc d'un Cluedo narratiu.
-- Prioritza la narració per deducció, no la floritura literària.
-- La teva narrativa és concisa i factual, carregada de tensió peró útil per als investigadors.
+- Prioritza l'investigació per deducció, no la floritura literària.
+- La teva narrativa és concisa i factual, carregada de tensió però útil per als investigadors.
 - Sempre respon exclusivament en català.
 - Considera el context del poble i les instruccions del joc.
 - Mantingues coherència narrativa i dramàtica.`;
@@ -65,7 +67,7 @@ export class AIService {
       case 'easy':
         return 'Dificultat FÀCIL: Sigues molt explícit. Les pistes han de ser clares i directes, ajudant als jugadors a connectar els punts fàcilment.';
       case 'medium':
-        return 'Dificultat MITJANA: Sigues equilibrat. Dona informació útil peró manté un cert misteri.';
+        return 'Dificultat MITJANA: Sigues equilibrat. Dona informació útil però manté un cert misteri.';
       case 'hard':
         return 'Dificultat DIFÍCIL: Sigues subtil. Les pistes han de requerir deducció i atenció als detalls. No donis res mastegat.';
       case 'extreme':
@@ -192,6 +194,44 @@ Retorna JSON:
     return result.characters;
   }
 
+  public async generateRelationshipMatrix(
+    gameId: string,
+    caseBible: Partial<FullCase>,
+    participants: string[],
+    difficulty: Difficulty,
+    signal?: AbortSignal
+  ): Promise<RelationshipMatrix> {
+    const instruction = `Crea una matriu de relacions compacta per a tots els participants en català.
+
+PARTICIPANTS:
+${participants.join(' , ')}
+
+VÍCTIMA: ${caseBible.victim}
+ASSASSÍ: ${caseBible.assassin}
+
+Genera un mínim d'una relació per participant. Les relacions poden ser entre participants o amb la víctima.
+
+Retorna JSON:
+{
+  "relations": [
+    { "a": "nom1", "b": "nom2", "type": "conflict|ally|debt|secret", "strength": "low|medium|high", "note": "frase factual curta" }
+  ]
+}`;
+
+    return this.callOpenAIWithRetry<RelationshipMatrix>(gameId, instruction, "relations_matrix", "RELATIONS_MATRIX", (data) => {
+      const relations = data.relations || [];
+      const valid = Array.isArray(relations) && relations.length >= participants.length / 2;
+
+      return {
+        valid,
+        details: {
+          participantsCount: participants.length,
+          relationsCount: relations.length
+        }
+      };
+    }, 3, signal);
+  }
+
   public async enrichCharacterProfilesBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, chunkIndex: number = 0, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
     const label = `characters_enrich_profiles_chunk_${chunkIndex}`;
     const diffContext = this.getDifficultyInstruction(difficulty);
@@ -226,66 +266,50 @@ Retorna només JSON:
       const returnedNames = returnedCharacters.map(c => this.normalizeName(c.name || ''));
       const expectedNames = characters.map(c => this.normalizeName(c.name || ''));
       const missingNames = expectedNames.filter(name => !returnedNames.includes(name));
-      const extraNames = returnedNames.filter(name => !expectedNames.includes(name));
-      const valid = missingNames.length === 0 && extraNames.length === 0 && returnedNames.length === expectedNames.length;
+
+      const hardValidationPassed = returnedCharacters.length > 0;
+      const softFieldsMissingCount = missingNames.length;
+
       return {
-        valid,
+        valid: hardValidationPassed,
         details: {
           expectedCount: expectedNames.length,
           returnedCount: returnedNames.length,
           expectedNames,
           returnedNames,
           missingNames,
-          extraNames
+          hardValidationPassed,
+          softFieldsMissingCount
         }
       };
-    }, 3, signal);
+    }, 3, signal, (data) => {
+        const returnedCharacters = Array.isArray(data.characters) ? data.characters : [];
+        const expectedNames = characters.map(c => c.name || '');
+        const finalCharacters = [...returnedCharacters];
 
-    return result.characters;
-  }
-
-  public async enrichCharacterRelationsBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, chunkIndex: number = 0, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
-    const label = `characters_enrich_relations_chunk_${chunkIndex}`;
-    const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Defineix relacions per deducció entre personatges (Cluedo en català). Inclou relació amb la víctima (${caseBible.victim}).
-${diffContext}
-Personatges: ${JSON.stringify(characters.map(c => c.name))}
-
-Per a cada personatge:
-- relationships: 1 frase concreta amb noms
-- tensions: 1 frase concreta amb un conflicte recent i verificable
-
-Evita llenguatge literari o ambigu. Dona dades accionables.
-Retorna JSON: { "characters": [ { name, relationships, tensions } ] }`;
-
-    const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
-      const returnedCharacters = Array.isArray(data.characters) ? data.characters : [];
-      const returnedNames = returnedCharacters.map(c => this.normalizeName(c.name || ''));
-      const expectedNames = characters.map(c => this.normalizeName(c.name || ''));
-      const missingNames = expectedNames.filter(name => !returnedNames.includes(name));
-      const extraNames = returnedNames.filter(name => !expectedNames.includes(name));
-      const valid = missingNames.length === 0 && extraNames.length === 0 && returnedNames.length === expectedNames.length;
-      return {
-        valid,
-        details: {
-          expectedCount: expectedNames.length,
-          returnedCount: returnedNames.length,
-          expectedNames,
-          returnedNames,
-          missingNames,
-          extraNames
-        }
-      };
-    }, 3, signal);
+        expectedNames.forEach(name => {
+            if (!returnedCharacters.some(rc => rc.name && this.normalizeName(rc.name) === this.normalizeName(name))) {
+                finalCharacters.push({
+                    name,
+                    description: 'Un habitant del poble.',
+                    personality: 'Reservat.',
+                    possibleMotive: 'Tenia una vella disputa amb la víctima.',
+                    secret: 'No té secrets coneguts.',
+                    secretKnowledge: 'No sap res d\'interès.',
+                    rumor: 'Cap rumor especial.',
+                    coartada: { location: 'A casa', timeStart: '20:00', timeEnd: '23:00', witness: 'Ningú', credibility: 'baixa' }
+                });
+            }
+        });
+        return { characters: finalCharacters };
+    });
 
     return result.characters;
   }
 
   public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, chunkIndex: number = 0, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
       const profiles = await this.enrichCharacterProfilesBatch(gameId, caseBible, characters, difficulty, chunkIndex, signal);
-      const relations = await this.enrichCharacterRelationsBatch(gameId, caseBible, profiles, difficulty, chunkIndex, signal);
-
-      return this.normalizeCharacters(relations, profiles, caseBible);
+      return this.normalizeCharacters(profiles, caseBible);
   }
 
   private normalizeToString(value: any, fallback: string): string {
@@ -302,42 +326,59 @@ Retorna JSON: { "characters": [ { name, relationships, tensions } ] }`;
     return String(value) || fallback;
   }
 
-  public normalizeCharacters(relations: Partial<AIServiceCharacter>[], profiles: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
-    return profiles.map(profile => {
-      const relation = relations.find(r => this.normalizeName(r.name || '') === this.normalizeName(profile.name || ''));
-      const char: AIServiceCharacter = {
-        name: profile.name || 'Sense nom',
-        profession: this.normalizeToString(profile.profession, 'Desconeguda'),
-        description: this.normalizeToString(profile.description, 'Sense descripció'),
-        personality: this.normalizeToString(profile.personality, 'Normal'),
-        possibleMotive: this.normalizeToString(profile.possibleMotive, 'Cap motiu aparent'),
-        secret: this.normalizeToString(profile.secret, 'Cap secret'),
-        secretKnowledge: this.normalizeToString(profile.secretKnowledge, 'Cap coneixement extra'),
-        rumor: this.normalizeToString(profile.rumor, 'Cap rumor'),
-        relationships: this.normalizeToString(relation?.relationships, 'Cap relació especial'),
-        tensions: this.normalizeToString(relation?.tensions, 'Cap tensió'),
-        coartada: profile.coartada || { location: 'Desconeguda', timeStart: '00:00', timeEnd: '00:00', witness: 'Cap', credibility: 'baixa' },
-        isAssassin: this.normalizeName(profile.name || '') === this.normalizeName(caseBible.assassin || '')
+  private normalizeCharacters(profiles: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
+    const matrix = caseBible.relationshipMatrix?.relations || [];
+
+    return profiles.map(p => {
+      const name = p.name || 'Desconegut';
+      const normName = this.normalizeName(name);
+
+      const charRelations = matrix.filter((r: RelationshipMatrixEntry) => this.normalizeName(r.a) === normName || this.normalizeName(r.b) === normName);
+
+      const relationshipTexts = charRelations.map((r: RelationshipMatrixEntry) => {
+          const other = this.normalizeName(r.a) === normName ? r.b : r.a;
+          return `${r.note} (amb ${other})`;
+      });
+      const relationshipStr = relationshipTexts.length > 0 ? relationshipTexts.join('. ') : 'Cap relació especial coneguda.';
+
+      const tensionTexts = charRelations
+        .filter((r: RelationshipMatrixEntry) => r.type === 'conflict' || r.strength === 'high')
+        .map((r: RelationshipMatrixEntry) => {
+            const other = this.normalizeName(r.a) === normName ? r.b : r.a;
+            return `Tensió amb ${other}: ${r.note}`;
+        });
+      const tensionStr = tensionTexts.length > 0 ? tensionTexts.join('. ') : 'Sense tensions destacables.';
+
+      return {
+        name,
+        profession: p.profession || 'Desconeguda',
+        description: this.normalizeToString(p.description, 'Sense descripció'),
+        personality: this.normalizeToString(p.personality, 'Sense personalitat'),
+        possibleMotive: this.normalizeToString(p.possibleMotive, 'Sense motiu'),
+        secret: this.normalizeToString(p.secret, 'Sense secret'),
+        secretKnowledge: this.normalizeToString(p.secretKnowledge, 'Sense coneixement secret'),
+        coartada: p.coartada || { location: 'Desconeguda', timeStart: '00:00', timeEnd: '00:00', witness: 'Cap', credibility: 'baixa' },
+        rumor: this.normalizeToString(p.rumor, 'Cap rumor'),
+        relationships: relationshipStr,
+        tensions: tensionStr,
+        isAssassin: normName === this.normalizeName(caseBible.assassin || '')
       };
-      return char;
     });
   }
 
-  public async generateNarratives(gameId: string, caseBible: Partial<FullCase>, difficulty: Difficulty, signal?: AbortSignal): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
-    const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Genera la introducció i la solució del cas en català.
-${diffContext}
-Context: Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
+  public async generateNarratives(gameId: string, caseBible: FullCase, difficulty: Difficulty, signal?: AbortSignal): Promise<{ introductionNarrative: string, solutionNarrative: string }> {
+    const instruction = `Narra la introducció i la solució del crim en català.
 
-Instruccions introducció:
-PROHIBICIÓ ESTRICTA: No mencionis MAI pel seu nom l'assassí, l'arma ni el lloc del crim en la introducció.
-Pel que fa al LLOC DEL CRIM ("${caseBible.location}"):
-- Està totalment prohibit utilitzar el nom exacte, fragments del nom o topònims identificables.
-- No utilitzis sinònims ni descripcions que identifiquin de manera única l'indret exacte.
-- Utilitza termes genèrics com "un indret del poble", "una zona apartada" o "un racó fosc".
-Sigues suggestiu i crea misteri sense filtrar dades.
+INTRODUCCIÓ:
+- Descriu el lloc del crim i l'atmosfera.
+- NO esmentis el nom de l'assassí.
+- NO esmentis l'arma directament.
+- NO esmentis el lloc exacte del crim. Utilitza frases genèriques com "un indret del poble".
+- Presenta la víctima (${caseBible.victim}).
 
-Instruccions solució: Explica com l'assassí va cometre el crim i per què.
+SOLUCIÓ:
+- Narra com es va cometre el crim per part de ${caseBible.assassin} amb l'arma ${caseBible.weapon} a ${caseBible.location}.
+- Explica el motiu de l'assassí.
 
 Retorna JSON:
 {
@@ -347,27 +388,11 @@ Retorna JSON:
 
     const result = await this.callOpenAIWithRetry<{ introductionNarrative: string, solutionNarrative: string }>(gameId, instruction, "narratives", "NARRATIVES", (data) => {
       const intro = data.introductionNarrative || '';
-      const solution = data.solutionNarrative || '';
-
-      const introLen = intro.trim().length;
-      const solutionLen = solution.trim().length;
-
-      const hasIntro = introLen > 50;
-      const hasSolution = solutionLen > 50;
-
-      const validation = this.isValidIntro(intro, caseBible.weapon || '', caseBible.location || '', caseBible.assassin || '');
-
-      const valid = hasIntro && hasSolution && validation.valid;
+      const validation = this.isValidIntro(intro, caseBible.weapon, caseBible.location, caseBible.assassin);
 
       return {
-        valid,
-        details: {
-          hasIntro,
-          introLength: introLen,
-          hasSolution,
-          solutionLength: solutionLen,
-          ...validation.details
-        }
+        valid: validation.valid,
+        details: validation.details
       };
     }, 3, signal);
 
@@ -375,88 +400,58 @@ Retorna JSON:
   }
 
   public async generateCluesByRounds(gameId: string, caseBible: FullCase, maxRounds: number, difficulty: Difficulty, signal?: AbortSignal): Promise<Record<string, AIServiceClue[]>> {
-    const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Genera pistes progressives per a ${maxRounds} rondes en català.
-${diffContext}
-Cas: ${caseBible.victim} mort per ${caseBible.assassin} a ${caseBible.location} amb ${caseBible.weapon}.
-Personatges: ${caseBible.characters.map(c => c.name).join(', ')}
+    const instruction = `Genera pistes per a ${maxRounds} rondes de joc en català.
+Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
+Crim: de ${caseBible.crimeWindow.start} a ${caseBible.crimeWindow.end}.
 
-Objectiu: pistes útils per deducció, no narrativa.
-Cada pista ha d'incloure almenys UN d'aquests elements:
-- nom explícit d'un personatge
-- hora o franja temporal
-- coartada (lloc + testimoni)
-- contradicció entre declaracions
+Per a cada ronda (round1, round2, ...), genera 3-4 pistes factuals:
+- Almenys una pista ha d'esmentar un personatge.
+- Almenys una pista ha d'esmentar una hora (HH:MM).
+- Les pistes han d'ajudar a descartar personatges o armes.
 
-Regles:
-- CADA ronda (round1..round${maxRounds}) ha de tenir >= 2 pistes.
-- No revelis el culpable directament en les primeres rondes.
-- Retorna un JSON on les claus siguin "round1", "round2", etc.
-
-Exemple de format:
+Retorna JSON:
 {
-  "round1": [
-    { "type": "testimoni", "text": "...", "isTrue": true },
-    { "type": "rumor", "text": "...", "isTrue": false }
-  ]
+  "round1": [ { "type": "witness|rumor|evidence|contradiction", "text": "...", "isTrue": true } ],
+  ...
 }`;
 
     return this.callOpenAIWithRetry<Record<string, AIServiceClue[]>>(gameId, instruction, "clues", "CLUES", (data) => {
       const rounds = Object.keys(data);
-      const validRoundCount = rounds.length >= maxRounds;
-      const allRoundsHaveClues = rounds.every(r => Array.isArray(data[r]) && data[r].length >= 1);
-
-      // Additional deduction quality check
-      const clues = Object.values(data).flat();
-      const hasGoodDeductionValue = clues.every(c => {
-          const text = c.text.toLowerCase();
-          const hasName = caseBible.characters.some(char => text.includes(char.name.toLowerCase()));
-          const hasTime = /\d{1,2}:\d{2}/.test(text);
-          const hasKeywords = ['coartada', 'testimoni', 'contradicció', 'mentida', 'veritat', 'vist', 'trobat'].some(k => text.includes(k));
-          return hasName || hasTime || hasKeywords;
-      });
-
-      return {
-        valid: validRoundCount && allRoundsHaveClues && hasGoodDeductionValue,
-        details: { roundsCount: rounds.length, expected: maxRounds, hasGoodDeductionValue }
-      };
+      const hasRounds = rounds.length > 0;
+      return { valid: hasRounds, details: { roundsCount: rounds.length } };
     }, 3, signal);
   }
 
-  public validateClueCoverage(caseData: FullCase, maxRounds: number): number[] {
-    const missingRounds: number[] = [];
-    for (let r = 1; r <= maxRounds; r++) {
-      const key = `round${r}`;
-      if (!caseData.clues[key] || caseData.clues[key].length === 0) {
-        missingRounds.push(r);
+  public validateClueCoverage(fullCase: FullCase, maxRounds: number): number[] {
+    const missing: number[] = [];
+    const clues = (fullCase.clues || {}) as Record<string, AIServiceClue[]>;
+    for (let i = 1; i <= maxRounds; i++) {
+      if (!clues[`round${i}`] || (clues[`round${i}`] as AIServiceClue[]).length === 0) {
+        missing.push(i);
       }
     }
-    return missingRounds;
+    return missing;
   }
 
-  public async recoverMissingClues(gameId: string, caseData: FullCase, missingRounds: number[], difficulty: Difficulty, signal?: AbortSignal): Promise<FullCase> {
-    const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Falten pistes per a les rondes: ${missingRounds.join(', ')}.
-Genera-les seguint el mateix format i context del cas.
-${diffContext}
-Cas: ${caseData.victim} mort per ${caseData.assassin} a ${caseData.location} amb ${caseData.weapon}.
-Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
+  public async recoverMissingClues(gameId: string, fullCase: FullCase, missingRounds: number[], difficulty: Difficulty, signal?: AbortSignal): Promise<FullCase> {
+    const instruction = `Falten les pistes de les rondes: ${missingRounds.join(', ')}.
+Genera exclusivament aquestes rondes seguint el format JSON anterior.`;
 
     try {
       const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(gameId, instruction, "clues_recovery", "RECOVERY", (data) => {
-        return { valid: !!data.clues };
+        return { valid: Object.keys(data.clues || {}).length > 0 };
       }, 2, signal);
 
-      for (const round of missingRounds) {
-        if (result.clues[round]) {
-          caseData.clues[round] = result.clues[round];
-        }
+      if (result.clues) {
+        fullCase.clues = { ...fullCase.clues, ...result.clues };
       }
-    } catch (error) {
-      console.error("[OPENAI RECOVERY ERROR]", error);
+    } catch (e) {
+      console.warn("[RECOVERY] AI recovery failed, using fallback clues.");
+      missingRounds.forEach(r => {
+        fullCase.clues[`round${r}`] = [{ type: 'rumor', text: `Sembla que algú sap quelcom sobre la ronda ${r}...`, isTrue: true }];
+      });
     }
-
-    return caseData;
+    return fullCase;
   }
 
   private async callOpenAIWithRetry<T>(
@@ -466,7 +461,8 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
     phase: GenerationPhase,
     validator: (data: T) => { valid: boolean, details?: any },
     maxRetries: number = 3,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    repair?: (data: T) => T
   ): Promise<T> {
     let attempts = 0;
     while (attempts < maxRetries) {
@@ -477,7 +473,7 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
       if (signal?.aborted) {
         const endedAt = Date.now();
         telemetryService.record({
-          gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+          gameId, phase, stepLabel: stepName, stepName: stepName, attempt: attempts,
           startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
           outcome: 'aborted', model, errorMessage: 'Request aborted before call'
         });
@@ -513,44 +509,64 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
           data = JSON.parse(responseText) as T;
         } catch (parseError: any) {
           telemetryService.record({
-            gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+            gameId, phase, stepLabel: stepName, stepName: stepName, attempt: attempts,
             startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
             outcome: 'error', model, usage, errorMessage: `JSON parse error: ${parseError.message}`
           });
           throw parseError;
         }
 
-        const { valid, details } = validator(data);
+        let { valid, details } = validator(data);
+        let repaired = false;
+
+        if (!valid && repair) {
+          try {
+            data = repair(data);
+            const repairResult = validator(data);
+            valid = repairResult.valid;
+            details = repairResult.details;
+            repaired = true;
+          } catch (repairError) {
+            console.error(`[REPAIR ERROR] ${stepName}:`, repairError);
+          }
+        }
 
         if (valid) {
           telemetryService.record({
-            gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+            gameId, phase, stepLabel: stepName, stepName: stepName, attempt: attempts,
             startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
-            outcome: 'success', model, usage, validationDetails: details
+            outcome: 'success', model, usage, validationDetails: { ...details, repaired }
           });
           return data;
         }
 
         telemetryService.record({
-          gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+          gameId, phase, stepLabel: stepName, stepName: stepName, attempt: attempts,
           startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
-          outcome: 'validation_failed', model, usage, validationDetails: details,
+          outcome: 'validation_failed', model, usage, validationDetails: { ...details, repaired },
           errorMessage: `Validation failed for ${stepName}`
         });
 
       } catch (error: any) {
         const endedAt = Date.now();
         const isAbort = error.name === 'AbortError' || signal?.aborted;
+
+        const status = error.status || error.response?.status;
+        const isNonRetriable = status === 400 || status === 401 || status === 403;
+
         const outcome = isAbort ? 'aborted' : (error.message?.includes('timeout') ? 'timeout' : 'error');
 
         telemetryService.record({
-          gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+          gameId, phase, stepLabel: stepName, stepName: stepName, attempt: attempts,
           startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
-          outcome, model, errorMessage: error.message
+          outcome, model, errorMessage: error.message,
+          validationDetails: {
+            retriableClass: !isNonRetriable && !isAbort,
+            nonRetriableClass: isNonRetriable
+          }
         });
 
-        if (isAbort) throw error;
-        if (attempts >= maxRetries) throw error;
+        if (isAbort || isNonRetriable || attempts >= maxRetries) throw error;
         const baseDelay = Math.pow(2, attempts) * 1000;
         const jitter = Math.random() * 1000;
         await new Promise(res => setTimeout(res, baseDelay + jitter));
@@ -597,7 +613,7 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
 
     const checkMention = (fullText: string, target: string) => {
       if (!target) return false;
-      const escapedTarget = target.replace(/[-\\/\\^$*+?.()|[\]{}]/g, "\\$&");
+      const escapedTarget = target.replace(/[-\\/\\^+?.()|[\\\]{}]/g, "\\$&");
       const regex = new RegExp(`\\b${escapedTarget}\\b`, "i");
       return regex.test(fullText);
     };
@@ -606,7 +622,6 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
     const mentionsAssassin = checkMention(normIntro, normAssassin);
     const mentionsLocationExact = checkMention(normIntro, normLocation);
 
-    // Token-based location leak detection
     const stopwords = new Set(["de", "del", "la", "el", "l", "els", "les", "a", "al", "i", "d", "un", "una", "uns", "unes", "amb", "per", "en", "na"]);
     const distinctiveTokens = new Set(["torrelles", "miniatura", "esglesia", "segarra", "ajuntament", "biblioteca", "cementiri", "cluedo"]);
 

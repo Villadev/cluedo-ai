@@ -8,12 +8,13 @@ export const GameStates: Record<GameState, GameState> = {
   FINISHED: 'FINISHED'
 };
 
-export type GenerationPhase = 'IDLE' | 'SKELETON' | 'CHARACTERS' | 'NARRATIVES' | 'CLUES' | 'RECOVERY' | 'DONE' | 'FAILED';
+export type GenerationPhase = 'IDLE' | 'SKELETON' | 'CHARACTERS' | 'RELATIONS_MATRIX' | 'NARRATIVES' | 'CLUES' | 'RECOVERY' | 'DONE' | 'FAILED';
 
 export const GenerationPhases: Record<GenerationPhase, GenerationPhase> = {
   IDLE: 'IDLE',
   SKELETON: 'SKELETON',
   CHARACTERS: 'CHARACTERS',
+  RELATIONS_MATRIX: 'RELATIONS_MATRIX',
   NARRATIVES: 'NARRATIVES',
   CLUES: 'CLUES',
   RECOVERY: 'RECOVERY',
@@ -292,6 +293,18 @@ export interface AIServiceClue {
   isTrue: boolean;
 }
 
+export interface RelationshipMatrixEntry {
+  a: string;
+  b: string;
+  type: 'conflict' | 'ally' | 'debt' | 'secret' | 'none';
+  strength: 'low' | 'medium' | 'high';
+  note: string;
+}
+
+export interface RelationshipMatrix {
+  relations: RelationshipMatrixEntry[];
+}
+
 export interface FullCase {
   victim: string;
   weapon: string;
@@ -303,6 +316,7 @@ export interface FullCase {
   solutionNarrative: string;
   difficulty?: Difficulty;
   clues: Record<string, AIServiceClue[]>;
+  relationshipMatrix?: RelationshipMatrix;
 }
 
 export interface GenerationTelemetryEvent {
@@ -331,6 +345,11 @@ export interface GenerationTelemetryEvent {
     returnedNames?: string[];
     missingNames?: string[];
     extraNames?: string[];
+    hardValidationPassed?: boolean;
+    softFieldsMissingCount?: number;
+    repaired?: boolean;
+    retriableClass?: boolean;
+    nonRetriableClass?: boolean;
   };
 }
 
