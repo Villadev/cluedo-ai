@@ -304,7 +304,7 @@ Retorna JSON: { "characters": [ { name, relationships, tensions } ] }`;
     const instruction = `Genera la introducció i la solució del cas en català.
 ${diffContext}
 Context: Víctima: ${caseBible.victim}. Assassí: ${caseBible.assassin}. Arma: ${caseBible.weapon}. Lloc: ${caseBible.location}.
-Instruccions introducció: No revelis l'assassí, l'arma ni el lloc del crim. Sigues suggestiu.
+Instruccions introducció: PROHIBICIÓ ESTRICTA: No mencionis mai pel seu nom l'assassí, l'arma ni el lloc del crim en la introducció. Sigues suggestiu.
 Instruccions solució: Explica com l'assassí va cometre el crim i per què.
 
 Retorna JSON:
@@ -358,7 +358,7 @@ Cada pista ha d'incloure almenys UN d'aquests elements:
 
 Regles:
 - CADA ronda (round1..round${maxRounds}) ha de tenir >= 2 pistes.
-- No revelis le culpable directament en les primeres rondes.
+- No revelis el culpable directament en les primeres rondes.
 - Retorna un JSON on les claus siguin "round1", "round2", etc.
 
 Exemple de format:
@@ -575,7 +575,7 @@ Format obligatori:
 - 2 o 3 frases totals.
 - Frase 1 (FET): dada observable o verificable.
 - Frase 2 (CONTEXT): com encaixa amb coartades, temps o relacions.
-- Frase 3 (IMPLICACIÓ): què implica per a la deducció (sense revelar directament le culpable).
+- Frase 3 (IMPLICACIÓ): què implica per a la deducció (sense revelar directament el culpable).
 
 Regles:
 - No siguis poètic ni vague.
