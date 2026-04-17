@@ -23,6 +23,7 @@ export class CaseOrchestratorService {
   private readonly STEP_TIMEOUT_MS = env.GENERATION_STEP_TIMEOUT_MS;
   private readonly GLOBAL_TIMEOUT_MS = env.GENERATION_GLOBAL_TIMEOUT_MS;
   private readonly BATCH_SIZE = env.GENERATION_CHARACTER_BATCH_SIZE;
+  private readonly CONCURRENCY = env.GENERATION_CHARACTER_CONCURRENCY;
 
   public onGenerationProgress?: (gameId: string, progress: { phase: GenerationPhase, attempt: number, elapsedMs: number, error?: string }) => void;
   public onGameStateChange?: (gameId: string, state: any) => void;
@@ -99,15 +100,22 @@ export class CaseOrchestratorService {
 
       // CHARACTERS ENRICH (Batched & Multi-pass)
       const characterChunks = this.chunkArray(basicCharacters, this.BATCH_SIZE);
-      const enrichedChunks = await Promise.all(characterChunks.map((chunk, index) =>
-        this.executeStep<Partial<AIServiceCharacter>[]>(
-            gameId,
-            GenerationPhases.CHARACTERS,
-            `characters_enrich_batch_${index}`,
-            (sig) => this.aiService.enrichCharacters(gameId, fullCase, chunk, difficulty, sig),
-            globalController.signal
-        )
-      ));
+      const enrichedChunks: Partial<AIServiceCharacter>[][] = [];
+
+      for (let i = 0; i < characterChunks.length; i += this.CONCURRENCY) {
+        const batch = characterChunks.slice(i, i + this.CONCURRENCY);
+        const results = await Promise.all(batch.map((chunk, batchIdx) => {
+          const index = i + batchIdx;
+          return this.executeStep<Partial<AIServiceCharacter>[]>(
+              gameId,
+              GenerationPhases.CHARACTERS,
+              `characters_enrich_batch_${index}`,
+              (sig) => this.aiService.enrichCharacters(gameId, fullCase, chunk, difficulty, index, sig),
+              globalController.signal
+          );
+        }));
+        enrichedChunks.push(...results);
+      }
 
       const enrichedCharacters = enrichedChunks.flat() as AIServiceCharacter[];
       fullCase.characters = enrichedCharacters;

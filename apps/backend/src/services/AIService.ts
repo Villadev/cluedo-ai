@@ -192,7 +192,8 @@ Retorna JSON:
     return result.characters;
   }
 
-  public async enrichCharacterProfilesBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+  public async enrichCharacterProfilesBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, chunkIndex: number = 0, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+    const label = `characters_enrich_profiles_chunk_${chunkIndex}`;
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Enriqueix aquests personatges per a deducció (Cluedo en català).
 Víctima: ${caseBible.victim}. Crim: de ${caseBible.crimeWindow?.start} a ${caseBible.crimeWindow?.end} a ${caseBible.location} amb ${caseBible.weapon}.
@@ -221,18 +222,30 @@ Retorna només JSON:
 { "characters": [ { name, description, personality, secret, secretKnowledge, rumor, coartada } ] }`;
 
     const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
-      const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
-      const expectedCount = characters.length;
+      const returnedCharacters = Array.isArray(data.characters) ? data.characters : [];
+      const returnedNames = returnedCharacters.map(c => this.normalizeName(c.name || ''));
+      const expectedNames = characters.map(c => this.normalizeName(c.name || ''));
+      const missingNames = expectedNames.filter(name => !returnedNames.includes(name));
+      const extraNames = returnedNames.filter(name => !expectedNames.includes(name));
+      const valid = missingNames.length === 0 && extraNames.length === 0 && returnedNames.length === expectedNames.length;
       return {
-        valid: returnedCount === expectedCount,
-        details: { expectedCount, returnedCount }
+        valid,
+        details: {
+          expectedCount: expectedNames.length,
+          returnedCount: returnedNames.length,
+          expectedNames,
+          returnedNames,
+          missingNames,
+          extraNames
+        }
       };
     }, 3, signal);
 
     return result.characters;
   }
 
-  public async enrichCharacterRelationsBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, label: string, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+  public async enrichCharacterRelationsBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, chunkIndex: number = 0, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+    const label = `characters_enrich_relations_chunk_${chunkIndex}`;
     const diffContext = this.getDifficultyInstruction(difficulty);
     const instruction = `Defineix relacions per deducció entre personatges (Cluedo en català). Inclou relació amb la víctima (${caseBible.victim}).
 ${diffContext}
@@ -246,20 +259,31 @@ Evita llenguatge literari o ambigu. Dona dades accionables.
 Retorna JSON: { "characters": [ { name, relationships, tensions } ] }`;
 
     const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
-      const returnedCount = Array.isArray(data.characters) ? data.characters.length : 0;
-      const expectedCount = characters.length;
+      const returnedCharacters = Array.isArray(data.characters) ? data.characters : [];
+      const returnedNames = returnedCharacters.map(c => this.normalizeName(c.name || ''));
+      const expectedNames = characters.map(c => this.normalizeName(c.name || ''));
+      const missingNames = expectedNames.filter(name => !returnedNames.includes(name));
+      const extraNames = returnedNames.filter(name => !expectedNames.includes(name));
+      const valid = missingNames.length === 0 && extraNames.length === 0 && returnedNames.length === expectedNames.length;
       return {
-        valid: returnedCount === expectedCount,
-        details: { expectedCount, returnedCount }
+        valid,
+        details: {
+          expectedCount: expectedNames.length,
+          returnedCount: returnedNames.length,
+          expectedNames,
+          returnedNames,
+          missingNames,
+          extraNames
+        }
       };
     }, 3, signal);
 
     return result.characters;
   }
 
-  public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
-      const profiles = await this.enrichCharacterProfilesBatch(gameId, caseBible, characters, difficulty, "characters_enrich_legacy_profiles", signal);
-      const relations = await this.enrichCharacterRelationsBatch(gameId, caseBible, profiles, difficulty, "characters_enrich_legacy_relations", signal);
+  public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, chunkIndex: number = 0, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
+      const profiles = await this.enrichCharacterProfilesBatch(gameId, caseBible, characters, difficulty, chunkIndex, signal);
+      const relations = await this.enrichCharacterRelationsBatch(gameId, caseBible, profiles, difficulty, chunkIndex, signal);
 
       return this.normalizeCharacters(relations, profiles, caseBible);
   }
@@ -527,7 +551,9 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
 
         if (isAbort) throw error;
         if (attempts >= maxRetries) throw error;
-        await new Promise(res => setTimeout(res, 1000 * attempts));
+        const baseDelay = Math.pow(2, attempts) * 1000;
+        const jitter = Math.random() * 1000;
+        await new Promise(res => setTimeout(res, baseDelay + jitter));
       }
     }
     throw new Error(`Failed step ${stepName} after ${maxRetries} attempts.`);

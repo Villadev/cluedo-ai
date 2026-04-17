@@ -327,6 +327,10 @@ export interface GenerationTelemetryEvent {
     returnedCount?: number;
     assassinExpected?: string;
     assassinMatched?: boolean;
+    expectedNames?: string[];
+    returnedNames?: string[];
+    missingNames?: string[];
+    extraNames?: string[];
   };
 }
 

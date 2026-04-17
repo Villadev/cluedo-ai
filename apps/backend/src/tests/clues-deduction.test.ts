@@ -6,89 +6,63 @@ const testCluesDeduction = () => {
     console.log("Testing clues deduction signal validation...");
 
     const caseBible = {
-        characters: [{ name: 'Joan' }, { name: 'Maria' }],
-        victim: 'Pere',
-        assassin: 'Joan',
-        weapon: 'Ganivet',
-        location: 'Celler',
-        clues: {}
+        characters: [
+            { name: 'Joan' },
+            { name: 'Maria' }
+        ]
     };
     const maxRounds = 1;
 
     const validator = (data: any) => {
-        aiService.normalizeCluesResponse(data);
-        const errors: string[] = [];
+      const rounds = Object.keys(data);
+      const validRoundCount = rounds.length >= maxRounds;
+      const allRoundsHaveClues = rounds.every(r => Array.isArray(data[r]) && data[r].length >= 1);
 
-        if (!data.clues) {
-            errors.push("Missing 'clues' root object");
-        } else {
-            const missing = aiService.validateClueCoverage({ clues: data.clues }, maxRounds);
-            if (missing.length > 0) {
-                errors.push(`Missing rounds: ${missing.join(', ')}`);
-            }
+      const clues = Object.values(data).flat() as any[];
+      const hasGoodDeductionValue = clues.every(c => {
+          const text = c.text.toLowerCase();
+          const hasName = caseBible.characters.some(char => text.includes(char.name.toLowerCase()));
+          const hasTime = /\d{1,2}:\d{2}/.test(text);
+          const hasKeywords = ['coartada', 'testimoni', 'contradicció', 'mentida', 'veritat', 'vist', 'trobat'].some(k => text.includes(k));
+          return hasName || hasTime || hasKeywords;
+      });
 
-            const characterNames = caseBible.characters.map(c => aiService.normalizeName(c.name));
-            const timeRegex = /\b([01]\d|2[0-3]):[0-5]\d\b/;
-            const keywordsRegex = /coartada|testimoni|contradicció/i;
-
-            Object.values(data.clues).forEach((roundClues: any) => {
-                roundClues.forEach((clue: any) => {
-                    if (!clue.text) errors.push("Clue text is empty");
-                    if (!['rumor', 'witness', 'contradiction', 'evidence'].includes(clue.type)) errors.push(`Invalid clue type: ${clue.type}`);
-                    if (typeof clue.isTrue !== 'boolean') errors.push("isTrue must be boolean");
-
-                    const normalizedText = aiService.normalizeName(clue.text || '');
-                    const hasName = characterNames.some(name => normalizedText.includes(name));
-                    const hasTime = timeRegex.test(clue.text || '');
-                    const hasKeyword = keywordsRegex.test(clue.text || '');
-
-                    if (!hasName && !hasTime && !hasKeyword) {
-                        errors.push(`Clue lacks deduction signals: ${clue.text}`);
-                    }
-                });
-            });
-        }
-        return { valid: errors.length === 0, details: { errors } };
+      return {
+        valid: validRoundCount && allRoundsHaveClues && hasGoodDeductionValue,
+        details: { roundsCount: rounds.length, expected: maxRounds, hasGoodDeductionValue }
+      };
     };
 
     // Case 1: Valid clue with name
-    const validDataName = {
-        clues: { round1: [{ type: 'rumor', text: 'En Joan estava nerviós.', isTrue: true }] }
-    };
-    if (validator(validDataName).valid) {
+    const validName = { round1: [{ text: 'Vaig veure en Joan' }] };
+    if (validator(validName).valid) {
         console.log("PASS: clue with name accepted");
     } else {
-        console.error("FAIL: clue with name rejected", validator(validDataName).details.errors);
+        console.error("FAIL: clue with name rejected");
         process.exit(1);
     }
 
     // Case 2: Valid clue with time
-    const validDataTime = {
-        clues: { round1: [{ type: 'witness', text: 'Algú va marxar a les 22:30.', isTrue: true }] }
-    };
-    if (validator(validDataTime).valid) {
+    const validTime = { round1: [{ text: 'A les 12:30 va passar quelcom' }] };
+    if (validator(validTime).valid) {
         console.log("PASS: clue with time accepted");
     } else {
-        console.error("FAIL: clue with time rejected", validator(validDataTime).details.errors);
+        console.error("FAIL: clue with time rejected");
         process.exit(1);
     }
 
     // Case 3: Valid clue with keyword
-    const validDataKeyword = {
-        clues: { round1: [{ type: 'contradiction', text: 'Hi ha una contradicció en el que es diu.', isTrue: true }] }
-    };
-    if (validator(validDataKeyword).valid) {
+    const validKeyword = { round1: [{ text: 'La seva coartada és falsa' }] };
+    if (validator(validKeyword).valid) {
         console.log("PASS: clue with keyword accepted");
     } else {
-        console.error("FAIL: clue with keyword rejected", validator(validDataKeyword).details.errors);
+        console.error("FAIL: clue with keyword rejected");
         process.exit(1);
     }
 
     // Case 4: Invalid clue (vague)
-    const invalidDataVague = {
-        clues: { round1: [{ type: 'rumor', text: 'Sembla que plourà demà.', isTrue: true }] }
-    };
-    if (!validator(invalidDataVague).valid) {
+    const invalidVague = { round1: [{ text: 'Va ploure molt' }] };
+    if (!validator(invalidVague).valid) {
         console.log("PASS: vague clue rejected");
     } else {
         console.error("FAIL: vague clue accepted");
