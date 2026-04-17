@@ -336,10 +336,9 @@ export class CaseOrchestratorService {
     const characters = this.mapToCharacters(caseData.characters, caseData.assassin);
     game.characters = characters;
 
-    // Randomize character-to-player assignment
-    const shuffledPlayers = this.shuffle(game.players);
-    shuffledPlayers.forEach((p, i) => {
-      const char = characters[i];
+    // Logic character-to-player assignment by name
+    game.players.forEach(p => {
+      const char = characters.find(c => c.name.trim().toLowerCase() === p.nickname.trim().toLowerCase());
       if (char) {
         p.characterId = char.id;
         if (char.isAssassin) {
