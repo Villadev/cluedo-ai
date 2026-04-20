@@ -7,7 +7,8 @@ import {
   AIServiceClue,
   Difficulty,
   GenerationPhase,
-  GenerationPhases
+  GenerationPhases,
+  RelationshipMatrix
 } from '../types/game.types.js';
 import { env } from '../config/env.js';
 import { WEAPONS, LOCATIONS } from '../config/game-options.js';
@@ -124,6 +125,7 @@ Regles:
 
       return {
         valid,
+        hardValidationPassed: valid,
         details: {
           victim: !!data.victim,
           weapon: !!data.weapon,
@@ -179,6 +181,7 @@ Retorna JSON:
 
       return {
         valid,
+        hardValidationPassed: valid,
         details: {
           expectedCount,
           returnedCount,
@@ -190,6 +193,39 @@ Retorna JSON:
       };
     }, 3, signal);
     return result.characters;
+  }
+
+  public async generateRelationshipMatrix(
+    gameId: string,
+    caseBible: Partial<FullCase>,
+    characters: Partial<AIServiceCharacter>[],
+    difficulty: Difficulty,
+    signal?: AbortSignal
+  ): Promise<RelationshipMatrix> {
+    const instruction = `Crea una matriu de relacions compacta i factual per a un Cluedo en català.
+Víctima: ${caseBible.victim}.
+
+Personatges: ${characters.map(c => c.name).join(', ')}
+
+Regles:
+- Defineix relacions clau entre els participants i opcionalment amb la víctima.
+- Sigues factual i concís (màxim 1 frase per nota).
+- Cada relació ha de tenir "a" (nom), "b" (nom), "type", "strength" i "note".
+- "type" ha de ser un de: "conflict", "ally", "debt", "secret".
+- "strength" ha de ser un de: "low", "medium", "high".
+
+Retorna JSON:
+{
+  "relations": [
+    { "a": "...", "b": "...", "type": "...", "strength": "...", "note": "..." }
+  ]
+}`;
+
+    return this.callOpenAIWithRetry<RelationshipMatrix>(gameId, instruction, "relations_matrix", "RELATIONS_MATRIX", (data) => {
+      const relations = data.relations || [];
+      const valid = Array.isArray(relations);
+      return { valid, hardValidationPassed: valid, details: { relationsCount: relations.length } };
+    }, 3, signal);
   }
 
   public async enrichCharacterProfilesBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, chunkIndex: number = 0, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
@@ -221,71 +257,61 @@ Per a cada personatge, limita:
 Retorna només JSON:
 { "characters": [ { name, description, personality, secret, secretKnowledge, rumor, coartada } ] }`;
 
+    const expectedNames = characters.map(c => this.normalizeName(c.name || ''));
+
     const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
       const returnedCharacters = Array.isArray(data.characters) ? data.characters : [];
       const returnedNames = returnedCharacters.map(c => this.normalizeName(c.name || ''));
-      const expectedNames = characters.map(c => this.normalizeName(c.name || ''));
+
       const missingNames = expectedNames.filter(name => !returnedNames.includes(name));
-      const extraNames = returnedNames.filter(name => !expectedNames.includes(name));
-      const valid = missingNames.length === 0 && extraNames.length === 0 && returnedNames.length === expectedNames.length;
+      const hasAtLeastOne = returnedCharacters.length > 0;
+
+      const allNamesValid = returnedNames.every(name => expectedNames.includes(name));
+      const hardValid = hasAtLeastOne && allNamesValid;
+
+      const softFieldsMissingCount = returnedCharacters.reduce((acc, char) => {
+          let missing = 0;
+          if (!char.description) missing++;
+          if (!char.personality) missing++;
+          if (!char.coartada) missing++;
+          return acc + missing;
+      }, 0);
+
       return {
-        valid,
+        valid: hardValid,
+        hardValidationPassed: hardValid,
+        softFieldsMissingCount,
         details: {
           expectedCount: expectedNames.length,
           returnedCount: returnedNames.length,
           expectedNames,
           returnedNames,
-          missingNames,
-          extraNames
+          missingNames
         }
       };
     }, 3, signal);
 
-    return result.characters;
+    // Repair pass
+    const repairedCharacters: Partial<AIServiceCharacter>[] = expectedNames.map(name => {
+        const found = result.characters.find(c => this.normalizeName(c.name || '') === name);
+        if (found) return found;
+
+        return {
+            name: characters.find(c => this.normalizeName(c.name || '') === name)?.name || name,
+            description: 'Un habitant misteriós del poble.',
+            personality: 'Reservat i observador.',
+            secret: 'No té grans secrets coneguts.',
+            secretKnowledge: 'No sap res especialment rellevant.',
+            rumor: 'Es diu que sovint passeja sol de nit.',
+            coartada: { location: 'A casa seva', timeStart: '20:00', timeEnd: '23:00', witness: 'Ningú', credibility: 'baixa' }
+        };
+    });
+
+    return repairedCharacters;
   }
 
-  public async enrichCharacterRelationsBatch(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, chunkIndex: number = 0, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
-    const label = `characters_enrich_relations_chunk_${chunkIndex}`;
-    const diffContext = this.getDifficultyInstruction(difficulty);
-    const instruction = `Defineix relacions per deducció entre personatges (Cluedo en català). Inclou relació amb la víctima (${caseBible.victim}).
-${diffContext}
-Personatges: ${JSON.stringify(characters.map(c => c.name))}
-
-Per a cada personatge:
-- relationships: 1 frase concreta amb noms
-- tensions: 1 frase concreta amb un conflicte recent i verificable
-
-Evita llenguatge literari o ambigu. Dona dades accionables.
-Retorna JSON: { "characters": [ { name, relationships, tensions } ] }`;
-
-    const result = await this.callOpenAIWithRetry<{ characters: Partial<AIServiceCharacter>[] }>(gameId, instruction, label, "CHARACTERS", (data) => {
-      const returnedCharacters = Array.isArray(data.characters) ? data.characters : [];
-      const returnedNames = returnedCharacters.map(c => this.normalizeName(c.name || ''));
-      const expectedNames = characters.map(c => this.normalizeName(c.name || ''));
-      const missingNames = expectedNames.filter(name => !returnedNames.includes(name));
-      const extraNames = returnedNames.filter(name => !expectedNames.includes(name));
-      const valid = missingNames.length === 0 && extraNames.length === 0 && returnedNames.length === expectedNames.length;
-      return {
-        valid,
-        details: {
-          expectedCount: expectedNames.length,
-          returnedCount: returnedNames.length,
-          expectedNames,
-          returnedNames,
-          missingNames,
-          extraNames
-        }
-      };
-    }, 3, signal);
-
-    return result.characters;
-  }
-
-  public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, chunkIndex: number = 0, signal?: AbortSignal): Promise<AIServiceCharacter[]> {
-      const profiles = await this.enrichCharacterProfilesBatch(gameId, caseBible, characters, difficulty, chunkIndex, signal);
-      const relations = await this.enrichCharacterRelationsBatch(gameId, caseBible, profiles, difficulty, chunkIndex, signal);
-
-      return this.normalizeCharacters(relations, profiles, caseBible);
+  public async enrichCharacters(gameId: string, caseBible: Partial<FullCase>, characters: Partial<AIServiceCharacter>[], difficulty: Difficulty, chunkIndex: number = 0, signal?: AbortSignal): Promise<Partial<AIServiceCharacter>[]> {
+      return this.enrichCharacterProfilesBatch(gameId, caseBible, characters, difficulty, chunkIndex, signal);
   }
 
   private normalizeToString(value: any, fallback: string): string {
@@ -302,11 +328,29 @@ Retorna JSON: { "characters": [ { name, relationships, tensions } ] }`;
     return String(value) || fallback;
   }
 
-  public normalizeCharacters(relations: Partial<AIServiceCharacter>[], profiles: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
+  public normalizeCharacters(profiles: Partial<AIServiceCharacter>[], caseBible: Partial<FullCase>): AIServiceCharacter[] {
+    const relationsMatrix = caseBible.relationsMatrix?.relations || [];
+
     return profiles.map(profile => {
-      const relation = relations.find(r => this.normalizeName(r.name || '') === this.normalizeName(profile.name || ''));
+      const name = profile.name || 'Sense nom';
+      const normName = this.normalizeName(name);
+
+      const charRelations = relationsMatrix.filter(r => this.normalizeName(r.a) === normName || this.normalizeName(r.b) === normName);
+
+      const relationshipSentences = charRelations.map(r => {
+          const other = this.normalizeName(r.a) === normName ? r.b : r.a;
+          return `Té una relació de ${r.type} (${r.strength}) amb ${other}: ${r.note}`;
+      });
+
+      const tensionSentences = charRelations
+        .filter(r => r.type === 'conflict' || r.strength === 'high')
+        .map(r => {
+            const other = this.normalizeName(r.a) === normName ? r.b : r.a;
+            return `Hi ha tensió amb ${other} a causa de: ${r.note}`;
+        });
+
       const char: AIServiceCharacter = {
-        name: profile.name || 'Sense nom',
+        name: name,
         profession: this.normalizeToString(profile.profession, 'Desconeguda'),
         description: this.normalizeToString(profile.description, 'Sense descripció'),
         personality: this.normalizeToString(profile.personality, 'Normal'),
@@ -314,10 +358,10 @@ Retorna JSON: { "characters": [ { name, relationships, tensions } ] }`;
         secret: this.normalizeToString(profile.secret, 'Cap secret'),
         secretKnowledge: this.normalizeToString(profile.secretKnowledge, 'Cap coneixement extra'),
         rumor: this.normalizeToString(profile.rumor, 'Cap rumor'),
-        relationships: this.normalizeToString(relation?.relationships, 'Cap relació especial'),
-        tensions: this.normalizeToString(relation?.tensions, 'Cap tensió'),
+        relationships: relationshipSentences.join('. ') || 'Cap relació especial coneguda.',
+        tensions: tensionSentences.join('. ') || 'Cap tensió coneguda.',
         coartada: profile.coartada || { location: 'Desconeguda', timeStart: '00:00', timeEnd: '00:00', witness: 'Cap', credibility: 'baixa' },
-        isAssassin: this.normalizeName(profile.name || '') === this.normalizeName(caseBible.assassin || '')
+        isAssassin: normName === this.normalizeName(caseBible.assassin || '')
       };
       return char;
     });
@@ -361,6 +405,7 @@ Retorna JSON:
 
       return {
         valid,
+        hardValidationPassed: valid,
         details: {
           hasIntro,
           introLength: introLen,
@@ -406,7 +451,6 @@ Exemple de format:
       const validRoundCount = rounds.length >= maxRounds;
       const allRoundsHaveClues = rounds.every(r => Array.isArray(data[r]) && data[r].length >= 1);
 
-      // Additional deduction quality check
       const clues = Object.values(data).flat();
       const hasGoodDeductionValue = clues.every(c => {
           const text = c.text.toLowerCase();
@@ -418,6 +462,7 @@ Exemple de format:
 
       return {
         valid: validRoundCount && allRoundsHaveClues && hasGoodDeductionValue,
+        hardValidationPassed: validRoundCount && allRoundsHaveClues && hasGoodDeductionValue,
         details: { roundsCount: rounds.length, expected: maxRounds, hasGoodDeductionValue }
       };
     }, 3, signal);
@@ -444,7 +489,7 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
 
     try {
       const result = await this.callOpenAIWithRetry<{ clues: Record<string, AIServiceClue[]> }>(gameId, instruction, "clues_recovery", "RECOVERY", (data) => {
-        return { valid: !!data.clues };
+        return { valid: !!data.clues, hardValidationPassed: !!data.clues };
       }, 2, signal);
 
       for (const round of missingRounds) {
@@ -464,7 +509,7 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
     instruction: string,
     stepName: string,
     phase: GenerationPhase,
-    validator: (data: T) => { valid: boolean, details?: any },
+    validator: (data: T) => { valid: boolean, hardValidationPassed?: boolean, softFieldsMissingCount?: number, details?: any },
     maxRetries: number = 3,
     signal?: AbortSignal
   ): Promise<T> {
@@ -520,37 +565,69 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
           throw parseError;
         }
 
-        const { valid, details } = validator(data);
+        const { valid, details, hardValidationPassed, softFieldsMissingCount } = validator(data);
+
+        const recordBase = {
+            gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
+            startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
+            model, usage, validationDetails: {
+                ...details,
+                hardValidationPassed,
+                softFieldsMissingCount,
+                chunkIndex: stepName.includes('chunk_') ? parseInt(stepName.split('chunk_')[1] || '0') : undefined
+            }
+        };
 
         if (valid) {
           telemetryService.record({
-            gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
-            startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
-            outcome: 'success', model, usage, validationDetails: details
+            ...recordBase,
+            outcome: 'success'
           });
           return data;
         }
 
         telemetryService.record({
-          gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
-          startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
-          outcome: 'validation_failed', model, usage, validationDetails: details,
+          ...recordBase,
+          outcome: 'validation_failed',
           errorMessage: `Validation failed for ${stepName}`
         });
 
       } catch (error: any) {
         const endedAt = Date.now();
         const isAbort = error.name === 'AbortError' || signal?.aborted;
+
+        let isRetriable = true;
+        let errorClass = 'unknown';
+
+        if (error.status) {
+            if ([400, 401, 403, 404, 422].includes(error.status)) {
+                isRetriable = false;
+                errorClass = 'non-retriable-http';
+            } else if (error.status === 429 || error.status >= 500) {
+                isRetriable = true;
+                errorClass = 'retriable-http';
+            }
+        } else if (error instanceof SyntaxError) {
+            isRetriable = false;
+            errorClass = 'malformed-json';
+        }
+
         const outcome = isAbort ? 'aborted' : (error.message?.includes('timeout') ? 'timeout' : 'error');
 
         telemetryService.record({
           gameId, phase, stepLabel: stepName, stepName, attempt: attempts,
           startAt: startedAt, endAt: endedAt, durationMs: endedAt - startedAt,
-          outcome, model, errorMessage: error.message
+          outcome, model, errorMessage: error.message,
+          validationDetails: {
+              retriableClass: isRetriable ? errorClass : undefined,
+              nonRetriableClass: !isRetriable ? errorClass : undefined
+          }
         });
 
         if (isAbort) throw error;
+        if (!isRetriable) throw error;
         if (attempts >= maxRetries) throw error;
+
         const baseDelay = Math.pow(2, attempts) * 1000;
         const jitter = Math.random() * 1000;
         await new Promise(res => setTimeout(res, baseDelay + jitter));
@@ -597,7 +674,7 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
 
     const checkMention = (fullText: string, target: string) => {
       if (!target) return false;
-      const escapedTarget = target.replace(/[-\\/\\^$*+?.()|[\]{}]/g, "\\$&");
+      const escapedTarget = target.replace(/[-\\/\\^+?.()|[\]{}]/g, "\\$&");
       const regex = new RegExp(`\\b${escapedTarget}\\b`, "i");
       return regex.test(fullText);
     };
@@ -606,7 +683,6 @@ Retorna JSON: { "clues": { "roundX": [ ... ] } }`;
     const mentionsAssassin = checkMention(normIntro, normAssassin);
     const mentionsLocationExact = checkMention(normIntro, normLocation);
 
-    // Token-based location leak detection
     const stopwords = new Set(["de", "del", "la", "el", "l", "els", "les", "a", "al", "i", "d", "un", "una", "uns", "unes", "amb", "per", "en", "na"]);
     const distinctiveTokens = new Set(["torrelles", "miniatura", "esglesia", "segarra", "ajuntament", "biblioteca", "cementiri", "cluedo"]);
 

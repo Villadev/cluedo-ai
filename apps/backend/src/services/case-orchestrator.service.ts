@@ -12,7 +12,8 @@ import {
   Game,
   GameStates,
   Character,
-  Clue
+  Clue,
+  RelationshipMatrix
 } from '../types/game.types.js';
 import { generateId } from '../utils/id.js';
 import { env } from '../config/env.js';
@@ -98,6 +99,16 @@ export class CaseOrchestratorService {
         globalController.signal
       );
 
+      // 2.1 RELATIONS MATRIX
+      const relationsMatrix = await this.executeStep<RelationshipMatrix>(
+        gameId,
+        GenerationPhases.RELATIONS_MATRIX,
+        "relations_matrix",
+        (sig) => this.aiService.generateRelationshipMatrix(gameId, fullCase, basicCharacters, difficulty, sig),
+        globalController.signal
+      );
+      fullCase.relationsMatrix = relationsMatrix;
+
       // CHARACTERS ENRICH (Batched & Multi-pass)
       const characterChunks = this.chunkArray(basicCharacters, this.BATCH_SIZE);
       const enrichedChunks: Partial<AIServiceCharacter>[][] = [];
@@ -110,15 +121,15 @@ export class CaseOrchestratorService {
               gameId,
               GenerationPhases.CHARACTERS,
               `characters_enrich_batch_${index}`,
-              (sig) => this.aiService.enrichCharacters(gameId, fullCase, chunk, difficulty, index, sig),
+              (sig) => this.aiService.enrichCharacterProfilesBatch(gameId, fullCase, chunk, difficulty, index, sig),
               globalController.signal
           );
         }));
         enrichedChunks.push(...results);
       }
 
-      const enrichedCharacters = enrichedChunks.flat() as AIServiceCharacter[];
-      fullCase.characters = enrichedCharacters;
+      const enrichedCharacters = enrichedChunks.flat();
+      fullCase.characters = this.aiService.normalizeCharacters(enrichedCharacters, fullCase);
 
       // Post-generation safety validation
       const finalNames = fullCase.characters.map(c => c.name?.trim().toLowerCase());
@@ -284,20 +295,10 @@ export class CaseOrchestratorService {
     }
   }
 
-  private mapToCharacters(aiCharacters: any[], assassinName: string): Character[] {
+  private mapToCharacters(aiCharacters: AIServiceCharacter[], assassinName: string): Character[] {
     return aiCharacters.map(c => ({
       id: generateId(),
-      name: c.name || 'Sense nom',
-      profession: c.profession || 'Sense professió',
-      description: c.description || 'Sense descripció',
-      personality: c.personality || 'Sense personalitat',
-      possibleMotive: c.possibleMotive || 'Sense motiu',
-      secret: c.secret || 'Sense secret',
-      secretKnowledge: c.secretKnowledge || 'Sense coneixement secret',
-      coartada: c.coartada || { location: 'Desconeguda', timeStart: '00:00', timeEnd: '00:00', witness: 'Cap', credibility: 'baixa' },
-      rumor: c.rumor || 'Cap rumor',
-      relationships: c.relationships || 'Cap relació',
-      tensions: c.tensions || 'Cap tensió',
+      ...c,
       isAssassin: c.name?.trim().toLowerCase() === assassinName?.trim().toLowerCase()
     }));
   }

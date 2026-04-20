@@ -8,7 +8,7 @@ export const GameStates: Record<GameState, GameState> = {
   FINISHED: 'FINISHED'
 };
 
-export type GenerationPhase = 'IDLE' | 'SKELETON' | 'CHARACTERS' | 'NARRATIVES' | 'CLUES' | 'RECOVERY' | 'DONE' | 'FAILED';
+export type GenerationPhase = 'IDLE' | 'SKELETON' | 'CHARACTERS' | 'NARRATIVES' | 'CLUES' | 'RELATIONS_MATRIX' | 'RECOVERY' | 'DONE' | 'FAILED';
 
 export const GenerationPhases: Record<GenerationPhase, GenerationPhase> = {
   IDLE: 'IDLE',
@@ -16,6 +16,7 @@ export const GenerationPhases: Record<GenerationPhase, GenerationPhase> = {
   CHARACTERS: 'CHARACTERS',
   NARRATIVES: 'NARRATIVES',
   CLUES: 'CLUES',
+  RELATIONS_MATRIX: 'RELATIONS_MATRIX',
   RECOVERY: 'RECOVERY',
   DONE: 'DONE',
   FAILED: 'FAILED'
@@ -286,6 +287,19 @@ export interface AIServiceCharacter {
   isAssassin?: boolean;
 }
 
+
+export interface Relationship {
+  a: string;
+  b: string;
+  type: 'conflict' | 'ally' | 'debt' | 'secret';
+  strength: 'low' | 'medium' | 'high';
+  note: string;
+}
+
+export interface RelationshipMatrix {
+  relations: Relationship[];
+}
+
 export interface AIServiceClue {
   type: ClueType;
   text: string;
@@ -303,6 +317,7 @@ export interface FullCase {
   solutionNarrative: string;
   difficulty?: Difficulty;
   clues: Record<string, AIServiceClue[]>;
+  relationsMatrix?: RelationshipMatrix;
 }
 
 export interface GenerationTelemetryEvent {
@@ -330,7 +345,13 @@ export interface GenerationTelemetryEvent {
     expectedNames?: string[];
     returnedNames?: string[];
     missingNames?: string[];
-    extraNames?: string[];
+        extraNames?: string[];
+    hardValidationPassed?: boolean;
+    softFieldsMissingCount?: number;
+    repaired?: boolean;
+    retriableClass?: string;
+    nonRetriableClass?: string;
+    chunkIndex?: number;
   };
 }
 
