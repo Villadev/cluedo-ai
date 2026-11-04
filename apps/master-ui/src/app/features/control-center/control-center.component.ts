@@ -385,6 +385,19 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     });
   }
 
+  protected confirmCancelGame(): void {
+    if (!this.gameId() || this.loading() || this.gameState() === 'GENERATING') return;
+    this.confirmationService.confirm({
+      message: 'Vols cancel·lar aquesta partida? Tots els participants perdran l\'accés i aquesta acció no es pot desfer.',
+      header: 'Cancel·lar la partida',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Sí, cancel·lar partida',
+      rejectLabel: 'Tornar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => this.cancelGame()
+    });
+  }
+
   protected confirmForceDelete(): void {
     this.confirmationService.confirm({
       message: 'Estàs segur que vols eliminar la partida en curs? Aquesta acció no es pot desfer i afectarà a tots els jugadors.',
