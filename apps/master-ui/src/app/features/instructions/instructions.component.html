@@ -1,5 +1,5 @@
 <div class="p-4">
-  <h1 class="text-3xl font-bold mb-4">Instruccions del Joc</h1>
+  <header class="mb-4"><span class="text-primary font-bold text-sm">GUIA DEL MISTERI</span><h1 class="text-3xl font-bold mt-2 mb-2">Instruccions del joc</h1><p class="text-600">Tot el que cal saber abans de començar a investigar.</p></header>
 
   @if (error()) {
     <div class="mb-4">
@@ -37,9 +37,11 @@
     </div>
   } @else if (!loading() && !error()) {
     <div class="text-center p-4">
-      <p class="text-gray-500">No hi ha instruccions disponibles.</p>
+      <p class="text-gray-500">No hi ha instruccions disponibles per a aquesta partida.</p>
     </div>
   }
+
+  @if (error() && gameId()) { <button pButton type="button" label="Tornar-ho a provar" icon="pi pi-refresh" (click)="fetchInstructions(gameId()!)"></button> }
 
   @if (loading()) {
     <div class="flex justify-content-center p-4">
