@@ -78,3 +78,20 @@
   .state-pill { font-size:.75rem; }
 }
 @media (prefers-reduced-motion:reduce) { .danger-disclosure .chevron { transition:none; } }
+
+/* Live operational controls stay visible without opening menus. */
+.live-overview { background:#fff; border:1px solid #cbdced; border-radius:20px; padding:clamp(1.15rem,2vw,1.7rem); box-shadow:0 10px 30px rgba(22,45,76,.055); }
+.live-overview-heading { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+.live-overview-heading h2 { margin:.4rem 0 0; font-size:clamp(1.3rem,2.3vw,1.8rem); }
+.live-overview-counts { display:flex; gap:.8rem; flex-wrap:wrap; margin:1.25rem 0 .8rem; }
+.live-overview-counts span { background:#f3f7fc; border:1px solid #e3ebf4; border-radius:12px; padding:.65rem .9rem; color:#566d88; font-size:.85rem; }
+.live-overview-counts strong { font-size:1.12rem; color:#1e406a; margin-right:.3rem; }
+.live-progress-track { height:9px; border-radius:999px; background:#e8eff7; overflow:hidden; }
+.live-progress-track > div { height:100%; background:#3f8b79; border-radius:inherit; transition:width .2s ease; }
+.live-overview h3 { margin:1.35rem 0 .55rem; font-size:1rem; }
+.live-player-list { list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:.55rem; }
+.live-player-list li { display:flex; align-items:center; justify-content:space-between; gap:.6rem; border:1px solid #e3ebf4; background:#f9fbfe; border-radius:12px; padding:.85rem; font-size:.86rem; min-width:0; }
+.live-player-list li > span:first-child { overflow-wrap:anywhere; }
+.empty-progress { color:#697b91; font-size:.9rem; }
+@media(max-width:700px) { .live-player-list { grid-template-columns:1fr; } .live-overview-heading button { width:100%; justify-content:center; } }
+@media(prefers-reduced-motion:reduce) { .live-progress-track > div { transition:none; } }
