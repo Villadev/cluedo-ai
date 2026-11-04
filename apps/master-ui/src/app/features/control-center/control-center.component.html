@@ -36,6 +36,42 @@
     </section>
   }
 
+  @if (gameState() === 'PLAYING') {
+    <section class="live-overview" aria-label="Seguiment de la ronda">
+      <div class="live-overview-heading">
+        <div><span class="eyebrow">SEGUIMENT EN DIRECTE</span><h2>Ronda {{ currentRound() }} de {{ maxRounds() }}</h2></div>
+        <button pButton type="button" label="Forçar ronda següent" icon="pi pi-step-forward"
+          severity="secondary" [outlined]="true" (click)="forceNextRound()"
+          [loading]="loading()" [disabled]="loading()"></button>
+      </div>
+      <div class="live-overview-counts">
+        <span><strong>{{ completedPlayersCount() }}</strong> han preguntat</span>
+        <span><strong>{{ pendingPlayersCount() }}</strong> pendents</span>
+        <span><strong>{{ playersCount() }}</strong> participants</span>
+      </div>
+      <div class="live-progress-track" role="progressbar" [attr.aria-valuenow]="completedPlayersCount()"
+        [attr.aria-valuemax]="playerStatus().length" aria-valuemin="0"
+        aria-label="Participants que ja han preguntat">
+        <div [style.width.%]="roundProgressPercent()"></div>
+      </div>
+      <h3>Estat dels participants</h3>
+      @if (playerStatus().length > 0) {
+        <ul class="live-player-list">
+          @for (player of playerStatus(); track player.nickname) {
+            <li><span>{{ player.nickname }}</span>
+              <span class="player-status" [class.completed]="player.askedThisRound">
+                <i [class]="player.askedThisRound ? 'pi pi-check-circle' : 'pi pi-clock'" aria-hidden="true"></i>
+                {{ player.askedThisRound ? 'Ha preguntat' : 'Pendent de preguntar' }}
+              </span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="empty-progress">Esperant l'actualització de l'estat dels participants…</p>
+      }
+    </section>
+  }
+
   <div class="control-grid">
     <div class="main-column">
       <section class="control-panel action-panel">
@@ -148,7 +184,7 @@
         @if (winnerType()) {
           <div class="winner-note"><i class="pi pi-trophy" aria-hidden="true"></i> Guanyador: <strong>{{ winnerType() }}</strong></div>
         }
-        @if (gameState() === 'PLAYING') {
+        @if (false) {
           <div class="round-controls">
             <button pButton type="button" label="Passar a la ronda següent" icon="pi pi-step-forward"
               severity="secondary" [outlined]="true" (click)="forceNextRound()"
