@@ -36,6 +36,7 @@ export class ChatViewComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   protected readonly messages = signal<ChatMessage[]>([]);
   private scrollToBottomRequested = false;
+  private userNearBottom = true;
 
   ngOnInit(): void {
     if (this.gameId) {
@@ -58,7 +59,7 @@ export class ChatViewComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngAfterViewChecked(): void {
     if (this.scrollToBottomRequested) {
-      this.scrollToBottom();
+      if (this.userNearBottom) this.scrollToBottom();
       this.scrollToBottomRequested = false;
     }
   }
@@ -89,6 +90,16 @@ export class ChatViewComponent implements OnInit, OnDestroy, AfterViewChecked {
     }));
     this.messages.set(historyMessages);
     this.scrollToBottomRequested = true;
+  }
+
+  protected onChatScroll(): void {
+    const el = this.chatListContainer?.nativeElement as HTMLElement | undefined;
+    if (el) this.userNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+  }
+
+  protected jumpToLatest(): void {
+    this.userNearBottom = true;
+    this.scrollToBottom();
   }
 
   private handleChatMessage(payload: any): void {
