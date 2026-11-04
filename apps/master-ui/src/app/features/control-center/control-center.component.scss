@@ -95,3 +95,8 @@
 .empty-progress { color:#697b91; font-size:.9rem; }
 @media(max-width:700px) { .live-player-list { grid-template-columns:1fr; } .live-overview-heading button { width:100%; justify-content:center; } }
 @media(prefers-reduced-motion:reduce) { .live-progress-track > div { transition:none; } }
+
+.history-link { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; padding:1.1rem 1.3rem; background:#fff; border:1px solid #dce6f0; border-radius:16px; text-decoration:none; font-weight:700; }
+.history-link span { display:inline-flex; align-items:center; gap:.65rem; }
+.history-link span:last-child { color:#607995; font-size:.85rem; }
+.history-link:hover { background:#f4f8fd; }
