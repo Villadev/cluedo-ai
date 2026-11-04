@@ -1,6 +1,7 @@
 <nav class="layout-sidebar surface-card border-right-1 surface-border p-3">
   <ul class="layout-menu-list">
     @for (item of menuItems(); track item.label) {
+      @if (item.visible !== false && !item.disabled) {
       <li>
         @if (item.routerLink) {
           <a
@@ -25,6 +26,7 @@
           </button>
         }
       </li>
+      }
     }
   </ul>
 
