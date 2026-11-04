@@ -75,6 +75,12 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   protected readonly elapsedTime = signal<number>(0);
   private timerInterval: any;
 
+  protected readonly completedPlayersCount = computed(() => this.playerStatus().filter(player => player.askedThisRound).length);
+  protected readonly pendingPlayersCount = computed(() => this.playerStatus().filter(player => !player.askedThisRound).length);
+  protected readonly roundProgressPercent = computed(() => this.playerStatus().length
+    ? Math.round(this.completedPlayersCount() / this.playerStatus().length * 100)
+    : 0);
+
   protected readonly difficultyOptions = [
     { label: 'Fàcil', value: 'easy' },
     { label: 'Mitjà', value: 'medium' },
