@@ -79,7 +79,7 @@ gameRouter.post('/:id/join', asyncHandler((req: Request, res: Response) => contr
  * /game/{id}/start:
  *   post:
  *     summary: Iniciar partida
- *     description: Inicia la generació del cas i canvia l'estat de la partida.
+ *     description: Genera el cas de manera asíncrona. Reprèn les fases pendents després d’una fallada o d’un reinici del servidor, conservant el cas si participants i configuració no han canviat. No inicia una segona generació concurrent.
  *     parameters:
  *       - in: path
  *         name: id

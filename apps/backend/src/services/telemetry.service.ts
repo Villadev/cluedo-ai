@@ -21,7 +21,7 @@ class TelemetryService {
     const gameEvents = this.events.filter(e => e.gameId === gameId);
     return {
       events: gameEvents,
-      summary: this.calculateSummary(gameEvents),
+      summary: this.calculateSummary(gameEvents.filter(e => e.model !== 'orchestrator')),
       totalTimeMs: this.gameTotalTimes.get(gameId)
     };
   }

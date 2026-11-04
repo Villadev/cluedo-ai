@@ -157,7 +157,7 @@ export class GameEngine {
   public async startGame(gameId: string): Promise<Game> {
     const game = this.getGameOrThrow(gameId);
 
-    if (game.state !== GameStates.LOBBY) {
+    if (game.state !== GameStates.LOBBY && !(game.state === GameStates.GENERATING && !this.orchestrator.isGenerating(gameId))) {
       throw new Error("La partida ja ha començat.");
     }
 
@@ -805,10 +805,12 @@ export class GameEngine {
   }
 
   public deleteAllGames(): void {
+    this.orchestrator.cancelAll();
     this.store.clear();
   }
 
   public resetGame(gameId: string): Game {
+    this.orchestrator.cancel(gameId);
     const game = this.getGameOrThrow(gameId);
     game.state = GameStates.LOBBY;
     game.players = [];
@@ -828,6 +830,7 @@ export class GameEngine {
     game.tensionLevel = 0;
     game.nextSequenceId = 1;
     game.updatedAt = nowIso();
+    game.generationCheckpoint = undefined;
     game.generationPhase = GenerationPhases.IDLE;
     game.generationError = undefined;
 
