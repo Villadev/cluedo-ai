@@ -184,28 +184,7 @@
         @if (winnerType()) {
           <div class="winner-note"><i class="pi pi-trophy" aria-hidden="true"></i> Guanyador: <strong>{{ winnerType() }}</strong></div>
         }
-        @if (false) {
-          <div class="round-controls">
-            <button pButton type="button" label="Passar a la ronda següent" icon="pi pi-step-forward"
-              severity="secondary" [outlined]="true" (click)="forceNextRound()"
-              [loading]="loading()" [disabled]="loading()"></button>
-          </div>
-          @if (playerStatus().length > 0) {
-            <div class="player-progress">
-              <h3>Progrés dels participants</h3>
-              <ul>
-                @for (player of playerStatus(); track player.nickname) {
-                  <li><span>{{ player.nickname }}</span>
-                    <span class="player-status" [class.completed]="player.askedThisRound">
-                      <i [class]="player.askedThisRound ? 'pi pi-check-circle' : 'pi pi-clock'" aria-hidden="true"></i>
-                      {{ player.askedThisRound ? 'Ha preguntat' : 'Pendent' }}
-                    </span>
-                  </li>
-                }
-              </ul>
-            </div>
-          }
-        }
+
       </section>
 
       <section class="control-panel management-panel">
