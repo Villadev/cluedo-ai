@@ -1,217 +1,167 @@
-<div class="p-4 flex flex-column gap-4">
+<main class="control-center">
+  <header class="page-heading">
+    <div>
+      <span class="eyebrow"><i class="pi pi-sparkles" aria-hidden="true"></i> TAULER DEL MÀSTER</span>
+      <h1>Centre de control</h1>
+      <p>Tot el que necessites per dirigir la partida, sense distraccions.</p>
+    </div>
+    <span class="state-pill" [attr.data-state]="gameState()">
+      <span class="state-dot"></span>
+      @switch (gameState()) {
+        @case ('NONE') { Sense partida }
+        @case ('LOBBY') { Sala d'espera }
+        @case ('GENERATING') { Preparant el cas }
+        @case ('PLAYER_INFO') { Cas preparat }
+        @case ('PLAYING') { En joc }
+        @case ('FINISHED') { Finalitzada }
+        @default { {{ gameState() }} }
+      }
+    </span>
+  </header>
+
+  @if (error()) { <p-message severity="error" [text]="error()!" styleClass="w-full"></p-message> }
 
   @if (gameId()) {
-    <div class="flex align-items-center gap-3 mb-4 p-3 bg-blue-50 border-round border-1 border-blue-200">
-      <div>
-        <span class="text-700 font-bold mr-2">Partida:</span>
-        <span class="text-primary font-mono">{{ gameId() }}</span>
+    <section class="invite-strip" aria-label="Enllaç de la partida">
+      <div class="invite-icon"><i class="pi pi-link" aria-hidden="true"></i></div>
+      <div class="invite-details">
+        <strong>Convida els jugadors</strong>
+        <span>Codi de partida: <code>{{ gameId() }}</code></span>
       </div>
-      <button
-        pButton
-        icon="pi pi-copy"
-        [label]="showCopyFeedback() ? 'Enllaç copiat!' : 'Copiar enllaç jugadors'"
+      <button pButton type="button" icon="pi pi-copy"
+        [label]="showCopyFeedback() ? 'Copiat!' : 'Copiar enllaç'"
         [severity]="showCopyFeedback() ? 'success' : 'secondary'"
-        class="p-button-sm"
-        (click)="copyGameLink()"
-        [pTooltip]="'Copia l\u0027enllaç per als jugadors'"
-        tooltipPosition="top"
-        [disabled]="loading() || gameState() === 'GENERATING'"
-      ></button>
-    </div>
+        [outlined]="true" (click)="copyGameLink()"
+        [disabled]="loading() || gameState() === 'GENERATING'"></button>
+    </section>
   }
 
-  @if (gameState() === 'GENERATING' && generationProgress()) {
-    <app-generation-status-card
-      [phase]="generationProgress()?.phase"
-      [attempts]="generationProgress()?.attempt"
-      [error]="generationError()"
-      [hasSolution]="solutionStatus().includes('✔')">
-    </app-generation-status-card>
-  }
-
-  <div class="grid">
-    <!-- Creació de Partida -->
-    <div class="col-12 md:col-6">
-      <p-card header="Control de la Partida">
-        <div class="flex flex-column gap-3">
-
-          @if (gameState() === 'LOBBY' && generationError()) {
-            <p-message
-              severity="error"
-              [text]="'Error en la generació anterior: ' + generationError()"
-              styleClass="w-full mb-3"
-            ></p-message>
-          }
-
-          <div class="flex flex-column gap-2">
-            <label for="maxRounds" class="font-bold">Rondes Màximes</label>
-            <input
-              pInputText
-              id="maxRounds"
-              type="number"
-              [ngModel]="maxRounds()"
-              (ngModelChange)="onMaxRoundsChange($event)"
-              [disabled]="(gameState() !== 'NONE' && gameState() !== 'LOBBY') || loading() || gameState() === 'GENERATING'"
-            />
-          </div>
-
-          <!-- Difficulty Selector -->
-          <div class="flex flex-column gap-2">
-            <label class="font-bold">Dificultat</label>
-            <p-selectButton
-              [options]="difficultyOptions"
-              [ngModel]="difficulty()"
-              (ngModelChange)="onDifficultyChange($event)"
-              [disabled]="(gameState() !== 'LOBBY' && gameState() !== 'NONE') || loading()"
-              aria-labelledby="basic">
-            </p-selectButton>
-          </div>
-
-          <div class="flex flex-wrap gap-2 pt-2">
-            @if (gameState() === 'NONE') {
-              <button
-                pButton
-                label="Crear Nova Partida"
-                icon="pi pi-plus"
-                (click)="createGame()"
-                [loading]="loading()"
-                [disabled]="loading()"
-              ></button>
-            } @else if (gameState() === 'LOBBY') {
-              <button
-                pButton
-                [label]="generationError() ? 'Tornar a intentar generar cas' : 'Començar Partida (Generar Cas)'"
-                icon="pi pi-play"
-                [severity]="generationError() ? 'warning' : 'success'"
-                (click)="startGame()"
-                [loading]="loading()"
-                [disabled]="loading()"
-              ></button>
-            } @else if (gameState() === 'GENERATING') {
-               <div class="w-full flex flex-column gap-2">
-                 <button
-                  pButton
-                  [label]="progressLabel()"
-                  icon="pi pi-spin pi-spinner"
-                  severity="warning"
-                  [loading]="true"
-                  [disabled]="true"
-                  class="w-full"
-                ></button>
-                <div class="text-center p-2 bg-yellow-50 border-round border-1 border-yellow-200">
-                  <span class="text-xl font-bold text-yellow-700">Temps transcorregut: {{ formattedElapsed() }}</span>
-                </div>
-               </div>
-            } @else if (gameState() === 'PLAYER_INFO') {
-                <button
-                pButton
-                label="Començar a Jugar"
-                icon="pi pi-play"
-                severity="success"
-                (click)="startPlaying()"
-                [loading]="loading()"
-                [disabled]="loading()"
-              ></button>
-            } @else {
-               <div class="p-3 bg-green-50 border-round border-1 border-green-200 w-full mb-2">
-                 <span class="text-green-700 font-bold">La partida està en curs (Estat: {{ gameState() }})</span>
-               </div>
-            }
-
-            <div class="flex flex-wrap gap-2 w-full">
-              @if (gameState() !== 'NONE') {
-                <button
-                  pButton
-                  label="Eliminar Partida"
-                  icon="pi pi-trash"
-                  severity="danger"
-                  (click)="cancelGame()"
-                  [loading]="loading()"
-                  [disabled]="loading() || gameState() === 'GENERATING'"
-                ></button>
-              }
-
-              <button
-                pButton
-                label="Eliminar partida en curs"
-                icon="pi pi-refresh"
-                severity="danger"
-                [outlined]="true"
-                (click)="confirmForceDelete()"
-                [loading]="loading()"
-                [disabled]="loading()"
-                pTooltip="Elimina totes les partides actives al servidor i reseta l'estat local. Útil si s'ha perdut la sessió del navegador."
-                tooltipPosition="top"
-              ></button>
-            </div>
-          </div>
+  <div class="control-grid">
+    <div class="main-column">
+      <section class="control-panel action-panel">
+        <div class="section-heading">
+          <span class="section-icon"><i class="pi pi-play-circle" aria-hidden="true"></i></span>
+          <div><h2>La teva següent acció</h2><p>Avança quan tot estigui a punt.</p></div>
         </div>
-      </p-card>
+        @if (gameState() === 'LOBBY' && generationError()) {
+          <p-message severity="error" [text]="'Error en la generació anterior: ' + generationError()" styleClass="w-full"></p-message>
+        }
+        <div class="action-content">
+          @switch (gameState()) {
+            @case ('NONE') {
+              <h3>Comença una nova aventura</h3>
+              <p>Configura les rondes i la dificultat, i crea la sala per als participants.</p>
+              <button pButton type="button" label="Crear partida" icon="pi pi-plus" class="primary-action"
+                (click)="createGame()" [loading]="loading()" [disabled]="loading()"></button>
+            }
+            @case ('LOBBY') {
+              <h3>La sala ja està preparada</h3>
+              <p>Convida els participants i genera el misteri quan tothom sigui a la sala.</p>
+              <button pButton type="button" class="primary-action" icon="pi pi-sparkles"
+                [label]="generationError() ? 'Tornar a generar el cas' : 'Generar el cas'"
+                (click)="startGame()" [loading]="loading()" [disabled]="loading()"></button>
+            }
+            @case ('GENERATING') {
+              <h3>Estem creant el misteri</h3>
+              <p>{{ progressLabel() }}</p>
+              <div class="generation-clock"><i class="pi pi-spin pi-spinner" aria-hidden="true"></i> Temps transcorregut: {{ formattedElapsed() }}</div>
+            }
+            @case ('PLAYER_INFO') {
+              <h3>El misteri està a punt</h3>
+              <p>Revisa la informació dels personatges abans d'obrir el joc.</p>
+              <button pButton type="button" class="primary-action" label="Començar a jugar" icon="pi pi-play"
+                (click)="startPlaying()" [loading]="loading()" [disabled]="loading()"></button>
+            }
+            @case ('PLAYING') {
+              <h3>La partida està en marxa</h3>
+              <p>Segueix el progrés dels jugadors i controla les rondes des del panell d'estat.</p>
+            }
+            @case ('FINISHED') {
+              <h3>Partida finalitzada</h3>
+              <p>Consulta el resultat i prepara una nova partida quan vulguis.</p>
+            }
+            @default {
+              <h3>Preparant el tauler</h3>
+              <p>Actualitzant l'estat de la partida…</p>
+            }
+          }
+        </div>
+      </section>
+
+      @if (gameState() === 'GENERATING' && generationProgress()) {
+        <app-generation-status-card [phase]="generationProgress()?.phase"
+          [attempts]="generationProgress()?.attempt" [error]="generationError()"
+          [hasSolution]="solutionStatus().includes('✔')"></app-generation-status-card>
+      }
+
+      @if (gameState() === 'NONE' || gameState() === 'LOBBY') {
+        <section class="control-panel">
+          <div class="section-heading">
+            <span class="section-icon"><i class="pi pi-sliders-h" aria-hidden="true"></i></span>
+            <div><h2>Configuració</h2><p>Defineix com serà el misteri.</p></div>
+          </div>
+          <div class="settings-grid">
+            <div class="field-group">
+              <label for="maxRounds">Rondes màximes</label>
+              <input pInputText id="maxRounds" type="number" min="1" [ngModel]="maxRounds()"
+                (ngModelChange)="onMaxRoundsChange($event)" [disabled]="loading()" />
+            </div>
+            <div class="field-group difficulty-field">
+              <label id="difficultyLabel">Dificultat</label>
+              <p-selectButton [options]="difficultyOptions" [ngModel]="difficulty()"
+                (ngModelChange)="onDifficultyChange($event)" [disabled]="loading()"
+                aria-labelledby="difficultyLabel"></p-selectButton>
+            </div>
+          </div>
+        </section>
+      }
+
+      @if (gameState() === 'LOBBY') {
+        <section class="control-panel">
+          <div class="section-heading">
+            <span class="section-icon"><i class="pi pi-user-plus" aria-hidden="true"></i></span>
+            <div><h2>Afegir participant</h2><p>Incorpora algú directament a la sala.</p></div>
+          </div>
+          <div class="add-player-row">
+            <input pInputText id="playerName" type="text" aria-label="Nom del jugador"
+              [ngModel]="playerName()" (ngModelChange)="onPlayerNameChange($event)"
+              placeholder="Nom del jugador" (keyup.enter)="addPlayer()" [disabled]="loading()" />
+            <button pButton type="button" label="Afegir" icon="pi pi-user-plus"
+              (click)="addPlayer()" [loading]="loading()" [disabled]="!playerName().trim() || loading()"></button>
+          </div>
+        </section>
+      }
     </div>
 
-    <!-- Gestió de Jugadors -->
-    @if (gameState() === 'LOBBY') {
-      <div class="col-12 md:col-6">
-        <p-card header="Afegir Jugador">
-          <div class="flex flex-column gap-3">
-            <div class="flex flex-column gap-2">
-              <label for="playerName" class="font-bold">Nom del Jugador</label>
-              <input
-                pInputText
-                id="playerName"
-                type="text"
-                [ngModel]="playerName()"
-                (ngModelChange)="onPlayerNameChange($event)"
-                placeholder="Ex: Joan"
-                (keyup.enter)="addPlayer()"
-                [disabled]="loading()"
-              />
-            </div>
-            <button
-              pButton
-              label="Afegir Jugador"
-              icon="pi pi-user-plus"
-              (click)="addPlayer()"
-              [loading]="loading()"
-              [disabled]="!playerName().trim() || loading()"
-            ></button>
+    <aside class="side-column">
+      <section class="control-panel status-panel">
+        <div class="section-heading">
+          <span class="section-icon"><i class="pi pi-chart-bar" aria-hidden="true"></i></span>
+          <div><h2>Estat de la partida</h2><p>Informació en temps real.</p></div>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-tile"><span>Participants</span><strong>{{ playersCount() }}</strong></div>
+          <div class="stat-tile"><span>Ronda actual</span><strong>{{ currentRound() }} <small>/ {{ maxRounds() }}</small></strong></div>
+        </div>
+        <div class="detail-row"><span>Dificultat</span><strong>{{ difficulty() | titlecase }}</strong></div>
+        <div class="detail-row"><span>Solució</span><strong>{{ solutionStatus() }}</strong></div>
+        @if (winnerType()) {
+          <div class="winner-note"><i class="pi pi-trophy" aria-hidden="true"></i> Guanyador: <strong>{{ winnerType() }}</strong></div>
+        }
+        @if (gameState() === 'PLAYING') {
+          <div class="round-controls">
+            <button pButton type="button" label="Passar a la ronda següent" icon="pi pi-step-forward"
+              severity="secondary" [outlined]="true" (click)="forceNextRound()"
+              [loading]="loading()" [disabled]="loading()"></button>
           </div>
-        </p-card>
-      </div>
-    }
-
-    <!-- Estat Actual -->
-    <div class="col-12 md:col-6">
-      <p-card header="Estat en Temps Real">
-        <div class="flex flex-column gap-2">
-          <div class="flex justify-content-between align-items-center mb-2">
-            <div>
-              <span class="text-700">Ronda:</span>
-              <span class="font-bold ml-1">{{ currentRound() }} / {{ maxRounds() }}</span>
-            </div>
-            @if (gameState() === 'PLAYING') {
-              <button
-                pButton
-                label="Forçar Següent Ronda"
-                icon="pi pi-step-forward"
-                severity="warning"
-                class="p-button-sm"
-                (click)="forceNextRound()"
-                [loading]="loading()"
-                [disabled]="loading()"
-              ></button>
-            }
-          </div>
-
-          <!-- Player Round Status List -->
-          @if (gameState() === 'PLAYING' && playerStatus().length > 0) {
-            <div class="mb-3 border-1 border-round border-300 overflow-y-auto" style="max-height: 150px;">
-              <ul class="list-none p-0 m-0">
+          @if (playerStatus().length > 0) {
+            <div class="player-progress">
+              <h3>Progrés dels participants</h3>
+              <ul>
                 @for (player of playerStatus(); track player.nickname) {
-                  <li class="flex justify-content-between align-items-center p-2 border-bottom-1 border-200 last:border-bottom-none">
-                    <span class="text-700">{{ player.nickname }}</span>
-                    <span [class]="player.askedThisRound ? 'text-green-500' : 'text-orange-500'">
-                      <i [class]="player.askedThisRound ? 'pi pi-check-circle' : 'pi pi-clock'" class="mr-1"></i>
+                  <li><span>{{ player.nickname }}</span>
+                    <span class="player-status" [class.completed]="player.askedThisRound">
+                      <i [class]="player.askedThisRound ? 'pi pi-check-circle' : 'pi pi-clock'" aria-hidden="true"></i>
                       {{ player.askedThisRound ? 'Ha preguntat' : 'Pendent' }}
                     </span>
                   </li>
@@ -219,38 +169,37 @@
               </ul>
             </div>
           }
-          <div class="flex justify-content-between">
-            <span class="text-700">Jugadors connectats:</span>
-            <span class="font-bold text-primary">{{ playersCount() }}</span>
-          </div>
-          <div class="flex justify-content-between">
-            <span class="text-700">Dificultat actual:</span>
-            <span class="font-bold text-primary">{{ difficulty() | titlecase }}</span>
-          </div>
-          <div class="flex justify-content-between">
-            <span class="text-700">Solució:</span>
-            <span class="font-bold">{{ solutionStatus() }}</span>
-          </div>
-          @if (winnerType()) {
-            <div class="mt-3 p-3 bg-primary-reverse border-round">
-              <div class="text-center font-bold text-xl mb-1">Guanyador:</div>
-              <div class="text-center text-2xl">{{ winnerType() }}</div>
-            </div>
-          }
+        }
+      </section>
+
+      <section class="control-panel management-panel">
+        <div class="section-heading">
+          <span class="section-icon"><i class="pi pi-cog" aria-hidden="true"></i></span>
+          <div><h2>Gestió de la sessió</h2><p>Accions excepcionals i de manteniment.</p></div>
         </div>
-      </p-card>
-    </div>
+        <details class="danger-disclosure">
+          <summary><i class="pi pi-exclamation-circle" aria-hidden="true"></i> Opcions de cancel·lació <i class="pi pi-chevron-down chevron" aria-hidden="true"></i></summary>
+          <div class="danger-content">
+            @if (gameState() !== 'NONE') {
+              <div class="danger-option">
+                <div><strong>Cancel·lar aquesta partida</strong><p>Finalitza i elimina la partida actual.</p></div>
+                <button pButton type="button" label="Cancel·lar partida" severity="danger" [outlined]="true"
+                  (click)="confirmCancelGame()" [disabled]="loading() || gameState() === 'GENERATING'"></button>
+              </div>
+            }
+            <div class="danger-option">
+              <div><strong>Restabliment d'emergència</strong><p>Elimina totes les partides actives del servidor. Utilitza-ho només si s'ha perdut la sessió.</p></div>
+              <button pButton type="button" label="Restablir servidor" severity="danger" [text]="true"
+                (click)="confirmForceDelete()" [disabled]="loading()"></button>
+            </div>
+          </div>
+        </details>
+      </section>
+    </aside>
   </div>
 
-  @if (error()) {
-    <p-message severity="error" [text]="error()!"></p-message>
-  }
-
   @if (gameId() && (gameState() === 'PLAYING' || gameState() === 'FINISHED')) {
-    <div class="mt-4">
-      <app-chat-view [gameId]="gameId()!"></app-chat-view>
-    </div>
+    <section class="chat-section"><app-chat-view [gameId]="gameId()!"></app-chat-view></section>
   }
-
-  <p-confirmDialog></p-confirmDialog>
-</div>
+  <p-confirmDialog [style]="{ width: 'min(440px, calc(100vw - 2rem))' }"></p-confirmDialog>
+</main>
