@@ -177,6 +177,8 @@ export interface Game {
   nextSequenceId: number;
   createdAt: string;
   updatedAt: string;
+  // Private generation checkpoints are never included in public game views.
+  generationCheckpoint?: { signature: string; steps: Record<string, unknown>; feedback?: string };
   // Generation Phase Metadata
   generationPhase?: GenerationPhase;
   generationStepStartedAt?: number;
@@ -306,7 +308,14 @@ export interface AIServiceClue {
   isTrue: boolean;
 }
 
+export interface CaseFact extends AIServiceClue {
+  id: string;
+  revealRound: number;
+}
+
 export interface FullCase {
+  facts?: CaseFact[];
+  generationFeedback?: string;
   victim: string;
   weapon: string;
   location: string;

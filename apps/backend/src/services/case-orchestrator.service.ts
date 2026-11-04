@@ -16,11 +16,31 @@ import {
   RelationshipMatrix
 } from '../types/game.types.js';
 import { generateId } from '../utils/id.js';
+import { buildCaseFacts } from '../game/case-facts.js';
+import { createHash } from 'node:crypto';
 import { env } from '../config/env.js';
 
 const nowIso = () => new Date().toISOString();
 
+class CaseReviewError extends Error {
+  constructor(public readonly areas: string[], message: string) { super(message); }
+}
+
 export class CaseOrchestratorService {
+  private readonly active = new Map<string, AbortController>();
+  public isGenerating(gameId: string): boolean { return this.active.has(gameId); }
+  public cancel(gameId: string): void { this.active.get(gameId)?.abort(); this.active.delete(gameId); }
+  public cancelAll(): void { for (const gameId of this.active.keys()) this.cancel(gameId); }
+
+  public async generateCase(gameId: string, difficulty: Difficulty, maxRounds: number): Promise<void> {
+    if (this.active.has(gameId)) return;
+    const controller = new AbortController();
+    this.active.set(gameId, controller);
+    try {
+      await this.runGeneration(gameId, difficulty, maxRounds, controller.signal, Date.now(), 0);
+    } finally { if (this.active.get(gameId) === controller) this.active.delete(gameId); }
+  }
+
   private readonly STEP_TIMEOUT_MS = env.GENERATION_STEP_TIMEOUT_MS;
   private readonly GLOBAL_TIMEOUT_MS = env.GENERATION_GLOBAL_TIMEOUT_MS;
   private readonly BATCH_SIZE = env.GENERATION_CHARACTER_BATCH_SIZE;
@@ -42,16 +62,27 @@ export class CaseOrchestratorService {
     this.onGameStateChange = listener;
   }
 
-  public async generateCase(gameId: string, difficulty: Difficulty, maxRounds: number) {
-    const globalStartTime = Date.now();
+  private async runGeneration(gameId: string, difficulty: Difficulty, maxRounds: number, externalSignal: AbortSignal, globalStartTime: number, repairAttempt: number): Promise<void> {
     const game = this.store.getById(gameId);
     if (!game) return;
 
+    const signature = createHash('sha256').update(JSON.stringify({ version: 1,
+      players: game.players.map(p => [p.id, p.nickname]), difficulty, maxRounds,
+      model: env.OPENAI_MODEL, batchSize: this.BATCH_SIZE,
+      budgets: [env.OPENAI_MAX_TOKENS_JSON, env.OPENAI_MAX_TOKENS_CLUES, env.OPENAI_MAX_TOKENS_NARRATIVES, env.OPENAI_MAX_TOKENS_REVIEW]
+    })).digest('hex');
+    if (game.generationCheckpoint?.signature !== signature) {
+      game.generationCheckpoint = { signature, steps: {} };
+      this.store.save(game);
+    }
     const globalController = new AbortController();
+    const cancel = () => globalController.abort();
+    externalSignal.addEventListener('abort', cancel, { once: true });
+    if (externalSignal.aborted) globalController.abort();
     const globalTimeout = setTimeout(() => {
         console.error(`[ORCHESTRATOR] Global generation timeout for game ${gameId}`);
         globalController.abort();
-    }, this.GLOBAL_TIMEOUT_MS);
+    }, Math.max(1, this.GLOBAL_TIMEOUT_MS - (Date.now() - globalStartTime)));
 
     try {
       let fullCase: Partial<FullCase> = {};
@@ -68,7 +99,7 @@ export class CaseOrchestratorService {
       if (!skeleton.assassin || !skeleton.victim) {
         throw new Error('Invalid skeleton: assassin must be participant and victim must be external');
       }
-      fullCase = { ...skeleton, characters: [], clues: {} };
+      fullCase = { ...skeleton, characters: [], clues: {}, generationFeedback: game.generationCheckpoint?.feedback };
 
       // Immediate persistence of solution seed
       this.persistPartialData(gameId, {
@@ -109,8 +140,15 @@ export class CaseOrchestratorService {
       );
       fullCase.relationsMatrix = relationsMatrix;
 
-      // CHARACTERS ENRICH (Batched & Multi-pass)
-      const characterChunks = this.chunkArray(basicCharacters, this.BATCH_SIZE);
+      fullCase.characters = basicCharacters as AIServiceCharacter[];
+      const plannedCharacters = await this.executeStep<Partial<AIServiceCharacter>[]>(
+        gameId, GenerationPhases.CHARACTERS, 'case_plan',
+        sig => this.aiService.generateCasePlan(gameId, fullCase, basicCharacters, difficulty, sig),
+        globalController.signal
+      );
+      fullCase.characters = plannedCharacters as AIServiceCharacter[];
+
+      const characterChunks = this.chunkArray(plannedCharacters, this.BATCH_SIZE);
       const enrichedChunks: Partial<AIServiceCharacter>[][] = [];
 
       for (let i = 0; i < characterChunks.length; i += this.CONCURRENCY) {
@@ -151,6 +189,8 @@ export class CaseOrchestratorService {
         startAt: Date.now(), endAt: Date.now(), durationMs: 0, outcome: 'success', model: 'orchestrator'
       });
 
+      fullCase.facts = buildCaseFacts(fullCase as FullCase, maxRounds);
+
       // 3. NARRATIVES
       const narratives = await this.executeStep<{ introductionNarrative: string, solutionNarrative: string }>(
         gameId,
@@ -169,35 +209,47 @@ export class CaseOrchestratorService {
         solution: currentSolution ? { ...currentSolution, finalNarrative: narratives.solutionNarrative } : null
       });
 
-      // 4. CLUES
-      const clues = await this.executeStep<Record<string, AIServiceClue[]>>(
-        gameId,
-        GenerationPhases.CLUES,
-        "clues",
-        (sig) => this.aiService.generateCluesByRounds(gameId, fullCase as FullCase, maxRounds, difficulty, sig),
-        globalController.signal
-      );
-      fullCase.clues = clues;
-
-      // 5. RECOVERY
-      const missingRounds = this.aiService.validateClueCoverage(fullCase as FullCase, maxRounds);
-      if (missingRounds.length > 0) {
-        const recoveredClues = await this.executeStep<FullCase>(
-          gameId,
-          GenerationPhases.RECOVERY,
-          "recovery",
-          (sig) => this.aiService.recoverMissingClues(gameId, fullCase as FullCase, missingRounds, difficulty, sig),
+      // Persist each round separately; an interrupted generation resumes at its missing round.
+      for (let round = 1; round <= maxRounds; round++) {
+        fullCase.clues![`round${round}`] = await this.executeStep<AIServiceClue[]>(
+          gameId, GenerationPhases.CLUES, `clues_round_${round}`,
+          sig => this.aiService.generateClueRound(gameId, fullCase as FullCase, round, maxRounds, difficulty, sig),
           globalController.signal
         );
-        fullCase = recoveredClues;
       }
-
+      const review = await this.executeStep<{ issues: { area: string; reason: string }[] }>(
+        gameId, GenerationPhases.RECOVERY, 'case_review',
+        sig => this.aiService.reviewCase(gameId, fullCase as FullCase, sig), globalController.signal
+      );
+      if (review.issues.length) throw new CaseReviewError(review.issues.map(i => i.area), review.issues.map(i => i.reason).join(' '));
+      globalController.signal.throwIfAborted();
       this.finalizeGame(gameId, fullCase as FullCase);
       const totalTimeMs = Date.now() - globalStartTime;
       console.log("[GENERATION] Total time:", totalTimeMs, "ms");
       telemetryService.setTotalTime(gameId, totalTimeMs);
 
     } catch (error: any) {
+      if (externalSignal.aborted) return;
+      if (error instanceof CaseReviewError) {
+        const current = this.store.getById(gameId);
+        if (current?.generationCheckpoint) {
+          const checkpoint = current.generationCheckpoint;
+          checkpoint.feedback = error.message;
+          const invalidPlan = error.areas.includes('plan');
+          for (const key of Object.keys(checkpoint.steps)) {
+            if (key === 'case_review' ||
+                (invalidPlan && (key === 'characters_basic' || key === 'relations_matrix' || key === 'case_plan' || key.startsWith('characters_enrich'))) ||
+                ((invalidPlan || error.areas.includes('clues')) && key.startsWith('clues_round_')) ||
+                ((invalidPlan || error.areas.includes('narratives')) && key === 'narratives')) delete checkpoint.steps[key];
+          }
+          this.store.save(current);
+        }
+        if (repairAttempt === 0 && !globalController.signal.aborted) {
+          clearTimeout(globalTimeout);
+          return await this.runGeneration(gameId, difficulty, maxRounds, externalSignal, globalStartTime, 1);
+        }
+      }
+      globalController.abort();
       const totalTimeMs = Date.now() - globalStartTime;
       console.log("[GENERATION] Total time:", totalTimeMs, "ms");
       telemetryService.setTotalTime(gameId, totalTimeMs);
@@ -209,9 +261,10 @@ export class CaseOrchestratorService {
         message: error.message || 'Error desconegut durant la generació',
         stack: error.stack
       });
-      this.handleFailure(gameId, error.message || 'Error desconegut durant la generació');
+      this.handleFailure(gameId, error instanceof CaseReviewError ? 'El cas encara presenta incoherències. Torna a iniciar per recuperar la generació.' : 'No s’ha pogut completar la generació. Torna a iniciar per reprendre-la.');
     } finally {
       clearTimeout(globalTimeout);
+      externalSignal.removeEventListener('abort', cancel);
     }
   }
 
@@ -222,6 +275,9 @@ export class CaseOrchestratorService {
     task: (sig: AbortSignal) => Promise<T>,
     globalSignal: AbortSignal
   ): Promise<T> {
+    globalSignal.throwIfAborted();
+    const cached = this.store.getById(gameId)?.generationCheckpoint?.steps[stepName];
+    if (cached !== undefined) return structuredClone(cached) as T;
     const startedAt = Date.now();
     this.updateGenerationMetadata(gameId, phase, 1);
 
@@ -239,10 +295,18 @@ export class CaseOrchestratorService {
 
     // Link global signal to step controller
     const abortHandler = () => stepController.abort();
-    globalSignal.addEventListener('abort', abortHandler);
+    globalSignal.addEventListener('abort', abortHandler, { once: true });
+    if (globalSignal.aborted) stepController.abort();
 
     try {
       const result = await task(stepController.signal);
+      stepController.signal.throwIfAborted();
+      const current = this.store.getById(gameId);
+      if (!current || current.state !== GameStates.GENERATING) throw new Error('Generació cancel·lada.');
+      if (current.generationCheckpoint) {
+        current.generationCheckpoint.steps[stepName] = structuredClone(result);
+        this.store.save(current);
+      }
       const endedAt = Date.now();
 
       telemetryService.record({
@@ -376,6 +440,8 @@ export class CaseOrchestratorService {
     });
     game.clues = allClues;
 
+    game.generationCheckpoint = undefined;
+    game.generationError = undefined;
     game.generationPhase = GenerationPhases.DONE;
     game.state = GameStates.PLAYER_INFO;
     game.updatedAt = nowIso();

@@ -11,11 +11,14 @@ const envSchema = z.object({
   GENERATION_GLOBAL_TIMEOUT_MS: z.coerce.number().int().positive().default(600000),
   GENERATION_CHARACTER_BATCH_SIZE: z.coerce.number().int().positive().default(4),
   GENERATION_CHARACTER_CONCURRENCY: z.coerce.number().int().positive().default(2),
-  OPENAI_MODEL: z.string().default('gpt-4o-mini'),
+  OPENAI_MODEL: z.string().default('gpt-6-luna'),
   OPENAI_TEMPERATURE: z.coerce.number().default(0.4),
   OPENAI_FREQUENCY_PENALTY: z.coerce.number().default(0.2),
-  OPENAI_MAX_TOKENS_JSON: z.coerce.number().int().positive().default(1200),
-  OPENAI_MAX_TOKENS_NARRATOR: z.coerce.number().int().positive().default(320)
+  OPENAI_MAX_TOKENS_JSON: z.coerce.number().int().positive().default(6000),
+  OPENAI_MAX_TOKENS_CLUES: z.coerce.number().int().positive().default(4000),
+  OPENAI_MAX_TOKENS_NARRATIVES: z.coerce.number().int().positive().default(5000),
+  OPENAI_MAX_TOKENS_REVIEW: z.coerce.number().int().positive().default(4000),
+  OPENAI_MAX_TOKENS_NARRATOR: z.coerce.number().int().positive().default(1500)
 });
 
 const parsed = envSchema.safeParse(process.env);
