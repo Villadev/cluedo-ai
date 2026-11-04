@@ -1,5 +1,26 @@
 # AGENTS.md
 
+## Mandatory task workflow
+
+At the start of every task, read and follow
+[the project-start skill](.agents/skills/project-start/SKILL.md), then read any
+additional instructions that apply to the files being changed.
+
+Every task that changes repository files, including documentation, configuration,
+and small fixes, MUST use its own branch and a pull request for human review.
+Create the branch before editing. Never commit or push directly to the default
+branch. Continue an existing task on its own branch and PR; use a new branch for
+an unrelated task. Read-only questions do not require an empty branch or PR.
+
+Validate the changes, commit only task-related files, push the task branch, and
+open a pull request against the repository's default branch. Include what changed,
+why, validation results, and any limitations. Return the PR link to the user.
+If remote access prevents pushing or opening the PR, preserve the local work and
+report the exact blocker; never claim a PR was created when it was not.
+
+Leave the PR open for human review. Do not merge it, enable auto-merge, or bypass
+review. Merge only after human review and an explicit user instruction to merge.
+
 # Project Overview
 
 This repository contains a **multiplayer narrative game inspired by Cluedo**, where an **AI agent acts as the Game Master** and drives the story.
