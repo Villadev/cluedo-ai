@@ -1,13 +1,12 @@
 import { ChangeDetectionStrategy, Component, effect, inject, OnDestroy, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { Subscription } from 'rxjs';
 import { Difficulty, GameApiService, GameState, PlayerStatus } from '../../services/game-api.service';
 import { WebSocketService } from '../../services/websocket.service';
 import { GameStateService } from '../../services/game-state.service';
-import { ChatViewComponent } from "../../components/chat-view/chat-view.component";
 import { GenerationStatusCardComponent } from "../../components/generation-status-card/generation-status-card.component";
 import { InputTextModule } from 'primeng/inputtext';
 import { CardModule } from 'primeng/card';
@@ -29,7 +28,7 @@ interface GenerationProgress {
   selector: 'app-control-center',
   standalone: true,
   imports: [
-    ChatViewComponent,
+    RouterLink,
     GenerationStatusCardComponent,
     CommonModule,
     FormsModule,

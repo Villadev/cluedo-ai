@@ -172,6 +172,8 @@ gameRouter.post('/:id/accuse', asyncHandler((req: Request, res: Response) => con
  *       200:
  *         description: Narrativa inicial.
  */
+gameRouter.get('/:id/instructions', asyncHandler((req: Request, res: Response) => controller.getInstructions(req, res)));
+
 gameRouter.get('/:id/intro', asyncHandler((req: Request, res: Response) => controller.getIntro(req, res)));
 
 /**

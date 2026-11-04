@@ -79,7 +79,13 @@ export class AppComponent implements OnInit, OnDestroy {
         visible: hasGameId
       },
       {
-        label: 'Historial',
+        label: 'Converses',
+        icon: 'pi pi-comments',
+        routerLink: '/chat-history',
+        visible: hasActivity
+      },
+      {
+        label: 'Esdeveniments',
         icon: 'pi pi-list',
         routerLink: '/timeline',
         visible: hasActivity

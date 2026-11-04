@@ -96,3 +96,18 @@ img, svg { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+/* Unified Cluedo visual language: master + player */
+:root { --cluedo-radius:18px; --cluedo-shadow:0 14px 36px rgba(21,42,72,.065),0 2px 8px rgba(21,42,72,.035); }
+body { background:radial-gradient(ellipse at 90% 0%,rgba(119,163,217,.17),transparent 42%),linear-gradient(180deg,#f4f7fb,#eaf0f7); }
+.p-card,.p-panel,.p-dialog,.p-fieldset { border-color:#dce6f0; border-radius:18px; }
+.p-card .p-card-body { padding:clamp(1.1rem,2.2vw,1.8rem); }
+.p-button { min-height:42px; padding:.65rem 1rem; border-radius:12px; letter-spacing:-.01em; }
+.p-button.p-button-text { box-shadow:none; }
+.p-button.p-button-outlined { background:rgba(255,255,255,.8); }
+.p-button:focus-visible,.p-inputtext:focus-visible { outline:3px solid rgba(65,110,170,.35); outline-offset:2px; }
+.p-inputtext,.p-dropdown,.p-inputtextarea { min-height:43px; border-radius:12px; }
+.p-menu,.p-tieredmenu,.p-sidebar { border-color:#dce6f0; }
+.p-menuitem-link { border-radius:10px; }
+.p-tag { font-weight:700; letter-spacing:.01em; }
+@media(max-width:768px) { .p-button { min-height:44px; } .p-card,.p-panel { border-radius:15px; } }

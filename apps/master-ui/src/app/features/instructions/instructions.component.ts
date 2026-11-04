@@ -5,13 +5,15 @@ import { GameApiService } from '../../services/game-api.service';
 // PrimeNG imports
 import { CardModule } from 'primeng/card';
 import { MessageModule } from 'primeng/message';
+import { ButtonModule } from 'primeng/button';
 
 @Component({
   selector: 'app-instructions',
   imports: [
     CommonModule,
     CardModule,
-    MessageModule
+    MessageModule,
+    ButtonModule
   ],
   templateUrl: './instructions.component.html',
   styleUrls: [],

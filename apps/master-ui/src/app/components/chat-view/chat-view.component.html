@@ -1,5 +1,5 @@
-<p-card header="Historial del Xat">
-  <div #chatList class="chat-list" style="max-height: 400px; overflow-y: auto;">
+<section class="chat-history-panel"><div class="chat-history-heading"><h2>Conversa de la partida</h2><button type="button" (click)="jumpToLatest()">Anar als últims missatges <i class="pi pi-arrow-down" aria-hidden="true"></i></button></div>
+  <div #chatList class="chat-list" (scroll)="onChatScroll()">
     @for (message of messages(); track message.id) {
       <article class="chat-message mb-3 p-2 border-round" [class]="'chat-' + message.type">
         @if (message.sender || message.type === 'clue' || message.type === 'response' || message.type === 'narrator') {
@@ -20,4 +20,4 @@
       </div>
     }
   </div>
-</p-card>
+</section>
