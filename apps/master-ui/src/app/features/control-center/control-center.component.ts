@@ -75,6 +75,12 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   protected readonly elapsedTime = signal<number>(0);
   private timerInterval: any;
 
+  protected readonly completedPlayersCount = computed(() => this.playerStatus().filter(player => player.askedThisRound).length);
+  protected readonly pendingPlayersCount = computed(() => this.playerStatus().filter(player => !player.askedThisRound).length);
+  protected readonly roundProgressPercent = computed(() => this.playerStatus().length
+    ? Math.round(this.completedPlayersCount() / this.playerStatus().length * 100)
+    : 0);
+
   protected readonly difficultyOptions = [
     { label: 'Fàcil', value: 'easy' },
     { label: 'Mitjà', value: 'medium' },
@@ -382,6 +388,19 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
         this.router.navigate(['/control-center']);
         this.loading.set(false);
       }
+    });
+  }
+
+  protected confirmCancelGame(): void {
+    if (!this.gameId() || this.loading() || this.gameState() === 'GENERATING') return;
+    this.confirmationService.confirm({
+      message: 'Vols cancel·lar aquesta partida? Tots els participants perdran l\'accés i aquesta acció no es pot desfer.',
+      header: 'Cancel·lar la partida',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Sí, cancel·lar partida',
+      rejectLabel: 'Tornar',
+      acceptButtonStyleClass: 'p-button-danger',
+      accept: () => this.cancelGame()
     });
   }
 
