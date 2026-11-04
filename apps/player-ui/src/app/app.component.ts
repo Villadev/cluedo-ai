@@ -27,13 +27,15 @@ export class AppComponent implements OnInit {
 
   protected menuItems = computed<MenuItem[]>(() => {
     const state = this.gameStateService.state();
+    const hasActiveGame = state !== 'NONE';
+    const hasGeneratedStory = state === 'PLAYER_INFO' || state === 'PLAYING' || state === 'FINISHED';
     const items: MenuItem[] = [
-      { label: 'Xat', icon: 'pi pi-comments', command: () => this.navigateToGameSection('') },
-      { label: 'Informació de partida', icon: 'pi pi-info-circle', command: () => this.navigateToGameSection('info') },
-      { label: 'Participants', icon: 'pi pi-users', command: () => this.navigateToGameSection('participants') },
-      { label: 'Instruccions', icon: 'pi pi-list', command: () => this.navigateToGameSection('instructions') },
-      { label: 'Veure introducció', icon: 'pi pi-map', command: () => this.navigateToGameSection('introduction') },
-      { label: 'Llibreta de Detectiu', icon: 'pi pi-book', command: () => this.navigateToGameSection('notebook') }
+      { label: 'Xat', icon: 'pi pi-comments', visible: state === 'PLAYING' || state === 'FINISHED', command: () => this.navigateToGameSection('') },
+      { label: 'Informació de partida', icon: 'pi pi-info-circle', visible: hasActiveGame, command: () => this.navigateToGameSection('info') },
+      { label: 'Participants', icon: 'pi pi-users', visible: hasActiveGame, command: () => this.navigateToGameSection('participants') },
+      { label: 'Instruccions', icon: 'pi pi-list', visible: hasGeneratedStory, command: () => this.navigateToGameSection('instructions') },
+      { label: 'Veure introducció', icon: 'pi pi-map', visible: hasGeneratedStory, command: () => this.navigateToGameSection('introduction') },
+      { label: 'Llibreta de Detectiu', icon: 'pi pi-book', visible: state === 'PLAYING' || state === 'FINISHED', command: () => this.navigateToGameSection('notebook') }
     ];
 
     if (state === 'PLAYING') {
@@ -44,7 +46,7 @@ export class AppComponent implements OnInit {
       items.push({ label: 'Veure Resolució', icon: 'pi pi-search', command: () => this.navigateToGameSection('solution') });
     }
 
-    items.push({ label: 'Sortir de la partida', icon: 'pi pi-sign-out', command: () => this.leaveGame() });
+    if (hasActiveGame) items.push({ label: 'Sortir de la partida', icon: 'pi pi-sign-out', command: () => this.leaveGame() });
 
     return items;
   });
