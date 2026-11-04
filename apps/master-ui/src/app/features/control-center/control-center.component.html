@@ -214,7 +214,10 @@
   </div>
 
   @if (gameId() && (gameState() === 'PLAYING' || gameState() === 'FINISHED')) {
-    <section class="chat-section"><app-chat-view [gameId]="gameId()!"></app-chat-view></section>
+    <a class="history-link" routerLink="/chat-history">
+      <span><i class="pi pi-comments" aria-hidden="true"></i> Historial de converses</span>
+      <span>Obrir la pantalla completa <i class="pi pi-arrow-right" aria-hidden="true"></i></span>
+    </a>
   }
   <p-confirmDialog [style]="{ width: 'min(440px, calc(100vw - 2rem))' }"></p-confirmDialog>
 </main>
