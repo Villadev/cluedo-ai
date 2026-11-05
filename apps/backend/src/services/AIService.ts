@@ -163,13 +163,13 @@ Correccions requerides: ${caseBible.generationFeedback || 'cap'}.
 Personatges i motius: ${JSON.stringify(characters)}
 
 Regles:
-- Defineix relacions clau entre els participants i opcionalment amb la víctima.
+- Defineix només relacions clau justificades entre participants i opcionalment amb la víctima. No és obligatori que cada personatge tingui una relació; si no hi ha vincles sustentats, retorna una llista buida.
 - Sigues factual i concís (màxim 1 frase per nota).
 - Cada relació ha de tenir "a" (nom), "b" (nom), "type", "strength" i "note".
 - "type" ha de ser un de: "conflict", "ally", "debt", "secret".
 - "strength" ha de ser un de: "low", "medium", "high".
 
-- No inventis relacions si no hi ha un vincle concret; no etiquetis una absència de relació com a secret.
+- No inventis relacions si no hi ha un vincle concret; no etiquetis una absència de relació com a secret. Evita notes que neguin el vincle que acabes d'afirmar.
 
 Retorna JSON:
 {
