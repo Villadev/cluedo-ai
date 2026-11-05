@@ -197,7 +197,8 @@ PERSONATGES I MOTIUS FIXATS: ${JSON.stringify(basics)}
 - Coartades amb HH:MM, inici anterior al final (mateix dia).
 - witness: nom exacte d'un altre participant o "Ningú". Si hi ha testimoni, les dues fitxes han de coincidir en lloc i el seu horari ha de cobrir el de la persona observada.
 - Pots usar parelles o grups amb el mateix horari; evita dependències circulars incompatibles.
-- El culpable ha de poder cometre el crim: la seva coartada estructurada no pot situar-lo en un altre lloc durant cap part de la finestra del crim. Les mentides es poden explicar en els secrets o rumors, no com a ubicacions simultànies.
+- La coartada és una DECLARACIÓ no verificada: el culpable POT mentir i declarar que era en un altre lloc durant el crim. No presentis mai aquesta declaració com a fet objectiu.
+- Un testimoni declarat no equival a prova independent; les pistes han de distingir-ho.
 - Distingiu coartades declarades i fets confirmats. Una mentida intencionada ha de poder ser descoberta.
 - Tots els personatges han de tenir un secret i un paper útil per investigar.
 Retorna { "characters": [{ "name", "secret", "secretKnowledge", "rumor", "coartada": { "location", "timeStart", "timeEnd", "witness", "credibility" } }] }.`;
