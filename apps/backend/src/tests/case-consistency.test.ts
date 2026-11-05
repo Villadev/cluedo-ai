@@ -5,7 +5,7 @@ import { validatePlan, validateRelations } from '../game/case-validation.js';
 const names = ['Oriol', 'Andrea', 'Sospitós 1', 'Sospitós 2'];
 const seed = { assassin: 'Oriol', location: 'Can Coll', crimeWindow: { start: '21:00', end: '21:30' } };
 const character = (name: string, location: string, start = '20:50', end = '21:40') => ({
-  name, secret: 'Un secret', secretKnowledge: 'Andrea coneix el secret', rumor: 'Una sospita',
+  name, secret: 'Un secret', secretKnowledge: name === 'Andrea' ? 'Oriol coneix el secret' : 'Andrea coneix el secret', rumor: 'Una sospita',
   coartada: { location, timeStart: start, timeEnd: end, witness: 'Ningú', credibility: 'baixa' as const }
 });
 test('2 humans + 2 NPCs: detecta la coartada incompatible del culpable', () => {
