@@ -52,6 +52,7 @@ export class JoinGamePageComponent implements OnInit {
         playerId: participantId
       });
       this.applyConditionalValidation(true);
+      if (gameId) this.onJoin();
     }
   }
 
@@ -67,35 +68,43 @@ export class JoinGamePageComponent implements OnInit {
 
     this.errorMessage = '';
 
-    if (useExistingPlayerId && playerId) {
-      // Manual verification before entering waiting room
-      this.isSubmitting = true;
-      this.gameService.getGame(gameId, playerId).subscribe({
-        next: (response) => {
-          if (response.success && response.data) {
-             const playerExists = response.data.players.some(p => p.id === playerId);
-             if (playerExists) {
-               this.completeJoin(gameId, playerId);
-             } else {
-               this.errorMessage = "ID de participant no trobat en aquesta partida.";
-               this.isSubmitting = false;
-             }
-          } else {
-            this.errorMessage = "No s'ha pogut accedir a la partida. Revisa l'ID de partida.";
-            this.isSubmitting = false;
-          }
-        },
-        error: () => {
-          this.errorMessage = "No s'ha pogut accedir a la partida.";
+    this.isSubmitting = true;
+    this.gameService.resolveSession(gameId, useExistingPlayerId ? playerId : undefined).subscribe({
+      next: response => {
+        if (!response.success || !response.data) {
+          this.errorMessage = response.error || 'Partida no trobada.';
           this.isSubmitting = false;
+          return;
         }
-      });
-      return;
-    }
+        const resolved = response.data;
+        if (useExistingPlayerId) {
+          if (!resolved.playerId) {
+            this.errorMessage = 'Participant no trobat.';
+            this.isSubmitting = false;
+            return;
+          }
+          this.gameService.getGame(resolved.gameId, resolved.playerId).subscribe({
+            next: game => {
+              if (game.success && game.data?.players.some(p => p.id === resolved.playerId && p.type === 'real')) {
+                this.completeJoin(resolved.gameId, resolved.playerId!);
+              } else {
+                this.errorMessage = 'Aquest participant ja no existeix.';
+              }
+              this.isSubmitting = false;
+            },
+            error: () => { this.errorMessage = 'No hem pogut recuperar la partida.'; this.isSubmitting = false; }
+          });
+        } else {
+          this.joinResolvedGame(resolved.gameId);
+        }
+      },
+      error: () => { this.errorMessage = 'Codi de partida o participant incorrecte.'; this.isSubmitting = false; }
+    });
+  }
 
+  private joinResolvedGame(gameId: string): void {
     const name = this.joinForm.controls.name.value.trim();
 
-    this.isSubmitting = true;
     this.gameService
       .joinGame(gameId, name)
       .pipe(finalize(() => (this.isSubmitting = false)))
