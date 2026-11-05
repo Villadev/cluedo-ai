@@ -64,7 +64,7 @@ export class AppComponent implements OnInit, OnDestroy {
         label: 'Solució',
         icon: 'pi pi-key',
         routerLink: '/solution',
-        visible: state === 'FINISHED'
+        visible: hasGameId
       },
       {
         label: 'Preguntes',
