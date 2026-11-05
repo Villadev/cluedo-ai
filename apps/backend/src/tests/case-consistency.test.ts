@@ -35,3 +35,23 @@ test('no exigeix inventar vincles per a cada sospitós', () => {
     { a: 'Oriol', b: 'Andrea', type: 'ally', strength: 'low', note: 'Treballen junts.' }
   ] }, names, 'Elvira Font'), []);
 });
+
+test('accepta testimonis declarats que contradiuen la seva pròpia coartada', () => {
+  const characters = [
+    { ...character('Oriol', 'Bar La Plaça'), coartada: { ...character('Oriol', 'Bar La Plaça').coartada, witness: 'Andrea' } },
+    character('Andrea', 'Can Coll'),
+    character('Sospitós 1', 'Can Coll'),
+    character('Sospitós 2', 'Can Coll')
+  ];
+  assert.deepEqual(validatePlan(characters, seed, names), []);
+});
+
+test('rebutja testimonis que no són participants', () => {
+  const characters = [
+    { ...character('Oriol', 'Bar La Plaça'), coartada: { ...character('Oriol', 'Bar La Plaça').coartada, witness: 'Persona inventada' } },
+    character('Andrea', 'Can Coll'),
+    character('Sospitós 1', 'Can Coll'),
+    character('Sospitós 2', 'Can Coll')
+  ];
+  assert.ok(validatePlan(characters, seed, names).some(i => i.includes('Testimoni desconegut')));
+});
