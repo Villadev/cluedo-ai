@@ -66,7 +66,7 @@ export class CaseOrchestratorService {
     const game = this.store.getById(gameId);
     if (!game) return;
 
-    const signature = createHash('sha256').update(JSON.stringify({ version: 1,
+    const signature = createHash('sha256').update(JSON.stringify({ version: 2,
       players: game.players.map(p => [p.id, p.nickname]), difficulty, maxRounds,
       model: env.OPENAI_MODEL, batchSize: this.BATCH_SIZE,
       budgets: [env.OPENAI_MAX_TOKENS_JSON, env.OPENAI_MAX_TOKENS_CLUES, env.OPENAI_MAX_TOKENS_NARRATIVES, env.OPENAI_MAX_TOKENS_REVIEW]
@@ -244,9 +244,9 @@ export class CaseOrchestratorService {
           }
           this.store.save(current);
         }
-        if (repairAttempt === 0 && !globalController.signal.aborted) {
+        if (repairAttempt < 2 && !globalController.signal.aborted) {
           clearTimeout(globalTimeout);
-          return await this.runGeneration(gameId, difficulty, maxRounds, externalSignal, globalStartTime, 1);
+          return await this.runGeneration(gameId, difficulty, maxRounds, externalSignal, globalStartTime, repairAttempt + 1);
         }
       }
       globalController.abort();
