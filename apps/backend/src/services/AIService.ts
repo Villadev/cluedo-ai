@@ -468,6 +468,7 @@ Retorna { "issues": [{ "area": "plan|clues|narratives", "reason": "error concret
           return data;
         }
 
+        console.warn(`[GENERATION VALIDATION] ${stepName} attempt ${attempts}: ${JSON.stringify(details)}`);
         feedback = `\nLa resposta anterior no és vàlida: ${JSON.stringify(details)}. Corregeix aquests errors i retorna el resultat complet.`;
         telemetryService.record({
           ...recordBase,
