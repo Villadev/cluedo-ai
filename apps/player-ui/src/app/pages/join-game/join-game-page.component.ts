@@ -85,7 +85,7 @@ export class JoinGamePageComponent implements OnInit {
           }
           this.gameService.getGame(resolved.gameId, resolved.playerId).subscribe({
             next: game => {
-              if (game.success && game.data?.players.some(p => p.id === resolved.playerId && p.type === 'real')) {
+              if (game.success && game.data?.players.some(p => p.id === resolved.playerId && p.type === 'player')) {
                 this.completeJoin(resolved.gameId, resolved.playerId!);
               } else {
                 this.errorMessage = 'Aquest participant ja no existeix.';
