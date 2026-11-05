@@ -50,7 +50,7 @@ export class GameEngine {
   public setSystemEventListener(listener: (gameId: string, message: string, type?: ChatMessage['type'], roundNumber?: number, sequenceId?: number, timestamp?: number) => void): void {
     this.onSystemEvent = listener;
   }
-  private pushSystemMessage(game: Game, message: string, type: ChatMessage['type'] = 'system'): { seq: number, timestamp: number } {
+  private pushSystemMessage(game: Game, message: string, type: ChatMessage['type'] = 'system', clueId?: string): { seq: number, timestamp: number } {
     const timestamp = Date.now();
     const sequenceId = game.nextSequenceId++;
     const playerName = type === 'clue' || type === 'narrator' ? 'Narrador 🕵️‍♂️' : 'Sistema ⚙️';
@@ -61,6 +61,7 @@ export class GameEngine {
       timestamp,
       roundNumber: game.roundNumber,
       sequenceId,
+      clueId,
       playerName
     } as any);
 
@@ -226,9 +227,6 @@ export class GameEngine {
       description: "L'investigació ha començat."
     });
 
-    // Save game state BEFORE revealing clues to avoid overwriting async clue persistence
-    this.store.save(game);
-
     this.emitStateChange(game.id, game.state);
 
     const msg = `Comença la ronda ${game.roundNumber}.`;
@@ -237,7 +235,7 @@ export class GameEngine {
     this.store.save(game);
 
     // Reveal Round 1 clues when playing actually starts
-    await this.revealCluesForRound(game, 1);
+    this.revealCluesForRound(game, 1);
 
     return game;
   }
@@ -440,7 +438,7 @@ export class GameEngine {
     const allPlayersActed = realPlayers.every((p) => p.askedThisRound || p.accusedThisRound || p.isEliminated);
 
     if (allPlayersActed) {
-      await this.advanceRound(game);
+      this.advanceRound(game);
       this.store.save(game);
     } else {
       let nextIndex = game.currentTurnIndex;
@@ -462,36 +460,18 @@ export class GameEngine {
     this.store.save(game);
   }
 
-  private async revealCluesForRound(game: Game, roundNumber: number): Promise<void> {
-    const roundClues = game.clues.filter(c => c.roundNumber === roundNumber);
-    if (roundClues.length === 0) {
-      console.log(`[ROUND START] No clues found to reveal for round ${roundNumber}`);
-      return;
-    }
-
-    console.log(`Revealing ${roundClues.length} clues for round ${roundNumber}`);
-
-    const publicStateStr = JSON.stringify(this.getPublicState(game.id));
-
-    for (const clue of roundClues) {
-      try {
-        const narrative = await this.aiService.generateClueNarration(game.id, publicStateStr, clue.text, game.difficulty);
-        console.log(`[CLUE GENERATED]`, narrative);
-
-        if (this.onSystemEvent) { const res = this.pushSystemMessage(game, narrative, 'clue'); this.onSystemEvent(game.id, narrative, 'clue', game.roundNumber, res.seq, res.timestamp); }
-
-        const safeText = clue.text || 'Pista no disponible temporalment';
-        this.recordTimelineEvent(game, {
-          type: 'CLUE',
-          roundNumber: clue.roundNumber,
-          text: safeText,
-          isTrue: clue.isTrue,
-          description: `Pista revelada: ${safeText}`
-        });
-      } catch (error) {
-        console.error("Error generating clue narration:", error);
-        if (this.onSystemEvent) { const fallbackText = clue.text || 'Pista no disponible temporalment'; const resF = this.pushSystemMessage(game, fallbackText, 'clue'); this.onSystemEvent(game.id, fallbackText, 'clue', game.roundNumber, resF.seq, resF.timestamp); }
-      }
+  private revealCluesForRound(game: Game, roundNumber: number): void {
+    for (const clue of game.clues.filter(entry => entry.roundNumber === roundNumber)) {
+      const text = clue.text || 'Pista no disponible temporalment';
+      const { seq, timestamp } = this.pushSystemMessage(game, text, 'clue', clue.id);
+      this.recordTimelineEvent(game, {
+        type: 'CLUE',
+        roundNumber,
+        text,
+        isTrue: clue.isTrue,
+        description: `Pista revelada: ${text}`
+      });
+      this.onSystemEvent?.(game.id, text, 'clue', roundNumber, seq, timestamp);
     }
   }
 
@@ -672,12 +652,12 @@ export class GameEngine {
     if (game.state !== GameStates.PLAYING) {
       throw new Error('Només es pot forçar la ronda si la partida està en curs');
     }
-    await this.advanceRound(game);
+    this.advanceRound(game);
     this.store.save(game);
     return game;
   }
 
-  private async advanceRound(game: Game): Promise<void> {
+  private advanceRound(game: Game): void {
     if (game.roundNumber >= game.maxRounds) {
       game.state = GameStates.FINISHED;
       game.winnerType = 'ASSASSIN';
@@ -707,10 +687,7 @@ export class GameEngine {
 
     { const { seq, timestamp } = this.pushSystemMessage(game, msg); if (this.onSystemEvent) { this.onSystemEvent(game.id, msg, 'system', game.roundNumber, seq, timestamp); } }
 
-    // Save game state BEFORE revealing clues to avoid overwriting async clue persistence
-    this.store.save(game);
-
-    await this.revealCluesForRound(game, game.roundNumber);
+    this.revealCluesForRound(game, game.roundNumber);
 
     game.players.forEach((p) => {
       p.askedThisRound = false;

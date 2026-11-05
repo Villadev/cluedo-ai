@@ -9,7 +9,6 @@ import { InstructionsComponent } from './features/instructions/instructions.comp
 import { IntroductionComponent } from './features/introduction/introduction.component';
 import { SolutionComponent } from './features/solution/solution.component';
 import { DebugPageComponent } from './pages/debug/debug-page.component';
-import { ChatHistoryPageComponent } from './pages/chat-history/chat-history-page.component';
 import { TimelinePageComponent } from './pages/timeline/timeline-page.component';
 import { QuestionsPageComponent } from './pages/questions/questions-page.component';
 import { DatabasePageComponent } from './pages/database/database-page.component';
@@ -27,7 +26,7 @@ export const appRoutes: Routes = [
   { path: 'introduction', component: IntroductionComponent, canActivate: [authGuard] },
   { path: 'solution', component: SolutionComponent, canActivate: [authGuard] },
   { path: 'debug', component: DebugPageComponent, canActivate: [authGuard] },
-  { path: 'chat-history', component: ChatHistoryPageComponent, canActivate: [authGuard] },
+  { path: 'chat-history', loadComponent: () => import('./pages/chat-history/chat-history-page.component').then(m => m.ChatHistoryPageComponent), canActivate: [authGuard] },
   { path: 'timeline', component: TimelinePageComponent, canActivate: [authGuard] },
   { path: 'questions', component: QuestionsPageComponent, canActivate: [authGuard] },
   { path: 'database', component: DatabasePageComponent }
