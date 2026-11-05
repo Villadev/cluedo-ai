@@ -28,3 +28,10 @@ test('rebutja secrets que neguen explícitament el vincle', () => {
   ] };
   assert.ok(validateRelations(matrix, names, 'Elvira Font').some(i => i.includes('sense vincle')));
 });
+
+test('no exigeix inventar vincles per a cada sospitós', () => {
+  assert.deepEqual(validateRelations({ relations: [] }, names, 'Elvira Font'), []);
+  assert.deepEqual(validateRelations({ relations: [
+    { a: 'Oriol', b: 'Andrea', type: 'ally', strength: 'low', note: 'Treballen junts.' }
+  ] }, names, 'Elvira Font'), []);
+});
