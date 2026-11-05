@@ -15,6 +15,9 @@ export function validateRelations(matrix: RelationshipMatrix, names: string[], v
   const issues: string[] = [];
   const pairs = new Set<string>();
   for (const r of matrix.relations) {
+    if (/\b(no (?:hi ha|consta|existeix|tenen|té)|cap (?:vincle|relació)|sense (?:vincle|relació)|no s.ha (?:confirmat|verificat))\b/i.test(r.note)) {
+      issues.push(`Relació ${r.a}–${r.b} sense vincle afirmat: no es pot tipificar com ${r.type}.`);
+    }
     const a = normalizeName(r.a), b = normalizeName(r.b);
     const key = [a, b].sort().join('|');
     if (!allowed.has(a) || !allowed.has(b) || a === b || pairs.has(key)) issues.push('Relació desconeguda, repetida o amb un mateix.');
@@ -43,10 +46,32 @@ export function validatePlan(characters: Partial<AIServiceCharacter>[], seed: Pa
         issues.push(`El testimoni de ${c.name} no coincideix en lloc i horari.`);
       }
     }
-    if (normalizeName(c.name || '') === normalizeName(seed.assassin || '') && a.credibility === 'alta' && a.witness !== 'Ningú' &&
-        seed.crimeWindow && minutes(a.timeStart) <= minutes(seed.crimeWindow.start) && minutes(a.timeEnd) >= minutes(seed.crimeWindow.end) && a.location !== seed.location) {
-      issues.push('La coartada confirmada del culpable impedeix el crim.');
-    }
+
   }
   return issues;
+}
+
+/**
+ * The crime location is an objective fact. Character alibis are statements,
+ * never independent evidence of presence or absence.
+ */
+export function buildCanonicalTimeline(caseData: Pick<FullCase, 'assassin' | 'location' | 'crimeWindow' | 'characters'>): NonNullable<FullCase['canonicalTimeline']> {
+  const presences: NonNullable<FullCase['canonicalTimeline']>['presences'] = [{
+    characterName: caseData.assassin, location: caseData.location,
+    timeStart: caseData.crimeWindow.start, timeEnd: caseData.crimeWindow.end, source: 'crime'
+  }];
+  const statements = caseData.characters.map(c => {
+    const a = c.coartada;
+    const conflictsWithTruth = normalizeName(c.name) === normalizeName(caseData.assassin) &&
+      a.location !== caseData.location &&
+      minutes(a.timeStart) < minutes(caseData.crimeWindow.end) &&
+      minutes(a.timeEnd) > minutes(caseData.crimeWindow.start);
+    return {
+      characterName: c.name,
+      text: `${c.name} declara que era a ${a.location} de ${a.timeStart} a ${a.timeEnd}; testimoni declarat: ${a.witness}.`,
+      verified: false,
+      conflictsWithTruth
+    };
+  });
+  return { presences, statements };
 }

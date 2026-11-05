@@ -320,7 +320,21 @@ export interface CaseFact extends AIServiceClue {
   revealRound: number;
 }
 
+export interface CanonicalPresence {
+  characterName: string;
+  location: string;
+  timeStart: string;
+  timeEnd: string;
+  source: 'crime' | 'unverified-alibi';
+}
+
+export interface CanonicalTimeline {
+  presences: CanonicalPresence[];
+  statements: { characterName: string; text: string; verified: boolean; conflictsWithTruth: boolean }[];
+}
+
 export interface FullCase {
+  canonicalTimeline?: CanonicalTimeline;
   facts?: CaseFact[];
   generationFeedback?: string;
   victim: string;

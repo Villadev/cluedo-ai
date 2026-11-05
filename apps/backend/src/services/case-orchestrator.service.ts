@@ -17,6 +17,7 @@ import {
 } from '../types/game.types.js';
 import { generateId } from '../utils/id.js';
 import { buildCaseFacts } from '../game/case-facts.js';
+import { buildCanonicalTimeline } from '../game/case-validation.js';
 import { createHash } from 'node:crypto';
 import { env } from '../config/env.js';
 
@@ -66,7 +67,7 @@ export class CaseOrchestratorService {
     const game = this.store.getById(gameId);
     if (!game) return;
 
-    const signature = createHash('sha256').update(JSON.stringify({ version: 1,
+    const signature = createHash('sha256').update(JSON.stringify({ version: 3,
       players: game.players.map(p => [p.id, p.nickname]), difficulty, maxRounds,
       model: env.OPENAI_MODEL, batchSize: this.BATCH_SIZE,
       budgets: [env.OPENAI_MAX_TOKENS_JSON, env.OPENAI_MAX_TOKENS_CLUES, env.OPENAI_MAX_TOKENS_NARRATIVES, env.OPENAI_MAX_TOKENS_REVIEW]
@@ -189,6 +190,7 @@ export class CaseOrchestratorService {
         startAt: Date.now(), endAt: Date.now(), durationMs: 0, outcome: 'success', model: 'orchestrator'
       });
 
+      fullCase.canonicalTimeline = buildCanonicalTimeline(fullCase as FullCase);
       fullCase.facts = buildCaseFacts(fullCase as FullCase, maxRounds);
 
       // 3. NARRATIVES
@@ -244,9 +246,9 @@ export class CaseOrchestratorService {
           }
           this.store.save(current);
         }
-        if (repairAttempt === 0 && !globalController.signal.aborted) {
+        if (repairAttempt < 2 && !globalController.signal.aborted) {
           clearTimeout(globalTimeout);
-          return await this.runGeneration(gameId, difficulty, maxRounds, externalSignal, globalStartTime, 1);
+          return await this.runGeneration(gameId, difficulty, maxRounds, externalSignal, globalStartTime, repairAttempt + 1);
         }
       }
       globalController.abort();
