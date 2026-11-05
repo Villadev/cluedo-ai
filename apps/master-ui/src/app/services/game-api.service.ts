@@ -230,8 +230,8 @@ export class GameApiService {
     this.gameId.set(id);
   }
 
-  createGame(maxRounds: number = 5, name: string = 'Misteri'): Observable<ApiResponse<PublicGameView>> {
-    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game`, { maxRounds, name }).pipe(
+  createGame(maxRounds: number = 5, name: string = 'Misteri', difficulty: Difficulty = 'hard'): Observable<ApiResponse<PublicGameView>> {
+    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game`, { maxRounds, name, difficulty }).pipe(
       tap(response => {
         if (response.success && response.data?.id) {
           this.setGameId(response.data.id);
