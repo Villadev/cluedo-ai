@@ -149,6 +149,29 @@ Retorna JSON:
     return result.characters;
   }
 
+  public buildSimpleCasePlan(caseBible: Partial<FullCase>, basics: Partial<AIServiceCharacter>[]): Partial<AIServiceCharacter>[] {
+    const places = ['la cuina', 'el jardí', 'la biblioteca', 'el menjador', 'el pati', 'el magatzem'];
+    const motives = ['una discussió pendent', 'un desacord sobre diners', 'un document desaparegut', 'una promesa incomplerta'];
+    return basics.map((basic, index) => {
+      const isKiller = this.normalizeName(basic.name || '') === this.normalizeName(caseBible.assassin || '');
+      const location = isKiller ? places[(index + 1) % places.length]! : places[index % places.length]!;
+      return {
+        ...basic,
+        possibleMotive: motives[index % motives.length]!,
+        secret: `Amaga informació sobre ${motives[(index + 2) % motives.length]}.`,
+        secretKnowledge: 'Ha observat un detall de la nit que encara no ha explicat.',
+        rumor: 'Hi ha versions contradictòries dels fets, però no estan confirmades.',
+        coartada: {
+          location,
+          timeStart: '20:45',
+          timeEnd: '21:45',
+          witness: 'Ningú',
+          credibility: 'baixa' as const
+        }
+      };
+    });
+  }
+
   public async generateRelationshipMatrix(
     gameId: string,
     caseBible: Partial<FullCase>,
