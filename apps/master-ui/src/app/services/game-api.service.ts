@@ -38,6 +38,7 @@ export interface PublicClueView {
 
 export interface PublicPlayerView {
   id: string;
+  code?: string;
   nickname: string;
   character?: PublicCharacterView;
   isReady: boolean;
@@ -51,6 +52,8 @@ export interface PublicPlayerView {
 
 export interface PublicGameView {
   id: string;
+  name?: string;
+  code?: string;
   state: GameState;
   players: PublicPlayerView[];
   clues: PublicClueView[];
@@ -227,8 +230,8 @@ export class GameApiService {
     this.gameId.set(id);
   }
 
-  createGame(maxRounds: number = 5): Observable<ApiResponse<PublicGameView>> {
-    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game`, { maxRounds }).pipe(
+  createGame(maxRounds: number = 5, name: string = 'Misteri'): Observable<ApiResponse<PublicGameView>> {
+    return this.http.post<ApiResponse<PublicGameView>>(`${this.baseUrl}/game`, { maxRounds, name }).pipe(
       tap(response => {
         if (response.success && response.data?.id) {
           this.setGameId(response.data.id);
