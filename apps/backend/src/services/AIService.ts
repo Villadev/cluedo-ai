@@ -182,6 +182,7 @@ Retorna JSON:
       const relations = data.relations || [];
       const issues = validateRelations(data, characters.map(c => c.name || ''), caseBible.victim || '');
       const valid = issues.length === 0;
+      if (!valid) console.warn('[RELATIONS_MATRIX] Validation issues:', JSON.stringify({ gameId, issues, relationsCount: relations.length }));
       return { valid, hardValidationPassed: valid, details: { relationsCount: relations.length, issues } };
     }, 3, signal);
   }
