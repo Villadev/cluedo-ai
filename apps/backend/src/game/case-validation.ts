@@ -15,6 +15,9 @@ export function validateRelations(matrix: RelationshipMatrix, names: string[], v
   const issues: string[] = [];
   const pairs = new Set<string>();
   for (const r of matrix.relations) {
+    if (/\b(no (?:hi ha|consta|existeix|tenen|té)|cap (?:vincle|relació)|sense (?:vincle|relació)|no s.ha (?:confirmat|verificat))\b/i.test(r.note)) {
+      issues.push(`Relació ${r.a}–${r.b} sense vincle afirmat: no es pot tipificar com ${r.type}.`);
+    }
     const a = normalizeName(r.a), b = normalizeName(r.b);
     const key = [a, b].sort().join('|');
     if (!allowed.has(a) || !allowed.has(b) || a === b || pairs.has(key)) issues.push('Relació desconeguda, repetida o amb un mateix.');
@@ -43,9 +46,10 @@ export function validatePlan(characters: Partial<AIServiceCharacter>[], seed: Pa
         issues.push(`El testimoni de ${c.name} no coincideix en lloc i horari.`);
       }
     }
-    if (normalizeName(c.name || '') === normalizeName(seed.assassin || '') && a.credibility === 'alta' && a.witness !== 'Ningú' &&
-        seed.crimeWindow && minutes(a.timeStart) <= minutes(seed.crimeWindow.start) && minutes(a.timeEnd) >= minutes(seed.crimeWindow.end) && a.location !== seed.location) {
-      issues.push('La coartada confirmada del culpable impedeix el crim.');
+    if (normalizeName(c.name || '') === normalizeName(seed.assassin || '') && seed.crimeWindow &&
+        a.location !== seed.location && minutes(a.timeStart) < minutes(seed.crimeWindow.end) &&
+        minutes(a.timeEnd) > minutes(seed.crimeWindow.start)) {
+      issues.push(`La coartada de ${c.name} a ${a.location} se solapa amb el crim a ${seed.location}; cal una cronologia compatible, no una ubicació simultània.`);
     }
   }
   return issues;
