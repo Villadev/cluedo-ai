@@ -36,12 +36,13 @@ export function validatePlan(characters: Partial<AIServiceCharacter>[], seed: Pa
     if (!c.secret?.trim() || !c.secretKnowledge?.trim() || !c.rumor?.trim()) issues.push(`Falten secrets o rumors: ${c.name}.`);
     const others = names.filter(n => normalizeName(n) !== normalizeName(c.name || ''));
     if (!others.some(n => c.secretKnowledge?.includes(n))) issues.push(`El coneixement privat de ${c.name} ha de mencionar un altre participant.`);
-    if (a.witness !== 'Ningú') {
+    if (normalizeName(a.witness) !== normalizeName('Ningú')) {
       const witness = characters.find(w => normalizeName(w.name || '') === normalizeName(a.witness));
-      if (!witness || witness === c || !witness.coartada || witness.coartada.location !== a.location ||
-          minutes(witness.coartada.timeStart) > minutes(a.timeStart) || minutes(witness.coartada.timeEnd) < minutes(a.timeEnd)) {
-        issues.push(`El testimoni de ${c.name} no coincideix en lloc i horari.`);
+      if (!witness || witness === c) {
+        issues.push(`Testimoni desconegut o propi: ${c.name}.`);
       }
+      // A named witness is a claim, not independently verified presence.
+      // Do not reject intentionally false or disputed alibis on co-location alone.
     }
 
   }
