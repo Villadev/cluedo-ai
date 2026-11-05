@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { Subscription } from 'rxjs';
-import { Difficulty, GameApiService, GameState, PlayerStatus } from '../../services/game-api.service';
+import { Difficulty, GameApiService, GameState, PlayerStatus, SolutionResponse } from '../../services/game-api.service';
 import { WebSocketService } from '../../services/websocket.service';
 import { GameStateService } from '../../services/game-state.service';
 import { GenerationStatusCardComponent } from "../../components/generation-status-card/generation-status-card.component";
@@ -70,7 +70,8 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   protected readonly playerStatus = signal<PlayerStatus[]>([]);
   protected readonly generationProgress = signal<GenerationProgress | null>(null);
   protected readonly generationError = signal<string | null>(null);
-  protected readonly solutionStatus = signal<string>('Solution pending...');
+  protected readonly solutionStatus = signal<string>('Pendent de generar');
+  protected readonly caseSolution = signal<SolutionResponse | null>(null);
   protected readonly showCopyFeedback = signal<boolean>(false);
   protected readonly playersCount = signal<number>(0);
   protected readonly elapsedTime = signal<number>(0);
@@ -247,17 +248,16 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     });
 
     this.gameApiService.getSolution(id).subscribe({
-      next: (response: any) => {
-        if (response.success && response.data) {
-           if (response.data.message) {
-             this.solutionStatus.set('Solution pending...');
-           } else {
-             this.solutionStatus.set('Solution generated ✔');
-           }
-        }
+      next: response => {
+        if (this.gameId() !== id) return;
+        const solution = response.success && response.data && !response.data.message ? response.data : null;
+        this.caseSolution.set(solution);
+        this.solutionStatus.set(solution ? 'Generada' : 'Pendent de generar');
       },
       error: () => {
-        this.solutionStatus.set('Solution pending...');
+        if (this.gameId() !== id) return;
+        this.caseSolution.set(null);
+        this.solutionStatus.set('No disponible');
       }
     });
   }

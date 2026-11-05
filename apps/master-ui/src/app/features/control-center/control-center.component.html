@@ -183,6 +183,19 @@
         </div>
         <div class="detail-row"><span>Dificultat</span><strong>{{ difficulty() | titlecase }}</strong></div>
         <div class="detail-row"><span>Solució</span><strong>{{ solutionStatus() }}</strong></div>
+        @if (caseSolution(); as solution) {
+          <details class="danger-disclosure" aria-label="Solució del cas, només per al màster">
+            <summary><i class="pi pi-eye" aria-hidden="true"></i> Veure la solució completa (només màster) <i class="pi pi-chevron-down chevron" aria-hidden="true"></i></summary>
+            <div class="danger-content">
+              <div class="detail-row"><span>Assassí</span><strong>{{ solution.assassin }}</strong></div>
+              <div class="detail-row"><span>Arma</span><strong>{{ solution.weapon }}</strong></div>
+              <div class="detail-row"><span>Lloc del crim</span><strong>{{ solution.location }}</strong></div>
+              <div class="detail-row"><span>Víctima</span><strong>{{ solution.victimName }}</strong></div>
+              <h3>Resolució del misteri</h3>
+              <p style="white-space: pre-line">{{ solution.finalNarrative }}</p>
+            </div>
+          </details>
+        }
         @if (winnerType()) {
           <div class="winner-note"><i class="pi pi-trophy" aria-hidden="true"></i> Guanyador: <strong>{{ winnerType() }}</strong></div>
         }
