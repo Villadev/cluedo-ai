@@ -272,13 +272,14 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   protected createGame(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.gameApiService.createGame(this.maxRounds(), this.newGameName().trim() || 'Misteri').subscribe({
+    const selectedDifficulty = this.difficulty();
+    this.gameApiService.createGame(this.maxRounds(), this.newGameName().trim() || 'Misteri', selectedDifficulty).subscribe({
       next: (response: any) => {
         if (!response.success) {
           this.error.set(response.error || 'Error al crear la partida');
         } else {
           this.gameCode.set(response.data?.code || response.data?.id || '');
-          this.updateDifficulty(this.difficulty());
+          this.difficulty.set(response.data.difficulty);
         }
         this.loading.set(false);
       },
@@ -470,24 +471,12 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     const id = this.gameId();
     if (id && this.gameState() === 'LOBBY') {
       this.gameApiService.updateLobbySettings(id, { difficulty: value }).subscribe({
-        next: () => {
-          // També emetem via WS per retrocompatibilitat i feedback immediat si cal,
-          // tot i que el PATCH ja emet un estat actualitzat.
-          this.updateDifficulty(value);
+        next: (response) => {
+          if (response.success && response.data) this.difficulty.set(response.data.difficulty);
         },
         error: (err) => this.error.set(err.error?.error || 'Error al guardar la dificultat')
       });
     }
-  }
-
-  private updateDifficulty(difficulty: Difficulty): void {
-    const id = this.gameId();
-    if (!id) return;
-
-    this.websocketService.emit('update_difficulty', {
-      gameId: id,
-      difficulty: difficulty
-    });
   }
 
   protected copyGameLink(): void {
