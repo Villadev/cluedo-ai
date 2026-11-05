@@ -66,7 +66,8 @@ export class AppComponent implements OnInit {
       this.gameService.setSession({ gameId, playerId });
 
       // If we are at the root, redirect to the game chat
-      if (this.router.url === '/' || this.router.url === '') {
+      const personalLink = new URLSearchParams(window.location.search);
+      if (!personalLink.has('participantId') && !personalLink.has('playerId') && (this.router.url === '/' || this.router.url === '')) {
         void this.router.navigate(['/game', gameId]);
       }
     }
