@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { validatePlan, validateRelations } from '../game/case-validation.js';
+import { buildCanonicalTimeline, validatePlan, validateRelations } from '../game/case-validation.js';
 
 const names = ['Oriol', 'Andrea', 'Sospitós 1', 'Sospitós 2'];
 const seed = { assassin: 'Oriol', location: 'Can Coll', crimeWindow: { start: '21:00', end: '21:30' } };
@@ -8,13 +8,18 @@ const character = (name: string, location: string, start = '20:50', end = '21:40
   name, secret: 'Un secret', secretKnowledge: name === 'Andrea' ? 'Oriol coneix el secret' : 'Andrea coneix el secret', rumor: 'Una sospita',
   coartada: { location, timeStart: start, timeEnd: end, witness: 'Ningú', credibility: 'baixa' as const }
 });
-test('2 humans + 2 NPCs: detecta la coartada incompatible del culpable', () => {
+test('2 humans + 2 NPCs: una coartada falsa no invalida el pla', () => {
   const characters = [character('Oriol', 'Bar La Plaça'), character('Andrea', 'Can Coll'), character('Sospitós 1', 'Can Coll'), character('Sospitós 2', 'Can Coll')];
-  assert.ok(validatePlan(characters, seed, names).some(i => i.includes('se solapa')));
+  assert.deepEqual(validatePlan(characters, seed, names), []);
+  const timeline = buildCanonicalTimeline({ ...seed, characters });
+  assert.equal(timeline.presences[0]?.location, 'Can Coll');
+  assert.equal(timeline.statements.find(s => s.characterName === 'Oriol')?.conflictsWithTruth, true);
+  assert.equal(timeline.statements.find(s => s.characterName === 'Oriol')?.verified, false);
 });
 test('2 humans + 2 NPCs: accepta una cronologia compatible', () => {
   const characters = [character('Oriol', 'Bar La Plaça', '20:00', '20:50'), character('Andrea', 'Can Coll'), character('Sospitós 1', 'Can Coll'), character('Sospitós 2', 'Can Coll')];
   assert.deepEqual(validatePlan(characters, seed, names), []);
+  assert.equal(buildCanonicalTimeline({ ...seed, characters }).statements[0]?.conflictsWithTruth, false);
 });
 test('rebutja secrets que neguen explícitament el vincle', () => {
   const matrix = { relations: [
