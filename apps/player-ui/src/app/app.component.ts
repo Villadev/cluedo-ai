@@ -60,12 +60,14 @@ export class AppComponent implements OnInit {
     const gameId = this.sessionService.getGameId();
     const playerId = this.sessionService.getPlayerId();
 
-    if (gameId && playerId) {
+    const hasInvitation = new URLSearchParams(window.location.search).has('gameId');
+    if (gameId && playerId && !hasInvitation) {
       // Restore session in GameService
       this.gameService.setSession({ gameId, playerId });
 
       // If we are at the root, redirect to the game chat
-      if (this.router.url === '/' || this.router.url === '') {
+      const personalLink = new URLSearchParams(window.location.search);
+      if (!personalLink.has('participantId') && !personalLink.has('playerId') && (this.router.url === '/' || this.router.url === '')) {
         void this.router.navigate(['/game', gameId]);
       }
     }

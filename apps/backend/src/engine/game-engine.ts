@@ -79,10 +79,11 @@ export class GameEngine {
     }
   }
 
-  public createGame(maxRounds: number = 5): Game {
+  public createGame(maxRounds: number = 5, name: string = 'Misteri'): Game {
     const timestamp = nowIso();
     const game: Game = {
       id: generateId(),
+      name: name.trim() || 'Misteri',
       state: 'LOBBY',
       players: [],
       characters: [],
@@ -108,8 +109,24 @@ export class GameEngine {
       generationPhase: GenerationPhases.IDLE
     };
 
+    game.code = this.makeCode(game.name!, game.id, 8);
     this.store.save(game);
     return game;
+  }
+
+  private makeCode(name: string, id: string, length: number): string {
+    const slug = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 16) || 'JOC';
+    return `${slug}-${id.replace(/-/g, '').slice(0, length).toUpperCase()}`;
+  }
+
+  public resolveSession(gameCode: string, playerCode?: string): { gameId: string; playerId?: string } {
+    const games = this.store.list().filter(g => g.id.toLowerCase() === gameCode.toLowerCase() || (g.code || this.makeCode(g.name || 'Misteri', g.id, 8)).toLowerCase() === gameCode.toLowerCase());
+    if (games.length !== 1) throw new Error('Partida no trobada o codi ambigu');
+    const game = games[0]!;
+    if (!playerCode) return { gameId: game.id };
+    const players = game.players.filter(p => p.type === 'real' && (p.id.toLowerCase() === playerCode.toLowerCase() || (p.code || this.makeCode(p.nickname, p.id, 6)).toLowerCase() === playerCode.toLowerCase()));
+    if (players.length !== 1) throw new Error('Participant no trobat en aquesta partida');
+    return { gameId: game.id, playerId: players[0]!.id };
   }
 
   public async addPlayer(gameId: string, nickname: string): Promise<Game> {
@@ -142,6 +159,7 @@ export class GameEngine {
       type: "real"
     };
 
+    player.code = this.makeCode(nickname, player.id, 6);
     game.players.push(player);
     game.updatedAt = nowIso();
     this.store.save(game);
@@ -251,9 +269,12 @@ export class GameEngine {
 
     return {
       id: game.id,
+      name: game.name || 'Misteri',
+      code: game.code || this.makeCode(game.name || 'Misteri', game.id, 8),
       state: game.state,
       players: game.players.map(p => ({
         id: p.id,
+        code: p.code || this.makeCode(p.nickname, p.id, 6),
         nickname: p.nickname,
         character: p.id === playerId || game.state === GameStates.FINISHED
           ? game.characters.find(c => c.id === p.characterId)
@@ -533,6 +554,7 @@ export class GameEngine {
     const game = this.getGameOrThrow(gameId);
     return game.players.map(p => ({
       id: p.id,
+      code: p.code || this.makeCode(p.nickname, p.id, 6),
       nickname: p.nickname,
       character: game.characters.find(c => c.id === p.characterId),
       isReady: p.isReady,

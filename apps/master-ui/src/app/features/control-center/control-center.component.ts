@@ -61,6 +61,8 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   protected readonly loading = signal<boolean>(false);
   protected readonly error = signal<string | null>(null);
   protected readonly playerName = signal<string>('');
+  protected readonly newGameName = signal<string>('Misteri');
+  protected readonly gameCode = signal<string>('');
   protected readonly currentRound = signal<number>(0);
   protected readonly maxRounds = signal<number>(5);
   protected readonly difficulty = signal<Difficulty>('hard');
@@ -110,6 +112,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       if (id) {
         this.websocketService.connect(id);
         this.fetchInitialGameData(id);
+        this.refreshGameCode(id);
       } else {
         this.websocketService.disconnect();
         this.gameStateService.setState('NONE');
@@ -259,14 +262,22 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     });
   }
 
+  private refreshGameCode(id: string): void {
+    this.gameApiService.getGame(id).subscribe({
+      next: response => { if (response.success && response.data) this.gameCode.set(response.data.code || response.data.id); },
+      error: () => this.gameCode.set(id)
+    });
+  }
+
   protected createGame(): void {
     this.loading.set(true);
     this.error.set(null);
-    this.gameApiService.createGame(this.maxRounds()).subscribe({
+    this.gameApiService.createGame(this.maxRounds(), this.newGameName().trim() || 'Misteri').subscribe({
       next: (response: any) => {
         if (!response.success) {
           this.error.set(response.error || 'Error al crear la partida');
         } else {
+          this.gameCode.set(response.data?.code || response.data?.id || '');
           this.updateDifficulty(this.difficulty());
         }
         this.loading.set(false);
@@ -482,7 +493,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
   protected copyGameLink(): void {
     const id = this.gameId();
     if (!id) return;
-    const url = `https://player-ui.onrender.com/?gameId=${id}`;
+    const url = `https://player-ui.onrender.com/?gameId=${encodeURIComponent(this.gameCode() || id)}`;
     navigator.clipboard.writeText(url).then(() => {
       this.showCopyFeedback.set(true);
       setTimeout(() => this.showCopyFeedback.set(false), 2000);

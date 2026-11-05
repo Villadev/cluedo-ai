@@ -2,19 +2,19 @@
   <p-card header="Unir-se a la partida" subheader="Introdueix les dades per començar la investigació" styleClass="w-full md:w-7 lg:w-5 mb-4">
     <form class="p-fluid" [formGroup]="joinForm" (ngSubmit)="onJoin()">
       <div class="field mb-3">
-        <label for="gameId" class="font-semibold mb-2 block">ID de la partida</label>
+        <label for="gameId" class="font-semibold mb-2 block">Codi de la partida</label>
         <input id="gameId" type="text" pInputText formControlName="gameId" placeholder="Exemple: ABC123" />
       </div>
 
       <div class="field-checkbox mb-3 flex align-items-center gap-2">
         <p-checkbox inputId="usePlayerId" binary="true" formControlName="usePlayerId" />
-        <label for="usePlayerId" class="m-0 font-medium cursor-pointer">Tinc un ID de participant</label>
+        <label for="usePlayerId" class="m-0 font-medium cursor-pointer">Ja tinc un codi de participant</label>
       </div>
 
       @if (joinForm.controls.usePlayerId.value) {
         <div class="field mb-4">
-          <label for="playerId" class="font-semibold mb-2 block">ID de participant</label>
-          <input id="playerId" type="text" pInputText formControlName="playerId" placeholder="Exemple: 4f4f2c95..." />
+          <label for="playerId" class="font-semibold mb-2 block">Codi de participant</label>
+          <input id="playerId" type="text" pInputText formControlName="playerId" placeholder="Exemple: ANNA-3A7F2C" />
         </div>
       } @else {
         <div class="field mb-4">

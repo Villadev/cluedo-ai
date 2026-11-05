@@ -123,6 +123,7 @@ export interface Character {
 
 export interface Player {
   id: string;
+  code?: string;
   nickname: string;
   characterId: string | null;
   isReady: boolean;
@@ -156,6 +157,8 @@ export interface Question {
 
 export interface Game {
   id: string;
+  name?: string;
+  code?: string;
   state: GameState;
   players: Player[];
   characters: Character[];
@@ -226,6 +229,7 @@ export interface PublicClueView {
 
 export interface PublicPlayerView {
   id: string;
+  code?: string;
   nickname: string;
   character?: PublicCharacterView;
   isReady: boolean;
@@ -238,6 +242,8 @@ export interface PublicPlayerView {
 }
 
 export interface PublicGameView {
+  name?: string;
+  code?: string;
   result?: GameResult;
   assassinId?: string;
   id: string;

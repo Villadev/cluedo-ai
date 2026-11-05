@@ -37,15 +37,20 @@ export class ParticipantsComponent {
   readonly loading = signal<boolean>(false);
   readonly error = signal<string | null>(null);
   readonly gameId = this.gameApiService.gameId;
+  readonly gameCode = signal<string>('');
   readonly copiedId = signal<string | null>(null);
 
-  protected copyPlayerLink(playerId: string): void {
+  protected copyPlayerCode(player: PublicPlayerView): void {
+    navigator.clipboard.writeText(player.code || player.id).then(() => this.copiedId.set(player.id)).catch(() => this.error.set('No s’ha pogut copiar el codi.'));
+  }
+
+  protected copyPlayerLink(player: PublicPlayerView): void {
     const gid = this.gameId();
     if (!gid) return;
 
-    const url = `https://player-ui.onrender.com/?gameId=${gid}&participantId=${playerId}`;
+    const url = `https://player-ui.onrender.com/?gameId=${encodeURIComponent(this.gameCode() || gid)}&participantId=${encodeURIComponent(player.code || player.id)}`;
     navigator.clipboard.writeText(url).then(() => {
-      this.copiedId.set(playerId);
+      this.copiedId.set(player.id);
       setTimeout(() => this.copiedId.set(null), 2000);
     });
   }
@@ -82,6 +87,7 @@ export class ParticipantsComponent {
   protected fetchParticipants(id: string): void {
     this.loading.set(true);
     this.error.set(null);
+    this.gameApiService.getGame(id).subscribe(response => { if (response.success && response.data) this.gameCode.set(response.data.code || response.data.id); });
     this.gameApiService.getParticipants(id).subscribe({
       next: (response) => {
         if (response.success && response.data) {

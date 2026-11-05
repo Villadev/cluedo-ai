@@ -26,7 +26,7 @@
       <div class="invite-icon"><i class="pi pi-link" aria-hidden="true"></i></div>
       <div class="invite-details">
         <strong>Convida els jugadors</strong>
-        <span>Codi de partida: <code>{{ gameId() }}</code></span>
+        <span>Codi de partida: <code>{{ gameCode() || gameId() }}</code></span>
       </div>
       <button pButton type="button" icon="pi pi-copy"
         [label]="showCopyFeedback() ? 'Copiat!' : 'Copiar enllaç'"
@@ -87,6 +87,8 @@
             @case ('NONE') {
               <h3>Comença una nova aventura</h3>
               <p>Configura les rondes i la dificultat, i crea la sala per als participants.</p>
+              <label for="newGameName">Nom de la partida</label>
+              <input id="newGameName" pInputText [ngModel]="newGameName()" (ngModelChange)="newGameName.set($event)" maxlength="80" />
               <button pButton type="button" label="Crear partida" icon="pi pi-plus" class="primary-action"
                 (click)="createGame()" [loading]="loading()" [disabled]="loading()"></button>
             }
