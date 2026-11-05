@@ -16,7 +16,7 @@ const accusationSchema = z.object({
 const roundParamsSchema = z.object({ id: z.string().uuid(), roundNumber: z.coerce.number().int().min(1) });
 const playerSecretParamsSchema = z.object({ id: z.string().uuid(), playerId: z.string().uuid() });
 const logEventSchema = z.object({ type: z.string().min(1), description: z.string() });
-const createSchema = z.object({ maxRounds: z.number().int().min(1).optional() });
+const createSchema = z.object({ maxRounds: z.number().int().min(1).optional(), name: z.string().trim().min(1).max(80).optional() });
 const userParamsSchema = z.object({ id: z.string().uuid(), userId: z.string().uuid() });
 const updateSettingsSchema = z.object({
   maxRounds: z.number().int().min(1).optional(),
@@ -26,6 +26,15 @@ const updateSettingsSchema = z.object({
 });
 
 export class GameController {
+  public async resolveSession(req: Request, res: Response): Promise<void> {
+    const query = z.object({ gameCode: z.string().min(1), playerCode: z.string().optional() }).parse(req.query);
+    try {
+      res.status(200).json(successResponse(gameEngine.resolveSession(query.gameCode.trim(), query.playerCode?.trim())));
+    } catch {
+      res.status(404).json({ success: false, error: 'No hem trobat aquesta partida o participant. Revisa els codis.' });
+    }
+  }
+
   public async updateSettings(req: Request, res: Response): Promise<void> {
     const gameId = this.getGameId(req);
     const settings = updateSettingsSchema.parse(req.body);
@@ -36,8 +45,8 @@ export class GameController {
   }
 
   public async createGame(req: Request, res: Response): Promise<void> {
-    const { maxRounds } = createSchema.parse(req.body || {});
-    const game = gameEngine.createGame(maxRounds);
+    const { maxRounds, name } = createSchema.parse(req.body || {});
+    const game = gameEngine.createGame(maxRounds, name);
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
