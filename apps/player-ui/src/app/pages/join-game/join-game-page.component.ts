@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, inject } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -25,6 +25,7 @@ export class JoinGamePageComponent implements OnInit {
   private readonly sessionService = inject(SessionService);
   private readonly gameService = inject(GameService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   protected isSubmitting = false;
   protected errorMessage = '';
@@ -69,11 +70,13 @@ export class JoinGamePageComponent implements OnInit {
     this.errorMessage = '';
 
     this.isSubmitting = true;
-    this.gameService.resolveSession(gameId, useExistingPlayerId ? playerId : undefined).subscribe({
+    this.cdr.markForCheck();
+    this.gameService.resolveSession(gameId, useExistingPlayerId ? playerId : undefined).pipe(finalize(() => this.cdr.markForCheck())).subscribe({
       next: response => {
         if (!response.success || !response.data) {
           this.errorMessage = response.error || 'Partida no trobada.';
           this.isSubmitting = false;
+          this.cdr.markForCheck();
           return;
         }
         const resolved = response.data;
@@ -81,24 +84,26 @@ export class JoinGamePageComponent implements OnInit {
           if (!resolved.playerId) {
             this.errorMessage = 'Participant no trobat.';
             this.isSubmitting = false;
+            this.cdr.markForCheck();
             return;
           }
           this.gameService.getGame(resolved.gameId, resolved.playerId).subscribe({
             next: game => {
-              if (game.success && game.data?.players.some(p => p.id === resolved.playerId && p.type === 'player')) {
+              if (game.success && game.data?.players.some(p => p.id === resolved.playerId && (p.type === 'real' || p.type === 'player'))) {
                 this.completeJoin(resolved.gameId, resolved.playerId!);
               } else {
                 this.errorMessage = 'Aquest participant ja no existeix.';
               }
               this.isSubmitting = false;
+              this.cdr.markForCheck();
             },
-            error: () => { this.errorMessage = 'No hem pogut recuperar la partida.'; this.isSubmitting = false; }
+            error: () => { this.errorMessage = 'No hem pogut recuperar la partida.'; this.isSubmitting = false; this.cdr.markForCheck(); }
           });
         } else {
           this.joinResolvedGame(resolved.gameId);
         }
       },
-      error: () => { this.errorMessage = 'Codi de partida o participant incorrecte.'; this.isSubmitting = false; }
+      error: () => { this.errorMessage = 'Codi de partida o participant incorrecte.'; this.isSubmitting = false; this.cdr.markForCheck(); }
     });
   }
 
@@ -107,13 +112,14 @@ export class JoinGamePageComponent implements OnInit {
 
     this.gameService
       .joinGame(gameId, name)
-      .pipe(finalize(() => (this.isSubmitting = false)))
+      .pipe(finalize(() => { this.isSubmitting = false; this.cdr.markForCheck(); }))
       .subscribe({
         next: (response) => {
           this.completeJoin(gameId, response.playerId);
         },
         error: () => {
           this.errorMessage = 'No hem pogut unir-te a la partida. Revisa les dades i torna-ho a provar.';
+          this.cdr.markForCheck();
         }
       });
   }
