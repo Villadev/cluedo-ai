@@ -6,14 +6,6 @@
     entre les <strong>{{ coartada.timeStart }}</strong> i les <strong>{{ coartada.timeEnd }}</strong>.
   </p>
 
-  <p *ngIf="coartada.witness !== 'ningú'" class="mb-2">
-    Segons tu, <strong>{{ coartada.witness }}</strong> pot confirmar-ho.
-  </p>
-
-  <p *ngIf="coartada.witness === 'ningú'" class="mb-2 italic text-600">
-    No hi ha cap testimoni que pugui confirmar-ho.
-  </p>
-
   <p class="m-0">
     <span class="font-bold">Credibilitat:</span> {{ coartada.credibility }}
   </p>
