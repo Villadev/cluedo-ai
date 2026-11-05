@@ -261,6 +261,13 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
     });
   }
 
+  private refreshGameCode(id: string): void {
+    this.gameApiService.getGame(id).subscribe({
+      next: response => { if (response.success && response.data) this.gameCode.set(response.data.code || response.data.id); },
+      error: () => this.gameCode.set(id)
+    });
+  }
+
   protected createGame(): void {
     this.loading.set(true);
     this.error.set(null);
