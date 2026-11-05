@@ -16,8 +16,8 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -40%);
-  height: 4.5rem;
+  transform: translate(-50%, -50%);
+  height: 3.75rem;
   pointer-events: none;
   user-select: none;
 }
@@ -25,5 +25,7 @@
 .layout-topbar-actions {
   display: flex;
   justify-content: flex-end;
-  min-width: 2.5rem;
+  margin-inline-start: auto;
+  max-width: calc(50% - 3rem);
+  font-size: .8rem;
 }

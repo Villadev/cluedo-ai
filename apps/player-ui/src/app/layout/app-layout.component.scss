@@ -4,26 +4,31 @@
 
 .layout-main-container {
   display: flex;
-  min-height: calc(100vh - 4rem);
-  padding-top: 0.5rem; /* Space for logo overflow */
+  min-height: calc(100dvh - 4rem);
+
 }
 
 .layout-sidebar-static {
   border-right: 1px solid var(--surface-border);
-  height: calc(100vh - 4.5rem); /* Adjusted for layout shift */
+  height: calc(100dvh - 4rem);
+  flex-shrink: 0;
+  overflow-y: auto;
   position: sticky;
   top: 4rem;
-  width: 18rem;
+  width: min(18rem, 88vw);
 }
 
 .layout-content {
   flex: 1;
-  overflow: auto;
+  min-width: 0;
+  max-width: 76rem;
+  margin-inline: auto;
+  padding: clamp(.5rem, 2vw, 1.5rem);
 }
 
 :host ::ng-deep .layout-mobile-sidebar {
   padding: 0;
-  width: 18rem;
+  width: min(18rem, 88vw);
 }
 
 :host ::ng-deep .layout-mobile-sidebar .p-sidebar-content {

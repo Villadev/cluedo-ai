@@ -1,4 +1,4 @@
-<div class="p-4">
+<div class="p-2 sm:p-4">
   <h1 class="text-3xl font-bold mb-4">Informació de la Partida</h1>
 
   @if (loading()) {
@@ -6,7 +6,7 @@
       <p-progressSpinner ariaLabel="Carregant informació"></p-progressSpinner>
     </div>
   } @else if (error()) {
-    <div class="p-4 bg-red-100 text-red-700 border-round">
+    <div class="p-2 sm:p-4 bg-red-100 text-red-700 border-round">
       {{ error() }}
     </div>
   } @else if (game(); as g) {

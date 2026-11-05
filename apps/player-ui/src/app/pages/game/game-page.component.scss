@@ -1,5 +1,6 @@
 .chat-list {
-  max-height: 26rem;
+  max-height: clamp(16rem, 55dvh, 40rem);
+  overscroll-behavior-y: contain;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -7,35 +8,36 @@
 }
 
 .chat-message {
-  border-radius: 0.5rem;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
   padding: 0.75rem;
   border: 1px solid var(--surface-border);
   position: relative;
 }
 
 .chat-system {
-  background: #f4f4f5;
-  border-left: 4px solid #71717a;
+  background: var(--surface-section);
+  border-left: 4px solid #94a3b8;
 }
 
 .chat-clue {
-  background: #eff6ff;
+  background: #142946;
   border-left: 4px solid #3b82f6;
 }
 
 .chat-player, .chat-question {
-  background: #ecfdf5;
+  background: #122c2e;
   border-left: 4px solid #10b981;
 }
 
 .chat-narrator, .chat-response {
-  background: #fffbeb;
-  border-left: 4px solid #f59e0b;
+  background: #30271d;
+  border-left: 4px solid var(--primary-color);
 }
 
 .chat-input {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.75rem;
 }
 
@@ -85,7 +87,7 @@
 .recording-dot {
   width: 10px;
   height: 10px;
-  background-color: #ef4444;
+  background-color: var(--player-danger);
   border-radius: 50%;
   display: inline-block;
   margin-right: 6px;
@@ -95,7 +97,9 @@
 .listening-indicator {
   display: flex;
   align-items: center;
-  color: #ef4444;
+  color: var(--player-danger);
   font-weight: 600;
   font-size: 0.875rem;
 }
+
+.chat-sender { padding-inline-end: 2.5rem; }
