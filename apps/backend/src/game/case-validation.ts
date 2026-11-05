@@ -23,9 +23,6 @@ export function validateRelations(matrix: RelationshipMatrix, names: string[], v
     if (!allowed.has(a) || !allowed.has(b) || a === b || pairs.has(key)) issues.push('Relació desconeguda, repetida o amb un mateix.');
     pairs.add(key);
   }
-  for (const n of names) {
-    if (!matrix.relations.some(r => [r.a, r.b].map(normalizeName).includes(normalizeName(n)))) issues.push(`Falten relacions per a ${n}.`);
-  }
   return issues;
 }
 export function validatePlan(characters: Partial<AIServiceCharacter>[], seed: Partial<FullCase>, names: string[]): string[] {
