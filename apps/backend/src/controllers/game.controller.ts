@@ -16,7 +16,7 @@ const accusationSchema = z.object({
 const roundParamsSchema = z.object({ id: z.string().uuid(), roundNumber: z.coerce.number().int().min(1) });
 const playerSecretParamsSchema = z.object({ id: z.string().uuid(), playerId: z.string().uuid() });
 const logEventSchema = z.object({ type: z.string().min(1), description: z.string() });
-const createSchema = z.object({ maxRounds: z.number().int().min(1).optional(), name: z.string().trim().min(1).max(80).optional() });
+const createSchema = z.object({ maxRounds: z.number().int().min(1).optional(), difficulty: z.enum(['easy', 'medium', 'hard', 'extreme']).optional(), name: z.string().trim().min(1).max(80).optional() });
 const userParamsSchema = z.object({ id: z.string().uuid(), userId: z.string().uuid() });
 const updateSettingsSchema = z.object({
   maxRounds: z.number().int().min(1).optional(),
@@ -45,8 +45,8 @@ export class GameController {
   }
 
   public async createGame(req: Request, res: Response): Promise<void> {
-    const { maxRounds, name } = createSchema.parse(req.body || {});
-    const game = gameEngine.createGame(maxRounds, name);
+    const { maxRounds, name, difficulty } = createSchema.parse(req.body || {});
+    const game = gameEngine.createGame(maxRounds, name, difficulty);
     res.status(200).json(successResponse(gameEngine.getPublicState(game.id)));
   }
 
