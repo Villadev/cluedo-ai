@@ -112,6 +112,7 @@ export class ControlCenterComponent implements OnInit, OnDestroy {
       if (id) {
         this.websocketService.connect(id);
         this.fetchInitialGameData(id);
+        this.refreshGameCode(id);
       } else {
         this.websocketService.disconnect();
         this.gameStateService.setState('NONE');
