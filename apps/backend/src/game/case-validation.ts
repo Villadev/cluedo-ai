@@ -15,7 +15,7 @@ export function validateRelations(matrix: RelationshipMatrix, names: string[], v
   const issues: string[] = [];
   const pairs = new Set<string>();
   for (const r of matrix.relations) {
-    if (/\b(no (?:hi ha|consta|existeix|tenen|té)|cap (?:vincle|relació)|sense (?:vincle|relació)|no s.ha (?:confirmat|verificat))\b/i.test(r.note)) {
+    if (/(?:^|[^\p{L}])(no (?:hi ha|consta|existeix|tenen|té)|cap (?:vincle|relació)|sense (?:vincle|relació)|no s.ha (?:confirmat|verificat))(?=$|[^\p{L}])/iu.test(r.note)) {
       issues.push(`Relació ${r.a}–${r.b} sense vincle afirmat: no es pot tipificar com ${r.type}.`);
     }
     const a = normalizeName(r.a), b = normalizeName(r.b);
