@@ -16,8 +16,8 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -40%);
-  height: 4.5rem;
+  transform: translate(-50%, -50%);
+  height: 3.75rem;
   pointer-events: none;
   user-select: none;
 }
@@ -26,4 +26,8 @@
   display: flex;
   justify-content: flex-end;
   min-width: 2.5rem;
+}
+
+@media (min-width: 992px) {
+  .menu-toggle { display: none; }
 }
