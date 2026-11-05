@@ -67,7 +67,7 @@ export class CaseOrchestratorService {
     const game = this.store.getById(gameId);
     if (!game) return;
 
-    const signature = createHash('sha256').update(JSON.stringify({ version: 3,
+    const signature = createHash('sha256').update(JSON.stringify({ version: 4,
       players: game.players.map(p => [p.id, p.nickname]), difficulty, maxRounds,
       model: env.OPENAI_MODEL, batchSize: this.BATCH_SIZE,
       budgets: [env.OPENAI_MAX_TOKENS_JSON, env.OPENAI_MAX_TOKENS_CLUES, env.OPENAI_MAX_TOKENS_NARRATIVES, env.OPENAI_MAX_TOKENS_REVIEW]
@@ -131,22 +131,9 @@ export class CaseOrchestratorService {
         globalController.signal
       );
 
-      // 2.1 RELATIONS MATRIX
-      const relationsMatrix = await this.executeStep<RelationshipMatrix>(
-        gameId,
-        GenerationPhases.RELATIONS_MATRIX,
-        "relations_matrix",
-        (sig) => this.aiService.generateRelationshipMatrix(gameId, fullCase, basicCharacters, difficulty, sig),
-        globalController.signal
-      );
-      fullCase.relationsMatrix = relationsMatrix;
-
+      fullCase.relationsMatrix = { relations: [] };
       fullCase.characters = basicCharacters as AIServiceCharacter[];
-      const plannedCharacters = await this.executeStep<Partial<AIServiceCharacter>[]>(
-        gameId, GenerationPhases.CHARACTERS, 'case_plan',
-        sig => this.aiService.generateCasePlan(gameId, fullCase, basicCharacters, difficulty, sig),
-        globalController.signal
-      );
+      const plannedCharacters = this.aiService.buildSimpleCasePlan(fullCase, basicCharacters);
       fullCase.characters = plannedCharacters as AIServiceCharacter[];
 
       const characterChunks = this.chunkArray(plannedCharacters, this.BATCH_SIZE);
