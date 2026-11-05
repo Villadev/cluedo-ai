@@ -79,7 +79,7 @@ export class GameEngine {
     }
   }
 
-  public createGame(maxRounds: number = 5, name: string = 'Misteri'): Game {
+  public createGame(maxRounds: number = 5, name: string = 'Misteri', difficulty: Difficulty = 'hard'): Game {
     const timestamp = nowIso();
     const game: Game = {
       id: generateId(),
@@ -97,7 +97,7 @@ export class GameEngine {
       roundNumber: 1,
       maxRounds,
       tensionLevel: 0,
-      difficulty: 'hard',
+      difficulty,
       winnerPlayerId: null,
       winnerType: null,
       timeline: [],
