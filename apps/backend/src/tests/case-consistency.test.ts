@@ -5,7 +5,7 @@ import { buildCanonicalTimeline, validatePlan, validateRelations } from '../game
 const names = ['Oriol', 'Andrea', 'Sospitós 1', 'Sospitós 2'];
 const seed = { assassin: 'Oriol', location: 'Can Coll', crimeWindow: { start: '21:00', end: '21:30' } };
 const character = (name: string, location: string, start = '20:50', end = '21:40') => ({
-  name, secret: 'Un secret', secretKnowledge: name === 'Andrea' ? 'Oriol coneix el secret' : 'Andrea coneix el secret', rumor: 'Una sospita',
+  name, profession: 'Investigador', description: 'Personatge de prova', personality: 'Reservat', possibleMotive: 'Disputa antiga', relationships: 'Coneix els altres', tensions: 'Desconfiança', secret: 'Un secret', secretKnowledge: name === 'Andrea' ? 'Oriol coneix el secret' : 'Andrea coneix el secret', rumor: 'Una sospita',
   coartada: { location, timeStart: start, timeEnd: end, witness: 'Ningú', credibility: 'baixa' as const }
 });
 test('2 humans + 2 NPCs: una coartada falsa no invalida el pla', () => {
