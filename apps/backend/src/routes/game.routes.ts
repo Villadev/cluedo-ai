@@ -15,6 +15,7 @@ const controller = new GameController();
  *       200:
  *         description: Partida creada.
  */
+gameRouter.get('/resolve', asyncHandler((req: Request, res: Response) => controller.resolveSession(req, res)));
 gameRouter.post('/', asyncHandler((req: Request, res: Response) => controller.createGame(req, res)));
 /**
  * @openapi
