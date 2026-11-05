@@ -46,11 +46,32 @@ export function validatePlan(characters: Partial<AIServiceCharacter>[], seed: Pa
         issues.push(`El testimoni de ${c.name} no coincideix en lloc i horari.`);
       }
     }
-    if (normalizeName(c.name || '') === normalizeName(seed.assassin || '') && seed.crimeWindow &&
-        a.location !== seed.location && minutes(a.timeStart) < minutes(seed.crimeWindow.end) &&
-        minutes(a.timeEnd) > minutes(seed.crimeWindow.start)) {
-      issues.push(`La coartada de ${c.name} a ${a.location} se solapa amb el crim a ${seed.location}; cal una cronologia compatible, no una ubicació simultània.`);
-    }
+
   }
   return issues;
+}
+
+/**
+ * The crime location is an objective fact. Character alibis are statements,
+ * never independent evidence of presence or absence.
+ */
+export function buildCanonicalTimeline(caseData: Pick<FullCase, 'assassin' | 'location' | 'crimeWindow' | 'characters'>): NonNullable<FullCase['canonicalTimeline']> {
+  const presences: NonNullable<FullCase['canonicalTimeline']>['presences'] = [{
+    characterName: caseData.assassin, location: caseData.location,
+    timeStart: caseData.crimeWindow.start, timeEnd: caseData.crimeWindow.end, source: 'crime'
+  }];
+  const statements = caseData.characters.map(c => {
+    const a = c.coartada;
+    const conflictsWithTruth = normalizeName(c.name) === normalizeName(caseData.assassin) &&
+      a.location !== caseData.location &&
+      minutes(a.timeStart) < minutes(caseData.crimeWindow.end) &&
+      minutes(a.timeEnd) > minutes(caseData.crimeWindow.start);
+    return {
+      characterName: c.name,
+      text: `${c.name} declara que era a ${a.location} de ${a.timeStart} a ${a.timeEnd}; testimoni declarat: ${a.witness}.`,
+      verified: false,
+      conflictsWithTruth
+    };
+  });
+  return { presences, statements };
 }
