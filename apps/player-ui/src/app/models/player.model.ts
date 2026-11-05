@@ -53,7 +53,7 @@ export interface PublicPlayerView {
   accusationCooldown: number;
   isAssassin: boolean;
   isNpc?: boolean;
-  type?: 'player' | 'npc';
+  type?: 'real' | 'player' | 'npc';
 }
 
 export interface PublicGameView {
