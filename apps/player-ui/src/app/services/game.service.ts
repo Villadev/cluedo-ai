@@ -147,6 +147,12 @@ export class GameService implements OnDestroy {
     return this.http.get<ApiResponse<ChatHistoryMessage[]>>(`${this.baseUrl}/game/${gameId}/chat`);
   }
 
+  resolveSession(gameCode: string, playerCode?: string): Observable<ApiResponse<{ gameId: string; playerId?: string }>> {
+    const params = new URLSearchParams({ gameCode });
+    if (playerCode) params.set('playerCode', playerCode);
+    return this.http.get<ApiResponse<{ gameId: string; playerId?: string }>>(`${this.baseUrl}/game/resolve?${params.toString()}`);
+  }
+
   joinGame(gameId: string, name: string): Observable<PlayerJoinResponse> {
     return this.http
       .post<ApiResponse<{ playerId: string, game: PublicGameView }>>(`${this.baseUrl}/game/${gameId}/join`, { name })
