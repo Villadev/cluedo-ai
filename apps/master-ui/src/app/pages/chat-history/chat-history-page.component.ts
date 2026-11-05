@@ -79,15 +79,15 @@ interface TrackingSnapshot {
     .history-page { max-width: 1250px; margin: auto; padding: clamp(1rem, 3vw, 2.5rem); }
     header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
     h2 { margin-top: 0; font-size: 1.15rem; }
-    .panel { min-width: 0; background: white; border: 1px solid #dce6f0; border-radius: 16px; padding: 1rem; }
+    .panel { min-width: 0; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: 16px; padding: 1rem; }
     .round { margin-bottom: 1rem; }
     summary { cursor: pointer; margin-bottom: .75rem; }
     .columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1rem; align-items: start; }
     .clues { max-height: 80vh; overflow: auto; overscroll-behavior: contain; overflow-wrap: anywhere; }
     .clues li + li { margin-top: .75rem; }
     .clues p { margin: .25rem 0; }
-    button { border: 1px solid #b8cce2; border-radius: .6rem; padding: .65rem 1rem; background: #eef4fc; color: #23466d; cursor: pointer; }
-    button[aria-pressed='true'] { background: #23466d; color: white; }
+    button { border: 1px solid var(--surface-border); border-radius: .6rem; padding: .65rem 1rem; background: var(--surface-hover); color: var(--master-blue); cursor: pointer; }
+    button[aria-pressed='true'] { background: var(--primary-color); color: var(--primary-color-text); }
     .view-switch { display: none; }
     @media (max-width: 760px) {
       .view-switch { display: flex; gap: .5rem; margin-bottom: 1rem; }
