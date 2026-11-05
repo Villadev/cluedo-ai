@@ -1,12 +1,17 @@
 <div class="layout-wrapper surface-ground min-h-screen">
-  <ui-topbar [appTitle]="appTitle" (menuToggle)="toggleMenu()"></ui-topbar>
+  <ui-topbar
+    [appTitle]="appTitle"
+    [showMenu]="!isDesktop && menuItems.length > 0"
+    [menuExpanded]="menuService.mobileMenuVisible()"
+    (menuToggle)="toggleMenu()"
+  ></ui-topbar>
 
   <div class="layout-main-container">
-    @if (isDesktop) {
+    @if (isDesktop && menuItems.length) {
       <aside class="layout-sidebar-static">
         <ui-sidebar [menuItems]="menuItems"></ui-sidebar>
       </aside>
-    } @else {
+    } @else if (!isDesktop && menuItems.length) {
       <p-sidebar
         position="left"
         [modal]="true"
@@ -20,7 +25,7 @@
       </p-sidebar>
     }
 
-    <main class="layout-content p-4">
+    <main class="layout-content">
       <ng-content></ng-content>
     </main>
   </div>

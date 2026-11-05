@@ -1,5 +1,5 @@
-<section class="join-wrapper flex flex-column align-items-center justify-content-center p-4">
-  <p-card header="Unir-se a la partida" subheader="Introdueix les dades per començar la investigació" styleClass="w-full md:w-7 lg:w-5 mb-4">
+<section class="join-wrapper flex flex-column align-items-center justify-content-center p-2 sm:p-4">
+  <p-card header="Unir-se a la partida" subheader="Introdueix les dades per començar la investigació" styleClass="w-full join-card mb-4">
     <form class="p-fluid" [formGroup]="joinForm" (ngSubmit)="onJoin()">
       <div class="field mb-3">
         <label for="gameId" class="font-semibold mb-2 block">Codi de la partida</label>
@@ -31,7 +31,7 @@
     </form>
   </p-card>
 
-  <p-card header="Com jugar" styleClass="w-full md:w-7 lg:w-5">
+  <p-card header="Com jugar" styleClass="w-full join-card">
     <div class="text-lg line-height-3">
       <p class="mb-3">Benvinguts a la investigació de Torrelles de Llobregat.</p>
       <ul class="list-none p-0 m-0 flex flex-column gap-2">

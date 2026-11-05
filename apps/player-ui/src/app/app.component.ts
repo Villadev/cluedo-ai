@@ -48,7 +48,7 @@ export class AppComponent implements OnInit {
 
     if (hasActiveGame) items.push({ label: 'Sortir de la partida', icon: 'pi pi-sign-out', command: () => this.leaveGame() });
 
-    return items;
+    return items.filter((item) => item.visible !== false);
   });
 
   ngOnInit(): void {

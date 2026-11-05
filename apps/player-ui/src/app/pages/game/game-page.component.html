@@ -53,11 +53,11 @@
           </div>
         </ng-template>
 
-        <div #chatList class="chat-list mb-3" style="max-height: 500px; overflow-y: auto;">
+        <div #chatList class="chat-list mb-3" tabindex="0" role="region" aria-label="Xat d’investigació">
           @for (message of (chatMessages$ | async); track message.id) {
-            <article class="chat-message mb-3 p-2 border-round relative" [class]="'chat-' + message.type">
+            <article class="chat-message" [class]="'chat-' + message.type">
               @if (message.sender || message.type === 'clue' || message.type === 'response') {
-                <strong class="block mb-1 text-primary">
+                <strong class="chat-sender block mb-1 text-primary">
                   {{ message.sender || (message.type === 'clue' || message.type === 'response' ? 'Narrador 🕵️' : 'Sistema ⚙️') }}:
                 </strong>
               }
@@ -89,13 +89,14 @@
           <textarea
             pInputTextarea
             formControlName="question"
+            aria-label="Pregunta d’investigació"
             placeholder="Escriu la teva pregunta d'investigació..."
             class="w-full"
             [rows]="3"
             [autoResize]="true"
             [disabled]="askedThisRound()"></textarea>
 
-          <div class="flex justify-content-end align-items-center gap-3">
+          <div class="flex flex-wrap justify-content-end align-items-center gap-2">
             @if (askedThisRound()) {
               <span class="text-orange-500 font-medium">
                 Ja has fet una pregunta en aquesta ronda.

@@ -1,113 +1,101 @@
-/* Cluedo design system — shared visual refresh for player and master UIs.
-   Keep the existing PrimeNG components, routes, branding and responsive layout. */
+/* Rural Mind player theme. PrimeNG overlays share these tokens with routed pages. */
 :root {
-  color-scheme: light;
-  --surface-ground: #edf2f8;
-  --surface-section: #f5f8fc;
-  --surface-card: #ffffff;
-  --surface-overlay: #ffffff;
-  --surface-border: #dbe4ef;
-  --surface-hover: #edf4fc;
-  --text-color: #17283f;
-  --text-color-secondary: #63758d;
-  --primary-color: #416eaa;
-  --primary-color-text: #ffffff;
-  --highlight-bg: #e4effc;
-  --highlight-text-color: #244e82;
-  --focus-ring: 0 0 0 3px rgba(65,110,170,.2);
-  --cluedo-navy: #101d32;
-  --cluedo-blue: #416eaa;
-  --cluedo-radius: 16px;
-  --cluedo-shadow: 0 12px 32px rgba(25,48,82,.07), 0 2px 8px rgba(25,48,82,.035);
-}
-*, *::before, *::after { box-sizing: border-box; }
-html { min-height: 100%; scroll-behavior: smooth; }
-body {
-  margin: 0;
-  min-height: 100vh;
-  background: radial-gradient(ellipse at 100% 0%, rgba(145,181,222,.18), transparent 44%), var(--surface-ground);
-  color: var(--text-color);
-  font-family: Inter, 'Segoe UI', Roboto, Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-h1, h2, h3, h4 { color: var(--cluedo-navy); letter-spacing: -.025em; line-height: 1.2; }
-h1 { font-size: clamp(1.7rem, 3vw, 2.45rem); }
-h2 { font-size: clamp(1.35rem, 2vw, 1.85rem); }
-p { line-height: 1.6; }
-a { color: #315f9b; text-underline-offset: 3px; }
-a:hover { color: #1c457a; }
-button, input, textarea, select { font: inherit; }
-button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 3px solid rgba(65,110,170,.48); outline-offset: 3px; }
-img, svg { max-width: 100%; }
-.p-component { font-family: inherit; }
-.p-card, .p-panel, .p-dialog, .p-fieldset, .p-datatable, .p-accordion .p-accordion-tab {
-  border: 1px solid var(--surface-border);
-  border-radius: var(--cluedo-radius);
-  box-shadow: var(--cluedo-shadow);
-  overflow: hidden;
-}
-.p-card .p-card-body { padding: clamp(1.1rem, 2vw, 1.75rem); }
-.p-card .p-card-title, .p-panel .p-panel-title { color: var(--cluedo-navy); font-weight: 700; letter-spacing: -.02em; }
-.p-panel .p-panel-header, .p-datatable .p-datatable-thead > tr > th {
-  background: #f6f9fd;
-  color: #344b68;
-  border-color: var(--surface-border);
-}
-.p-button {
-  border-radius: 11px;
-  font-weight: 650;
-  transition: background-color .18s ease, box-shadow .18s ease, transform .18s ease;
-}
-.p-button:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(31,74,129,.15); }
-.p-button:disabled { cursor: not-allowed; }
-.p-button.p-button-primary, .p-button:not(.p-button-secondary):not(.p-button-outlined):not(.p-button-text):not(.p-button-danger):not(.p-button-success):not(.p-button-warning):not(.p-button-help) {
-  background: var(--cluedo-blue);
-  border-color: var(--cluedo-blue);
-}
-.p-inputtext, .p-inputtextarea, .p-dropdown, .p-multiselect, .p-inputnumber-input {
-  border-radius: 11px;
-  border-color: #cedae8;
-  background: #fff;
-  color: var(--text-color);
-}
-.p-inputtext:enabled:focus, .p-inputtextarea:enabled:focus {
-  border-color: var(--cluedo-blue);
-  box-shadow: var(--focus-ring);
-}
-.p-tag, .p-chip { border-radius: 999px; }
-.p-divider { border-color: var(--surface-border); }
-.p-dialog { max-width: calc(100vw - 2rem); }
-.p-dialog .p-dialog-header { background: #f8fafd; color: var(--cluedo-navy); }
-.p-toast { max-width: calc(100vw - 2rem); }
-.p-datatable-wrapper { overflow-x: auto; }
-.p-datatable .p-datatable-tbody > tr > td { border-color: #e7edf5; }
-.p-datatable .p-datatable-tbody > tr:hover { background: #f5f9fe; }
-::selection { background: #c8dcf5; color: #17283f; }
-@media (max-width: 768px) {
-  body { font-size: 15px; }
-  .p-card .p-card-body { padding: 1rem; }
-  .p-dialog { width: calc(100vw - 1.5rem) !important; }
-  .p-dialog .p-dialog-content { padding: 1rem; }
-  .p-button { min-height: 42px; }
-  .p-datatable { font-size: .9rem; }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+  color-scheme: dark;
+  --surface-ground: #0b1326;
+  --surface-section: #0d131f;
+  --surface-card: #111927;
+  --surface-overlay: #162235;
+  --surface-border: #293d5c;
+  --surface-hover: #1f304b;
+  --text-color: #e2e8f0;
+  --text-color-secondary: #aab9cf;
+  --primary-color: #facc15;
+  --primary-color-text: #181300;
+  --highlight-bg: #23395b;
+  --highlight-text-color: #e2e8f0;
+  --focus-ring: 0 0 0 3px #93c5fd;
+  --player-blue: #93c5fd;
+  --player-danger: #fda4af;
+  --player-radius: 16px;
 }
 
-/* Unified Cluedo visual language: master + player */
-:root { --cluedo-radius:18px; --cluedo-shadow:0 14px 36px rgba(21,42,72,.065),0 2px 8px rgba(21,42,72,.035); }
-body { background:radial-gradient(ellipse at 90% 0%,rgba(119,163,217,.17),transparent 42%),linear-gradient(180deg,#f4f7fb,#eaf0f7); }
-.p-card,.p-panel,.p-dialog,.p-fieldset { border-color:#dce6f0; border-radius:18px; }
-.p-card .p-card-body { padding:clamp(1.1rem,2.2vw,1.8rem); }
-.p-button { min-height:42px; padding:.65rem 1rem; border-radius:12px; letter-spacing:-.01em; }
-.p-button.p-button-text { box-shadow:none; }
-.p-button.p-button-outlined { background:rgba(255,255,255,.8); }
-.p-button:focus-visible,.p-inputtext:focus-visible { outline:3px solid rgba(65,110,170,.35); outline-offset:2px; }
-.p-inputtext,.p-dropdown,.p-inputtextarea { min-height:43px; border-radius:12px; }
-.p-menu,.p-tieredmenu,.p-sidebar { border-color:#dce6f0; }
-.p-menuitem-link { border-radius:10px; }
-.p-tag { font-weight:700; letter-spacing:.01em; }
-@media(max-width:768px) { .p-button { min-height:44px; } .p-card,.p-panel { border-radius:15px; } }
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: radial-gradient(ellipse at 50% 0%, #192d50, transparent 65%), var(--surface-ground);
+  color: var(--text-color);
+  font-family: system-ui, sans-serif;
+}
+
+h1, h2, h3, h4 { line-height: 1.2; }
+h1, .p-card-title { letter-spacing: -.025em; }
+p { line-height: 1.6; }
+a { color: var(--player-blue); text-underline-offset: .2em; }
+button, input, textarea, select, .p-component { font-family: inherit; }
+
+:focus-visible {
+  outline: 3px solid var(--player-blue);
+  outline-offset: 3px;
+}
+
+.layout-wrapper.surface-ground { background: transparent !important; }
+
+.p-card, .p-panel, .p-dialog, .p-fieldset, .p-accordion .p-accordion-tab {
+  border: 1px solid var(--surface-border);
+  border-radius: var(--player-radius);
+  box-shadow: 0 12px 30px #070b1280;
+}
+
+.p-card {
+  background: linear-gradient(155deg, var(--surface-overlay), var(--surface-card) 70%);
+  color: var(--text-color);
+}
+
+.p-card .p-card-body { padding: clamp(1rem, 2vw, 1.65rem); }
+.p-card .p-card-subtitle, .p-inputtext::placeholder { color: var(--text-color-secondary); }
+
+.p-button, .p-inputtext, .p-dropdown { border-radius: 12px; }
+.p-button { min-height: 44px; font-weight: 650; }
+.p-button.p-button-icon-only { padding-inline: 0; }
+
+.p-button:not(.p-button-secondary, .p-button-danger, .p-button-success, .p-button-info, .p-button-warning, .p-button-help, .p-button-text, .p-button-outlined, .p-button-link) {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: var(--primary-color-text);
+}
+
+.p-button.p-button-text, .p-button.p-button-outlined, .p-button.p-button-link { color: var(--player-blue); }
+.p-inputtext, .p-dropdown { min-height: 44px; }
+.p-inputtext, .p-dropdown, .p-dropdown-panel { background: var(--surface-overlay); color: var(--text-color); }
+.p-dialog, .p-toast { max-width: calc(100vw - 1.5rem); }
+.p-datatable-wrapper { overflow-x: auto; }
+
+.text-500, .text-600, .text-gray-500, .text-gray-600, .text-gray-700 {
+  color: var(--text-color-secondary) !important;
+}
+
+.text-gray-800, .text-gray-900 { color: var(--text-color) !important; }
+.text-blue-600, .text-blue-800 { color: var(--player-blue) !important; }
+.text-red-500, .text-red-600, .text-red-700, .text-red-900 { color: var(--player-danger) !important; }
+.text-orange-500, .text-orange-600, .text-orange-700 { color: #fcd38a !important; }
+.text-green-600, .text-green-700 { color: #86efac !important; }
+.text-purple-600 { color: #d8b4fe !important; }
+.text-pink-600 { color: #f9a8d4 !important; }
+
+.bg-gray-50, .bg-white { background: var(--surface-section) !important; }
+.bg-red-50, .bg-red-100 { background: #351f32 !important; }
+.bg-orange-100 { background: #352a24 !important; }
+.border-gray-200, .border-200 { border-color: var(--surface-border) !important; }
+.border-red-200 { border-color: #784256 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
+
+.join-card { max-width: 34rem; }

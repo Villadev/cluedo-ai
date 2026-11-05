@@ -1,4 +1,4 @@
-<div class="flex flex-column align-items-center justify-content-center min-h-screen p-4">
+<div class="flex flex-column align-items-center p-2 sm:p-4">
     <p-card header="Introducció del cas" [style]="{ width: '100%', maxWidth: '600px' }">
         @if (loading()) {
             <div class="flex justify-content-center p-5">
@@ -12,7 +12,7 @@
                 <p-button label="Torna" icon="pi pi-arrow-left" (click)="continueToGame()"></p-button>
             </div>
         } @else {
-            <div class="introduction-content mb-4 line-height-3 text-justify">
+            <div class="introduction-content mb-4 line-height-3 text-left">
                 {{ introductionText() }}
             </div>
 
