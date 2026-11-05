@@ -204,6 +204,7 @@ export interface ChatHistoryMessage {
   message: string;
   timestamp: number;
   roundNumber?: number;
+  clueId?: string;
   sequenceId?: number;
 }
 

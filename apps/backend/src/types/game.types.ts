@@ -139,6 +139,7 @@ export interface ChatMessage {
   playerId?: string;
   playerName?: string;
   roundNumber?: number;
+  clueId?: string;
   sequenceId?: number;
   message: string;
   timestamp: number;
