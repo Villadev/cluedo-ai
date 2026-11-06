@@ -18,6 +18,7 @@ export function memoryStore(initial: Game) {
   let saved = structuredClone(initial);
   return {
     getById: () => structuredClone(saved),
+    list: () => [structuredClone(saved)],
     save: (value: Game) => { saved = structuredClone(value); }
   } as unknown as GameStoreService;
 }
