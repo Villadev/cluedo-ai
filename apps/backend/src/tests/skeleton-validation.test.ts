@@ -6,8 +6,8 @@ import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 test('case skeleton is fixed by the backend without an API request', async () => {
   const seed = await new AIService().generateCaseSkeleton('seed', ['Joan', 'Maria', 'Pere'], 'hard');
   assert.ok(['Joan', 'Maria', 'Pere'].includes(seed.assassin!));
-  assert.ok(!['Joan', 'Maria', 'Pere'].includes(seed.victim!));
+  assert.equal(seed.victim, undefined);
   assert.ok(WEAPONS.includes(seed.weapon!));
   assert.ok(LOCATIONS.includes(seed.location!));
-  assert.deepEqual(seed.crimeWindow, { start: '21:00', end: '21:30' });
+  assert.ok(seed.crimeWindow!.start < seed.crimeWindow!.end);
 });

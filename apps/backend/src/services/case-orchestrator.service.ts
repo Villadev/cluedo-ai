@@ -93,17 +93,33 @@ export class CaseOrchestratorService {
 
       const allowedPlayerNames = game.players.map(p => p.nickname).filter(Boolean);
       // 1. SKELETON
+      const recent = this.store.list()
+        .filter(previous => previous.id !== gameId && (previous.murder || previous.generationCheckpoint?.steps.skeleton))
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .slice(0, 3)
+        .map(previous => {
+          if (previous.murder) return { ...previous.murder, assassin: previous.solution?.assassin };
+          const steps = previous.generationCheckpoint!.steps;
+          const seed = steps.skeleton as Partial<FullCase>;
+          return { ...seed, victim: typeof steps.victim_name === 'string' ? steps.victim_name : seed.victim };
+        });
       const skeleton = await this.executeStep<Partial<FullCase>>(
-        gameId,
-        GenerationPhases.SKELETON,
-        "skeleton",
-        (sig) => this.aiService.generateCaseSkeleton(gameId, allowedPlayerNames, difficulty, sig),
+        gameId, GenerationPhases.SKELETON, 'skeleton',
+        sig => this.aiService.generateCaseSkeleton(gameId, allowedPlayerNames, difficulty, sig, recent),
         globalController.signal
       );
-      if (!skeleton.assassin || !skeleton.victim) {
-        throw new Error('Invalid skeleton: assassin must be participant and victim must be external');
+      if (!skeleton.assassin || !skeleton.location) {
+        throw new Error('El cas necessita un culpable i un lloc del crim.');
       }
-      fullCase = { ...skeleton, characters: [], clues: {}, generationFeedback: game.generationCheckpoint?.feedback };
+      const victim = skeleton.victim ?? await this.executeStep<string>(
+        gameId, GenerationPhases.SKELETON, 'victim_name',
+        sig => this.aiService.generateVictimName(
+          gameId, skeleton.location!,
+          [...allowedPlayerNames, ...recent.flatMap(seed => seed.victim ? [seed.victim] : [])], sig
+        ),
+        globalController.signal
+      );
+      fullCase = { ...skeleton, victim, characters: [], clues: {}, generationFeedback: game.generationCheckpoint?.feedback };
 
       // Immediate persistence of solution seed
       this.persistPartialData(gameId, {
@@ -111,14 +127,14 @@ export class CaseOrchestratorService {
           assassin: skeleton.assassin || '',
           weapon: skeleton.weapon || '',
           location: skeleton.location || '',
-          victimName: skeleton.victim || '',
+          victimName: victim,
           finalNarrative: ''
         },
         murder: {
             killerPlayerId: '',
             weapon: skeleton.weapon || '',
             location: skeleton.location || '',
-            victim: skeleton.victim || '',
+            victim,
             crimeWindow: skeleton.crimeWindow
         }
       });
@@ -264,7 +280,7 @@ export class CaseOrchestratorService {
     gameId: string,
     phase: GenerationPhase,
     stepName: string,
-    task: (sig: AbortSignal) => Promise<T>,
+    task: (sig: AbortSignal) => T | Promise<T>,
     globalSignal: AbortSignal
   ): Promise<T> {
     globalSignal.throwIfAborted();
@@ -291,7 +307,8 @@ export class CaseOrchestratorService {
     if (globalSignal.aborted) stepController.abort();
 
     try {
-      const result = await task(stepController.signal);
+      const pending = task(stepController.signal);
+      const result = pending instanceof Promise ? await pending : pending;
       stepController.signal.throwIfAborted();
       const current = this.store.getById(gameId);
       if (!current || current.state !== GameStates.GENERATING) throw new Error('Generació cancel·lada.');
