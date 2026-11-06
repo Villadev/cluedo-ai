@@ -21,6 +21,9 @@ import { buildCanonicalTimeline } from '../game/case-validation.js';
 import { createHash } from 'node:crypto';
 import { env } from '../config/env.js';
 
+const CLUE_STEP_PREFIX = 'clues_round_v2_';
+const CASE_REVIEW_STEP = 'case_review_v2';
+
 const nowIso = () => new Date().toISOString();
 
 class CaseReviewError extends Error {
@@ -201,13 +204,13 @@ export class CaseOrchestratorService {
       // Persist each round separately; an interrupted generation resumes at its missing round.
       for (let round = 1; round <= maxRounds; round++) {
         fullCase.clues![`round${round}`] = await this.executeStep<AIServiceClue[]>(
-          gameId, GenerationPhases.CLUES, `clues_round_${round}`,
+          gameId, GenerationPhases.CLUES, `${CLUE_STEP_PREFIX}${round}`,
           sig => this.aiService.generateClueRound(gameId, fullCase as FullCase, round, maxRounds, difficulty, sig),
           globalController.signal
         );
       }
       const review = await this.executeStep<{ issues: { area: string; reason: string }[] }>(
-        gameId, GenerationPhases.RECOVERY, 'case_review',
+        gameId, GenerationPhases.RECOVERY, CASE_REVIEW_STEP,
         sig => this.aiService.reviewCase(gameId, fullCase as FullCase, sig), globalController.signal
       );
       if (review.issues.length) throw new CaseReviewError(review.issues.map(i => i.area), review.issues.map(i => i.reason).join(' '));
@@ -226,7 +229,7 @@ export class CaseOrchestratorService {
           checkpoint.feedback = error.message;
           const invalidPlan = error.areas.includes('plan');
           for (const key of Object.keys(checkpoint.steps)) {
-            if (key === 'case_review' ||
+            if (key === CASE_REVIEW_STEP || key === 'case_review' ||
                 (invalidPlan && (key === 'characters_basic' || key === 'relations_matrix' || key === 'case_plan' || key.startsWith('characters_enrich'))) ||
                 ((invalidPlan || error.areas.includes('clues')) && key.startsWith('clues_round_')) ||
                 ((invalidPlan || error.areas.includes('narratives')) && key === 'narratives')) delete checkpoint.steps[key];

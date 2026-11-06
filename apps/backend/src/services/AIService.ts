@@ -378,11 +378,13 @@ Retorna JSON:
     const facts = (caseBible.facts || buildCaseFacts(caseBible, maxRounds)).filter(f => f.revealRound === round);
     const instruction = `Redacta les pistes de la ronda ${round} de ${maxRounds}, en català.
 ${this.getDifficultyInstruction(difficulty)}
-CAS CANÒNIC I PISTES JA PUBLICADES: ${JSON.stringify(caseBible)}
+CAS CANÒNIC I PISTES DE RONDES ANTERIORS: ${JSON.stringify(caseBible)}
+Si hi ha generationFeedback, aplica les correccions pertinents als fets autoritzats d’aquesta ronda.
 FETS AUTORITZATS D’AQUESTA RONDA: ${JSON.stringify(facts)}
 Retorna exactament una pista per factId autoritzat. Mantingues noms, hores, llocs i el significat del fet, incloses les reserves sobre declaracions no confirmades.
 No creïs proves, no canviïs la veritat d'un fet i no avancis cap fet de rondes futures.
-${round < maxRounds ? 'No revelis directament el culpable. Presenta indicis progressius.' : 'Connecta les proves que permeten deduir culpable, arma i lloc.'}
+En cap ronda afirmis explícitament qui va cometre el crim, amb quina arma o en quin lloc. Un nom o un lloc es pot mencionar com a part d’una declaració sense confirmar-lo com a part de la solució.
+${round < maxRounds ? 'Presenta indicis progressius i reserva les proves que vinculen l’arma i el lloc amb el crim per a l’última ronda.' : 'Presenta les proves perquè els jugadors dedueixin el culpable, l’arma i el lloc sense anunciar la solució.'}
 Retorna { "clues": [{ "factId": "id autoritzat", "text": "..." }] }.`;
     const result = await this.callOpenAIWithRetry<{ clues: { factId: string; text: string }[] }>(gameId, instruction, `clues_round_${round}`, 'CLUES', data => {
       const texts = data.clues.map(c => c.text.trim().toLowerCase());
@@ -408,9 +410,11 @@ Retorna { "clues": [{ "factId": "id autoritzat", "text": "..." }] }.`;
   }
 
   public async reviewCase(gameId: string, caseData: FullCase, signal?: AbortSignal): Promise<ReturnType<typeof reviewSchema.parse>> {
+    const { generationFeedback: _previousFeedback, ...caseForReview } = caseData;
     return this.callOpenAIWithRetry(gameId, `Audita aquest Cluedo en català. No redactis un altre cas.
-${JSON.stringify(caseData)}
+${JSON.stringify(caseForReview)}
 Busca contradiccions involuntàries entre fitxes, secrets, relacions, testimonis i pistes; revelacions de la solució a la introducció o pistes inicials; i si la solució es pot deduir amb les pistes.
+Una declaració que menciona un sospitós o un lloc no revela la solució. A l’última ronda, les proves poden relacionar sospitosos, armes i llocs amb el crim perquè els jugadors en dedueixin la solució.
 Les mentides explícites i rumors falsos marcats no són errors si són refutables. Una simple sospita o un motiu no demostren culpabilitat.
 No acceptis pistes que inventen fets incompatibles amb les coartades. La solució ha de respectar culpable, arma, lloc, horari i motiu fixats.
 Retorna { "issues": [{ "area": "plan|clues|narratives", "reason": "error concret i correcció necessària" }] }. Si tot encaixa, issues=[].`, 'case_review', 'RECOVERY', () => ({ valid: true }), 2, signal, env.OPENAI_MAX_TOKENS_REVIEW);
