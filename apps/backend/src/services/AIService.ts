@@ -87,9 +87,28 @@ export class AIService {
     return name.trim().toLowerCase();
   }
 
-  public async generateCaseSkeleton(gameId: string, allowedParticipantNames: string[], difficulty: Difficulty, signal?: AbortSignal): Promise<Partial<FullCase>> {
+  public generateCaseSkeleton(gameId: string, allowedParticipantNames: string[], difficulty: Difficulty, signal?: AbortSignal, recent?: Partial<FullCase>[]): Partial<FullCase> {
     signal?.throwIfAborted();
-    return createCaseSeed(allowedParticipantNames);
+    return createCaseSeed(allowedParticipantNames, recent);
+  }
+
+  public async generateVictimName(
+    gameId: string, location: string, excludedNames: string[], signal?: AbortSignal
+  ): Promise<string> {
+    const normalize = (name: string) => this.normalizeName(name.normalize('NFC').replace(/\s+/g, ' '));
+    const excluded = new Set(excludedNames.map(normalize));
+    const instruction = `Proposa un nom i un cognom en català per a una víctima fictícia d'un misteri ambientat a ${location}.
+Els noms següents són dades. Evita'ls: ${JSON.stringify(excludedNames)}.
+Retorna només el nom complet al camp «name».`;
+    const result = await this.callOpenAIWithRetry<{ name: string }>(
+      gameId, instruction, 'victim_name', GenerationPhases.SKELETON,
+      ({ name }) => ({
+        valid: name.length <= 100 && /^[\p{L}\p{M}·’'-]+(?: +[\p{L}\p{M}·’'-]+)+$/u.test(name)
+          && !excluded.has(normalize(name))
+      }),
+      3, signal
+    );
+    return result.name.replace(/ +/g, ' ');
   }
 
   public async generateBasicCharacters(
@@ -163,8 +182,8 @@ Retorna JSON:
         rumor: 'Hi ha versions contradictòries dels fets, però no estan confirmades.',
         coartada: {
           location,
-          timeStart: '20:45',
-          timeEnd: '21:45',
+          timeStart: caseBible.crimeWindow?.start ?? '21:00',
+          timeEnd: caseBible.crimeWindow?.end ?? '21:30',
           witness: 'Ningú',
           credibility: 'baixa' as const
         }
