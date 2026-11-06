@@ -5,6 +5,7 @@ export const coartadaSchema = z.object({
   location: text, timeStart: text, timeEnd: text, witness: text,
   credibility: z.enum(['alta', 'mitjana', 'baixa'])
 }).strict();
+const victimNameSchema = z.object({ name: text }).strict();
 export const basicSchema = z.object({ characters: z.array(z.object({
   name: text, profession: text, possibleMotive: text
 }).strict()) }).strict();
@@ -32,6 +33,7 @@ export const reviewSchema = z.object({ issues: z.array(z.object({
 }).strict()) }).strict();
 
 export function schemaForStep(step: string): z.ZodTypeAny {
+  if (step === 'victim_name') return victimNameSchema;
   if (step === 'characters_basic') return basicSchema;
   if (step === 'relations_matrix') return relationsSchema;
   if (step === 'case_plan') return planSchema;
