@@ -22,7 +22,9 @@ function fixture(names: string[], options: { failRound?: number; reviewFailures?
     calls.push(structuredClone(call));
     const prompt = call.messages[1]!.content;
     let kind: string, result: unknown;
-    if (prompt.startsWith('Crea exactament')) {
+    if (prompt.startsWith('Proposa un nom')) {
+      kind = 'victim'; result = { name: 'Aina Rovira' };
+    } else if (prompt.startsWith('Crea exactament')) {
       kind = 'basic'; result = { characters: names.map(name => ({ name, profession: `Ofici de ${name}`, possibleMotive: `Un deute de ${name} amb la víctima.` })) };
     } else if (prompt.startsWith('Crea una matriu')) {
       kind = 'relations'; result = { relations: names.map((a, i) => ({ a, b: names[(i + 1) % names.length], type: 'debt', strength: 'medium', note: 'Comparteixen un negoci amb deutes.' })) };
@@ -93,12 +95,14 @@ test('failed round resumes from persistent checkpoints on a new orchestrator', a
   assert.equal(failed.state, 'LOBBY');
   assert.ok(failed.generationCheckpoint?.steps.clues_round_1);
   const seed = structuredClone(failed.solution);
+  assert.equal(seed?.victimName, 'Aina Rovira');
   failed.state = 'GENERATING'; store.save(failed);
   f = fixture(game.players.map(p => p.nickname));
   try {
     await new CaseOrchestratorService(new AIService(), store).generateCase(game.id, 'hard', 3);
     assert.deepEqual(f.kinds, ['round2', 'round3', 'review']);
     assert.equal(store.getById(game.id)!.solution!.assassin, seed!.assassin);
+    assert.equal(store.getById(game.id)!.solution!.victimName, seed!.victimName);
   } finally { f.restore(); }
 });
 
@@ -141,10 +145,35 @@ test('seed belongs to the backend and validates unique participant names', () =>
   const names = ['Joan', 'Maria', 'Pere'];
   for (let i = 0; i < 30; i++) {
     const seed = createCaseSeed(names);
-    assert.ok(names.includes(seed.assassin!)); assert.ok(!names.includes(seed.victim!));
+    assert.ok(names.includes(seed.assassin!));
   }
   assert.throws(() => createCaseSeed(['Joan', 'joan', 'Maria']));
   assert.equal(exactNames(['Joan', 'Joan'], ['Joan', 'Maria']), false);
+});
+
+test('victim name is generated in Catalan from the case location', async () => {
+  const f = fixture([]);
+  try {
+    const name = await new AIService().generateVictimName('victim', 'Masia de Can Coll', ['Elvira Font']);
+    assert.equal(name, 'Aina Rovira');
+    assert.match(f.calls[0]!.messages[1]!.content, /en català.*Masia de Can Coll/);
+    assert.match(f.calls[0]!.messages[1]!.content, /Elvira Font/);
+  } finally { f.restore(); }
+});
+
+test('new case seeds vary every core fact across three recent cases', () => {
+  const names = ['Joan', 'Maria', 'Pere'];
+  const recent = [createCaseSeed(names)];
+  for (let i = 0; i < 3; i++) {
+    const seed = createCaseSeed(names, recent);
+    for (const previous of recent) {
+      assert.notEqual(seed.location, previous.location);
+      assert.notEqual(seed.weapon, previous.weapon);
+      assert.notEqual(seed.crimeWindow.start, previous.crimeWindow.start);
+    }
+    assert.notEqual(seed.assassin, recent[0]!.assassin);
+    recent.unshift(seed);
+  }
 });
 
 test('plan rejects incompatible witnesses, impossible times and a confirmed killer alibi', () => {
@@ -176,12 +205,14 @@ test('reset cancels stale work and allows an immediate new generation', async ()
   let release!: (value: []) => void;
   let started!: () => void;
   const entered = new Promise<void>(resolve => { started = resolve; });
+  const victim = mock.method(ai, 'generateVictimName', async () => 'Aina Rovira');
   const basic = mock.method(ai, 'generateBasicCharacters', async () => { started(); return new Promise<[]>(resolve => { release = resolve; }); });
   const old = orchestrator.generateCase(game.id, 'hard', 3);
   await entered;
   orchestrator.cancel(game.id);
   const reset = gameFor(3); store.save(reset);
   basic.mock.restore();
+  victim.mock.restore();
   const f = fixture(game.players.map(p => p.nickname));
   try {
     const fresh = orchestrator.generateCase(game.id, 'hard', 3);
