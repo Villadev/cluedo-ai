@@ -30,6 +30,7 @@ import { generateId, nowIso } from '../utils/id.js';
 import { HttpError } from '../utils/http-error.js';
 import { telemetryService } from "../services/telemetry.service.js";
 import { errorLogger } from '../utils/error-logger.js';
+import { findClueMessage } from '../game/clue-publication.js';
 import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 
 const MAX_PLAYERS = 17;
@@ -289,7 +290,7 @@ export class GameEngine {
         type: p.type
       })),
       clues: game.clues
-        .filter(c => c.roundNumber <= game.roundNumber)
+        .filter(c => c.revealedAt !== undefined || !!findClueMessage(game, c))
         .map(c => ({
           id: c.id,
           text: c.text,
@@ -481,19 +482,39 @@ export class GameEngine {
     this.store.save(game);
   }
 
+  private publishClue(game: Game, clue: Clue, method: 'automatic' | 'manual'): boolean {
+    if (clue.revealedAt !== undefined || findClueMessage(game, clue)) return false;
+    const text = clue.text || 'Pista no disponible temporalment';
+    const { seq, timestamp } = this.pushSystemMessage(game, text, 'clue', clue.id);
+    clue.revealedAt = timestamp;
+    clue.revealedRound = game.roundNumber;
+    clue.revealMethod = method;
+    this.recordTimelineEvent(game, {
+      type: 'CLUE', roundNumber: game.roundNumber, text, isTrue: clue.isTrue,
+      description: `Pista revelada ${method === 'manual' ? 'pel màster' : 'automàticament'} (prevista per a la ronda ${clue.roundNumber}): ${text}`
+    });
+    this.onSystemEvent?.(game.id, text, 'clue', game.roundNumber, seq, timestamp);
+    return true;
+  }
+
   private revealCluesForRound(game: Game, roundNumber: number): void {
     for (const clue of game.clues.filter(entry => entry.roundNumber === roundNumber)) {
-      const text = clue.text || 'Pista no disponible temporalment';
-      const { seq, timestamp } = this.pushSystemMessage(game, text, 'clue', clue.id);
-      this.recordTimelineEvent(game, {
-        type: 'CLUE',
-        roundNumber,
-        text,
-        isTrue: clue.isTrue,
-        description: `Pista revelada: ${text}`
-      });
-      this.onSystemEvent?.(game.id, text, 'clue', roundNumber, seq, timestamp);
+      this.publishClue(game, clue, 'automatic');
     }
+  }
+
+  public revealClue(gameId: string, clueId: string): Clue {
+    const game = this.getGameOrThrow(gameId);
+    if (game.state !== GameStates.PLAYING) {
+      throw new HttpError(409, 'Només es poden ensenyar pistes mentre la partida està en curs.');
+    }
+    const clue = game.clues.find(entry => entry.id === clueId);
+    if (!clue) throw new HttpError(404, 'No s’ha trobat aquesta pista a la partida.');
+    if (this.publishClue(game, clue, 'manual')) {
+      game.updatedAt = nowIso();
+      this.store.save(game);
+    }
+    return clue;
   }
 
   public updateDifficulty(gameId: string, difficulty: Difficulty): Game {
@@ -584,7 +605,7 @@ export class GameEngine {
   private getGameOrThrow(gameId: string): Game {
     const game = this.store.getById(gameId);
     if (!game) {
-      throw new Error('Partida no trobada');
+      throw new HttpError(404, 'Partida no trobada');
     }
     if (game.maxRounds === undefined) {
       game.maxRounds = 5;
@@ -622,7 +643,11 @@ export class GameEngine {
       game,
       players: game.players,
       characters: game.characters,
-      clues: game.clues,
+      clues: game.clues.map(clue => {
+        const message = findClueMessage(game, clue);
+        return { ...clue, revealedAt: clue.revealedAt ?? message?.timestamp,
+          revealedRound: clue.revealedRound ?? message?.roundNumber };
+      }),
       roundNumber: game.roundNumber,
       nextSequenceId: game.nextSequenceId,
       state: game.state,

@@ -1,0 +1,349 @@
+:host {
+  display: block;
+}
+.history-page {
+  max-width: 1500px;
+  margin: auto;
+  padding: clamp(1rem, 2.5vw, 2rem);
+}
+.page-heading,
+.round-control,
+.round-actions,
+.clues-heading,
+.clue-heading,
+.clue-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.page-heading {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+h1 {
+  margin: 0.4rem 0;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+}
+.heading-copy p {
+  margin: 0;
+  color: var(--text-color-secondary);
+}
+.page-heading a {
+  display: inline-flex;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  background: var(--surface-hover);
+  border-radius: 0.65rem;
+  text-decoration: none;
+}
+.eyebrow {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-color-secondary);
+}
+.panel {
+  min-width: 0;
+  background: var(--surface-card);
+  border: 1px solid var(--surface-border);
+  border-radius: 16px;
+  padding: clamp(0.85rem, 1.5vw, 1.25rem);
+}
+.round-control {
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+.round-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: var(--surface-hover);
+  padding: 0.8rem 1rem;
+  border-radius: 0.65rem;
+}
+.round-summary > i {
+  color: var(--primary-color);
+  font-size: 1.3rem;
+}
+h2 {
+  font-size: 1.15rem;
+  margin: 0.25rem 0;
+}
+.participants {
+  flex: 1;
+  min-width: 180px;
+}
+.participants summary {
+  cursor: pointer;
+  padding: 0.75rem 0;
+}
+.participants ul {
+  padding-left: 1.2rem;
+  font-size: 0.85rem;
+  line-height: 1.8;
+}
+.round-actions {
+  flex-wrap: wrap;
+}
+button {
+  min-height: 44px;
+  border: 1px solid var(--surface-border);
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.9rem;
+  background: var(--surface-hover);
+  color: var(--master-blue);
+  cursor: pointer;
+  font-weight: 650;
+}
+button:hover:not(:disabled) {
+  background: var(--surface-border);
+}
+button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+button.primary {
+  background: var(--primary-color);
+  color: var(--primary-color-text);
+  border-color: var(--primary-color);
+}
+button.primary:hover:not(:disabled) {
+  background: #ffecb0;
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(360px, 5fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+.chat,
+.clues {
+  min-width: 0;
+}
+.clues {
+  overflow-wrap: anywhere;
+}
+.clues-heading {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.clues-heading h2 i {
+  color: var(--primary-color);
+  margin-right: 0.4rem;
+}
+.help {
+  color: var(--text-color-secondary);
+  font-size: 0.8rem;
+  line-height: 1.6;
+}
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.totals span {
+  background: var(--surface-hover);
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+}
+.totals strong {
+  color: var(--primary-color);
+}
+.announcement {
+  color: var(--primary-color);
+  font-size: 0.85rem;
+}
+.announcement:empty {
+  margin: 0.8rem 0;
+}
+.error {
+  color: var(--master-danger);
+  width: 100%;
+  font-size: 0.85rem;
+}
+.round-group {
+  border: 1px solid var(--surface-border);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  margin-top: 0.75rem;
+}
+.round-group.current {
+  border-color: #607aad;
+}
+h3 {
+  margin: 0;
+}
+.round-toggle {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  border: 0;
+  border-radius: 0;
+  padding: 0.9rem;
+  color: var(--text-color);
+  text-align: left;
+}
+.round-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.current-label {
+  font-size: 0.65rem;
+  color: var(--primary-color);
+  background: #3b341f;
+  border-radius: 0.3rem;
+  padding: 0.25rem 0.4rem;
+  text-transform: uppercase;
+}
+.round-counts {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.7rem;
+  color: var(--text-color-secondary);
+}
+.clue-list {
+  list-style: none;
+  padding: 0.65rem;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+.clue-card {
+  background: var(--surface-hover);
+  border-radius: 0.65rem;
+  padding: 0.8rem;
+}
+.clue-heading {
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.clue-number {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  background: var(--surface-border);
+  font-size: 0.75rem;
+}
+.published .clue-number {
+  background: var(--primary-color);
+  color: var(--primary-color-text);
+}
+h4 {
+  margin: 0.2rem 0;
+  font-size: 0.85rem;
+  flex: 1;
+}
+.badge {
+  font-size: 0.65rem;
+  border-radius: 2rem;
+  padding: 0.3rem 0.5rem;
+  background: var(--surface-border);
+  color: var(--text-color);
+  white-space: nowrap;
+}
+.badge.shown {
+  color: var(--primary-color);
+  background: #3b341f;
+}
+.clue-body {
+  background: #0b1326;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+}
+.clue-body p {
+  font-size: 0.8rem;
+  margin: 0 0 0.6rem;
+  line-height: 1.65;
+}
+.clue-body p:last-child {
+  margin-bottom: 0;
+  color: var(--text-color-secondary);
+}
+.field-label {
+  display: block;
+  font-size: 0.65rem;
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 0.15rem;
+}
+.context-label {
+  color: var(--master-blue);
+}
+.clue-footer {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  margin-top: 0.65rem;
+  padding: 0.65rem;
+  background: #0b1326;
+  border-radius: 0.5rem;
+  font-size: 0.72rem;
+}
+.publication {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--primary-color);
+}
+.delivery-method,
+.scheduled,
+time {
+  color: var(--text-color-secondary);
+}
+.reveal-button {
+  font-size: 0.75rem;
+}
+.empty {
+  color: var(--text-color-secondary);
+  font-size: 0.8rem;
+  padding: 0.5rem;
+}
+.view-switch {
+  display: none;
+}
+@media (max-width: 1100px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr) minmax(330px, 1fr);
+  }
+  .round-actions {
+    width: 100%;
+  }
+}
+@media (max-width: 760px) {
+  .view-switch {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  .view-switch button[aria-pressed="true"] {
+    background: var(--primary-color);
+    color: var(--primary-color-text);
+  }
+  .columns {
+    display: block;
+  }
+  .columns:not(.show-clues) .clues,
+  .show-clues .chat {
+    display: none;
+  }
+  .round-actions button {
+    flex: 1;
+  }
+  .clue-footer {
+    align-items: stretch;
+  }
+  .clue-footer .reveal-button {
+    width: 100%;
+  }
+}

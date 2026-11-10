@@ -75,6 +75,9 @@ export interface Turn {
 export type ClueType = 'rumor' | 'witness' | 'contradiction' | 'evidence';
 
 export interface Clue {
+  revealedAt?: number;
+  revealedRound?: number;
+  revealMethod?: 'automatic' | 'manual';
   id: string;
   playerId?: string; // Optional if pre-generated and not yet assigned
   type: ClueType;

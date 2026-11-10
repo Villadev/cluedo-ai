@@ -181,6 +181,13 @@ export class GameController {
     res.status(200).json(successResponse({ intro: gameEngine.getIntro(gameId) }));
   }
 
+  public async revealClue(req: Request, res: Response): Promise<void> {
+    const { id, clueId } = z.object({ id: z.string().uuid(), clueId: z.string().uuid() }).parse(req.params);
+    const clue = gameEngine.revealClue(id, clueId);
+    emitGameStateUpdate(id, gameEngine.getGameStateInfo(id));
+    res.status(200).json(successResponse(clue));
+  }
+
   public async getCluesByRound(req: Request, res: Response): Promise<void> {
     const { id: gameId, roundNumber } = roundParamsSchema.parse(req.params);
     const clues = gameEngine.getCluesForRound(gameId, roundNumber);

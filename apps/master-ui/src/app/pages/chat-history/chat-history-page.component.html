@@ -1,0 +1,212 @@
+<main class="history-page">
+  <header class="page-heading">
+    <div class="heading-copy">
+      <span class="eyebrow">Direcció de la investigació</span>
+      <h1>Seguiment de partida</h1>
+      <p>Conversa en directe i control de les pistes.</p>
+    </div>
+    <a routerLink="/control-center"
+      ><i class="pi pi-arrow-left" aria-hidden="true"></i> Tornar al centre de control</a
+    >
+  </header>
+  @if (gameId(); as id) {
+    @if (snapshot(); as game) {
+      <section class="panel round-control" aria-labelledby="round-title">
+        <div class="round-summary">
+          <i class="pi pi-flag" aria-hidden="true"></i>
+          <div>
+            <span class="eyebrow">{{
+              game.state === "PLAYING"
+                ? "En joc"
+                : game.state === "FINISHED"
+                  ? "Partida finalitzada"
+                  : "Preparació"
+            }}</span>
+            <h2 id="round-title">Ronda {{ game.roundNumber }} de {{ game.game.maxRounds }}</h2>
+          </div>
+        </div>
+        @if (game.state === "PLAYING") {
+          <details class="participants">
+            <summary>{{ actedCount() }} de {{ activePlayers().length }} participants han actuat</summary>
+            <ul>
+              @for (player of activePlayers(); track player.id) {
+                <li>
+                  {{ player.nickname }} ·
+                  {{
+                    player.accusedThisRound
+                      ? "Ha fet una acusació"
+                      : player.askedThisRound
+                        ? "Ha preguntat"
+                        : "Pendent"
+                  }}
+                </li>
+              }
+            </ul>
+          </details>
+          <div class="round-actions">
+            <button type="button" (click)="forceRound(id)" [disabled]="advancing() || revealing() !== null">
+              <i class="pi pi-forward" aria-hidden="true"></i>
+              {{
+                advancing()
+                  ? "Avançant…"
+                  : game.roundNumber >= game.game.maxRounds
+                    ? "Finalitzar partida"
+                    : "Forçar ronda"
+              }}
+            </button>
+            @if (nextClue(); as next) {
+              <button
+                type="button"
+                class="primary"
+                (click)="revealClue(id, next.id)"
+                [disabled]="revealing() !== null || advancing()"
+              >
+                <i class="pi pi-eye" aria-hidden="true"></i>
+                {{ revealing() === next.id ? "Mostrant…" : "Revelar pista següent" }}
+              </button>
+            }
+          </div>
+        }
+        @if (actionError()) {
+          <p class="error" role="alert">{{ actionError() }}</p>
+        }
+      </section>
+      <nav class="view-switch" aria-label="Vista de seguiment">
+        <button type="button" [attr.aria-pressed]="view() === 'chat'" (click)="view.set('chat')">Xat</button
+        ><button type="button" [attr.aria-pressed]="view() === 'clues'" (click)="view.set('clues')">
+          Pistes · {{ pendingCount() }} pendents
+        </button>
+      </nav>
+      <div class="columns" [class.show-clues]="view() === 'clues'">
+        <div class="chat"><app-chat-view [gameId]="id" /></div>
+        <section class="panel clues" aria-labelledby="clues-title">
+          <div class="clues-heading">
+            <h2 id="clues-title"><i class="pi pi-search" aria-hidden="true"></i> Pistes</h2>
+            <span class="eyebrow">Només per al màster</span>
+          </div>
+          <p class="help">
+            Les pistes es mostren automàticament a l’inici de la ronda prevista. Pots avançar qualsevol pista
+            pendent amb «Ensenyar ara»: apareixerà al xat de tots els participants.
+          </p>
+          <div class="totals">
+            <span
+              ><strong>{{ shownCount() }}</strong> mostrades</span
+            ><span
+              ><strong>{{ pendingCount() }}</strong> pendents</span
+            >
+          </div>
+          <p class="announcement" role="status">{{ announcement() }}</p>
+          @if (clueError()) {
+            <p class="error" role="alert">{{ clueError() }}</p>
+          }
+          @for (group of clueGroups(); track group.round) {
+            <div class="round-group" [class.current]="group.round === game.roundNumber">
+              <h3>
+                <button
+                  type="button"
+                  class="round-toggle"
+                  [attr.aria-expanded]="isRoundOpen(group.round)"
+                  [attr.aria-controls]="'clue-round-' + group.round"
+                  (click)="toggleRound(group.round)"
+                >
+                  <span class="round-name"
+                    >Ronda {{ group.round }}
+                    @if (group.round === game.roundNumber) {
+                      <span class="current-label">Actual</span>
+                    }</span
+                  ><span class="round-counts"
+                    >{{ group.shown }} mostrades · {{ group.pending }} pendents
+                    <i
+                      [class]="isRoundOpen(group.round) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'"
+                      aria-hidden="true"
+                    ></i
+                  ></span>
+                </button>
+              </h3>
+              <div [id]="'clue-round-' + group.round" [hidden]="!isRoundOpen(group.round)">
+                <ol class="clue-list">
+                  @for (clue of group.entries; track clue.id; let index = $index) {
+                    <li class="clue-card" [class.published]="clue.published">
+                      <div class="clue-heading">
+                        <span class="clue-number">{{ index + 1 }}</span>
+                        <h4>{{ clueTitles[clue.type] }}</h4>
+                        <span class="badge" [class.shown]="clue.published">{{
+                          clue.published ? "Mostrada" : "Pendent"
+                        }}</span>
+                      </div>
+                      <div class="clue-body">
+                        <p><strong class="field-label">Fet</strong>{{ clue.text }}</p>
+                        <p>
+                          <strong class="field-label context-label">Context</strong>Pista
+                          {{ clue.isTrue ? "veraç" : "enganyosa" }} de l’expedient, prevista per a la ronda
+                          {{ clue.roundNumber }}.
+                        </p>
+                        <p>
+                          <strong class="field-label context-label">Implicació</strong
+                          >{{ clueImplications[clue.type] }}
+                        </p>
+                      </div>
+                      <div class="clue-footer">
+                        @if (clue.published) {
+                          <div class="publication">
+                            <span
+                              ><i class="pi pi-check-circle" aria-hidden="true"></i> Mostrada a la ronda
+                              {{ clue.revealedRound ?? clue.roundNumber }}</span
+                            >
+                            @if (clue.revealedAt !== undefined) {
+                              <time>{{ clue.revealedAt | date: "dd/MM/yyyy · HH:mm:ss" }}</time>
+                            }
+                            <span class="delivery-method">{{
+                              clue.revealMethod === "manual"
+                                ? "Ensenyada pel màster"
+                                : clue.revealMethod === "automatic"
+                                  ? "Automàtica a l’inici de ronda"
+                                  : "Registrada a l’historial"
+                            }}</span
+                            ><span class="scheduled">Prevista: ronda {{ clue.roundNumber }}</span>
+                          </div>
+                        } @else {
+                          <span class="scheduled"
+                            ><i class="pi pi-clock" aria-hidden="true"></i> Inici de la ronda
+                            {{ clue.roundNumber }}</span
+                          >
+                          @if (game.state === "PLAYING") {
+                            <button
+                              type="button"
+                              class="primary reveal-button"
+                              (click)="revealClue(id, clue.id)"
+                              [disabled]="revealing() !== null || advancing()"
+                              [attr.aria-label]="
+                                'Ensenyar ara la pista ' + (index + 1) + ' de la ronda ' + group.round
+                              "
+                            >
+                              {{ revealing() === clue.id ? "Mostrant…" : "Ensenyar ara" }}
+                            </button>
+                          }
+                        }
+                      </div>
+                    </li>
+                  } @empty {
+                    <li class="empty">No hi ha pistes preparades per a aquesta ronda.</li>
+                  }
+                </ol>
+              </div>
+            </div>
+          } @empty {
+            <p class="empty">Encara no hi ha pistes preparades.</p>
+          }
+          @if (game.state !== "PLAYING") {
+            <p class="help">La revelació manual està disponible mentre la partida està en curs.</p>
+          }
+        </section>
+      </div>
+    } @else if (snapshot() === null) {
+      <p role="alert">No s’ha pogut carregar el seguiment de la partida.</p>
+      <button type="button" (click)="refresh.next()">Tornar-ho a provar</button>
+    } @else {
+      <p role="status">Carregant el seguiment de la partida…</p>
+    }
+  } @else {
+    <p>No hi ha cap partida activa.</p>
+  }
+</main>
