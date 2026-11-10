@@ -58,13 +58,6 @@
                   </div>
                 }
 
-                @if (player.character.rumor) {
-                  <div>
-                    <span class="font-bold italic text-purple-600">Rumor:</span>
-                    <p>{{ player.character.rumor }}</p>
-                  </div>
-                }
-
                 @if (player.character.secret) {
                   <div>
                     <span class="font-bold italic text-orange-600">Secret:</span>
@@ -79,20 +72,6 @@
                 <div class="assassin-secret">
                   🔒 Secret del teu personatge: {{ (player.isAssassin || player.id === assassinId()) ? "ets l'assassí." : "no ets l'assassí." }}
                 </div>
-
-                @if (player.character.relationships) {
-                  <div>
-                    <span class="font-bold italic">Relacions:</span>
-                    <p>{{ player.character.relationships }}</p>
-                  </div>
-                }
-
-                @if (player.character.tensions) {
-                  <div>
-                    <span class="font-bold italic text-pink-600">Tensions:</span>
-                    <p>{{ player.character.tensions }}</p>
-                  </div>
-                }
               }
             } @else {
               <p-message severity="info" text="Esperant assignació de personatge..."></p-message>
