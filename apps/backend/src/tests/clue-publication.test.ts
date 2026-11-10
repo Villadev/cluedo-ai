@@ -89,3 +89,55 @@ test('historial amb IDs i sense IDs: assigna les pistes antigues sense confondre
   engine.revealClue(game.id, 'other');
   assert.equal(store.getById(game.id)!.chatHistory.length, 2);
 });
+
+test('inici real: desa totes les pistes de la ronda 1 abans de difondre-les i sobreviuen a una recàrrega', async () => {
+  const { engine, store, game } = setup('PLAYER_INFO');
+  const initial = store.getById(game.id)!;
+  initial.clues.push(clue('initial-other', 1));
+  store.save(initial);
+  const broadcastIds: string[] = [];
+  engine.setSystemEventListener((_id, text, type, round, sequenceId, timestamp) => {
+    if (type !== 'clue') return;
+    // Each listener models a client requesting fresh state immediately on receipt.
+    const saved = store.getById(game.id)!;
+    const published = saved.chatHistory.find(message => message.sequenceId === sequenceId);
+    assert.equal(saved.state, 'PLAYING');
+    assert.equal(round, 1);
+    assert.equal(published?.message, text);
+    assert.equal(published?.timestamp, timestamp);
+    assert.ok(published?.clueId);
+    broadcastIds.push(published.clueId);
+    for (const entry of saved.clues.filter(candidate => candidate.roundNumber === 1)) {
+      assert.equal(entry.revealMethod, 'automatic');
+      assert.equal(entry.revealedRound, 1);
+      assert.ok(entry.revealedAt);
+      assert.equal(saved.chatHistory.filter(message => message.clueId === entry.id).length, 1);
+    }
+    assert.deepEqual(engine.getPublicState(game.id).clues.map(entry => entry.id), ['initial', 'initial-other']);
+  });
+
+  await engine.playGame(game.id);
+  assert.deepEqual(broadcastIds, ['initial', 'initial-other']);
+  const restarted = new GameEngine(store, new AIService());
+  const reloadedEvents: string[] = [];
+  restarted.setSystemEventListener((_id, text) => { reloadedEvents.push(text); });
+  const tracked = restarted.getDebugData(game.id).clues.filter(entry => entry.roundNumber === 1);
+  assert.equal(tracked.length, 2);
+  assert.ok(tracked.every(entry => entry.revealedAt !== undefined && entry.revealMethod === 'automatic'));
+  assert.deepEqual(restarted.getPublicState(game.id).clues.map(entry => entry.id), ['initial', 'initial-other']);
+  restarted.revealClue(game.id, 'initial');
+  restarted.revealClue(game.id, 'initial-other');
+  assert.deepEqual(reloadedEvents, []);
+  assert.equal(store.getById(game.id)!.chatHistory.filter(message => message.type === 'clue').length, 2);
+  assert.equal(store.getById(game.id)!.timeline.filter(event => event.type === 'CLUE').length, 2);
+});
+
+test('una fallada de persistència no difon una pista que encara no està desada', () => {
+  const { engine, store, game, events } = setup();
+  store.save = () => { throw new Error('Error de persistència de prova'); };
+  assert.throws(() => engine.revealClue(game.id, 'future'), /Error de persistència de prova/);
+  assert.deepEqual(events, []);
+  const saved = store.getById(game.id)!;
+  assert.equal(saved.chatHistory.length, 0);
+  assert.equal(saved.clues.find(entry => entry.id === 'future')?.revealedAt, undefined);
+});
