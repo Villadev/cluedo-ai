@@ -1,9 +1,10 @@
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { auditTime, catchError, filter, map, merge, of, Subject, switchMap } from 'rxjs';
 import { ChatViewComponent } from '../../components/chat-view/chat-view.component';
-import { ChatHistoryMessage, GameApiService } from '../../services/game-api.service';
+import { ChatHistoryMessage, GameApiService, TrackedClue } from '../../services/game-api.service';
 import { WebSocketService } from '../../services/websocket.service';
 
 interface TrackingSnapshot {
@@ -11,90 +12,15 @@ interface TrackingSnapshot {
   roundNumber: number;
   game: { maxRounds: number; chatHistory: ChatHistoryMessage[] };
   players: { id: string; nickname: string; type: string; askedThisRound: boolean; accusedThisRound: boolean; isEliminated?: boolean }[];
-  clues: { id: string; text: string; roundNumber: number }[];
+  clues: TrackedClue[];
 }
 
 @Component({
   selector: 'app-chat-history-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ChatViewComponent],
-  template: `
-    <main class="history-page">
-      <header>
-        <h1>Seguiment de partida</h1>
-        <a routerLink="/control-center">Tornar al centre de control</a>
-      </header>
-      @if (gameId(); as id) {
-        @if (snapshot(); as game) {
-          <section class="panel round" aria-labelledby="round-title">
-            <h2 id="round-title">Ronda {{ game.roundNumber }} de {{ game.game.maxRounds }}</h2>
-            @if (game.state === 'PLAYING') {
-              <details>
-                <summary>{{ actedCount() }} de {{ activePlayers().length }} participants han actuat</summary>
-                <ul>
-                  @for (player of activePlayers(); track player.id) {
-                    <li>{{ player.nickname }} · {{ player.accusedThisRound ? 'Ha fet una acusació' : player.askedThisRound ? 'Ha preguntat' : 'Pendent' }}</li>
-                  }
-                </ul>
-              </details>
-              <button type="button" (click)="forceRound(id)" [disabled]="advancing()">
-                {{ advancing() ? 'Avançant…' : game.roundNumber >= game.game.maxRounds ? 'Finalitzar partida' : 'Forçar ronda' }}
-              </button>
-            }
-            @if (actionError()) { <p role="alert">{{ actionError() }}</p> }
-          </section>
-        } @else if (snapshot() === null) {
-          <p role="alert">No s’ha pogut carregar el seguiment de la partida.</p>
-          <button type="button" (click)="refresh.next()">Tornar-ho a provar</button>
-        }
-        <nav class="view-switch" aria-label="Vista de seguiment">
-          <button type="button" [attr.aria-pressed]="view() === 'chat'" (click)="view.set('chat')">Xat</button>
-          <button type="button" [attr.aria-pressed]="view() === 'clues'" (click)="view.set('clues')">Pistes</button>
-        </nav>
-        <div class="columns" [class.show-clues]="view() === 'clues'">
-          <div class="chat"><app-chat-view [gameId]="id" /></div>
-          <section class="panel clues" aria-labelledby="clues-title" tabindex="0">
-            <h2 id="clues-title">Pistes</h2>
-            @for (group of clueGroups(); track group.round) {
-              <h3>Ronda {{ group.round }}</h3>
-              <ol>
-                @for (clue of group.entries; track clue.id) {
-                  <li>
-                    <strong>{{ clue.published ? 'Publicada' : 'Pendent' }}</strong>
-                    <p>{{ clue.text }}</p>
-                  </li>
-                }
-              </ol>
-            } @empty {
-              <p>Encara no hi ha pistes preparades.</p>
-            }
-          </section>
-        </div>
-      } @else {
-        <p>No hi ha cap partida activa.</p>
-      }
-    </main>
-  `,
-  styles: [`
-    .history-page { max-width: 1250px; margin: auto; padding: clamp(1rem, 3vw, 2.5rem); }
-    header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
-    h2 { margin-top: 0; font-size: 1.15rem; }
-    .panel { min-width: 0; background: var(--surface-card); border: 1px solid var(--surface-border); border-radius: 16px; padding: 1rem; }
-    .round { margin-bottom: 1rem; }
-    summary { cursor: pointer; margin-bottom: .75rem; }
-    .columns { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1rem; align-items: start; }
-    .clues { max-height: 80vh; overflow: auto; overscroll-behavior: contain; overflow-wrap: anywhere; }
-    .clues li + li { margin-top: .75rem; }
-    .clues p { margin: .25rem 0; }
-    button { border: 1px solid var(--surface-border); border-radius: .6rem; padding: .65rem 1rem; background: var(--surface-hover); color: var(--master-blue); cursor: pointer; }
-    button[aria-pressed='true'] { background: var(--primary-color); color: var(--primary-color-text); }
-    .view-switch { display: none; }
-    @media (max-width: 760px) {
-      .view-switch { display: flex; gap: .5rem; margin-bottom: 1rem; }
-      .columns { display: block; }
-      .columns:not(.show-clues) .clues, .show-clues .chat { display: none; }
-    }
-  `]
+  imports: [RouterLink, ChatViewComponent, DatePipe],
+  templateUrl: './chat-history-page.component.html',
+  styleUrl: './chat-history-page.component.scss'
 })
 export class ChatHistoryPageComponent {
   private readonly api = inject(GameApiService);
@@ -102,6 +28,20 @@ export class ChatHistoryPageComponent {
   protected readonly gameId = this.api.gameId;
   protected readonly view = signal<'chat' | 'clues'>('chat');
   protected readonly advancing = signal(false);
+  protected readonly revealing = signal<string | null>(null);
+  protected readonly clueError = signal('');
+  protected readonly announcement = signal('');
+  private readonly expandedRounds = signal<Record<string, boolean>>({});
+  protected readonly clueTitles: Record<TrackedClue['type'], string> = {
+    witness: 'Testimoni o coartada', evidence: 'Prova del cas',
+    contradiction: 'Contradicció', rumor: 'Rumor'
+  };
+  protected readonly clueImplications: Record<TrackedClue['type'], string> = {
+    witness: 'Cal contrastar aquesta declaració amb altres testimonis o proves.',
+    evidence: 'Compareu aquesta informació amb les coartades i la resta de proves.',
+    contradiction: 'Permet contrastar versions dels fets que no coincideixen.',
+    rumor: 'És una informació que cal verificar abans de treure conclusions.'
+  };
   protected readonly actionError = signal('');
   protected readonly refresh = new Subject<void>();
   protected readonly snapshot = toSignal(toObservable(this.gameId).pipe(
@@ -112,7 +52,7 @@ export class ChatHistoryPageComponent {
         of(null),
         this.refresh,
         this.socket.events$.pipe(
-          filter(({ event }) => ['game_state_update', 'game_state_updated', 'resync_data'].includes(event)),
+          filter(({ event }) => ['game_state_update', 'game_state_updated', 'resync_data', 'chat_message'].includes(event)),
           auditTime(100)
         )
       ).pipe(switchMap(() => this.api.getDebug(id).pipe(
@@ -131,22 +71,60 @@ export class ChatHistoryPageComponent {
   protected readonly clueGroups = computed(() => {
     const snapshot = this.snapshot();
     if (!snapshot) return [];
-    const rounds = [...new Set(snapshot.clues.map(clue => clue.roundNumber))].sort((a, b) => a - b);
+    const rounds = [...new Set([
+      ...Array.from({ length: snapshot.game.maxRounds }, (_, index) => index + 1),
+      ...snapshot.clues.map(clue => clue.roundNumber)
+    ])].sort((a, b) => a - b);
     return rounds.map(round => {
-      const published = snapshot.game.chatHistory.filter(message => message.type === 'clue' && message.roundNumber === round);
-      const legacy = published.filter(message => !message.clueId);
+      const published = snapshot.game.chatHistory.filter(message => message.type === 'clue');
+      const legacy = published.filter(message => !message.clueId && message.roundNumber === round);
       const entries = snapshot.clues.filter(clue => clue.roundNumber === round).map(clue => {
         const message = published.find(entry => entry.clueId === clue.id) ?? legacy.shift();
-        return { id: clue.id, text: message?.message ?? clue.text, published: !!message, order: message?.sequenceId };
+        return { ...clue, text: message?.message ?? clue.text,
+          published: clue.revealedAt !== undefined || !!message,
+          revealedAt: clue.revealedAt ?? message?.timestamp,
+          revealedRound: clue.revealedRound ?? message?.roundNumber };
       });
-      entries.sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
-      return { round, entries };
+      return { round, entries, shown: entries.filter(clue => clue.published).length,
+        pending: entries.filter(clue => !clue.published).length };
     });
   });
+  protected readonly shownCount = computed(() => this.clueGroups().reduce((total, group) => total + group.shown, 0));
+  protected readonly pendingCount = computed(() => this.clueGroups().reduce((total, group) => total + group.pending, 0));
+  protected readonly nextClue = computed(() => this.clueGroups().flatMap(group => group.entries).find(clue => !clue.published));
+
+  protected isRoundOpen(round: number): boolean {
+    return this.expandedRounds()[`${this.gameId()}:${round}`] ?? round === this.snapshot()?.roundNumber;
+  }
+
+  protected toggleRound(round: number): void {
+    const open = this.isRoundOpen(round);
+    this.expandedRounds.update(rounds => ({ ...rounds, [`${this.gameId()}:${round}`]: !open }));
+  }
+
+  protected revealClue(id: string, clueId: string): void {
+    if (this.snapshot()?.state !== 'PLAYING' || this.revealing() || this.advancing()) return;
+    this.revealing.set(clueId);
+    this.clueError.set('');
+    this.announcement.set('');
+    this.api.revealClue(id, clueId).subscribe({
+      next: response => {
+        if (!response.success) this.clueError.set(response.error || 'No s’ha pogut ensenyar la pista. Torna-ho a provar.');
+        else this.announcement.set('Pista mostrada al xat de tots els participants.');
+        this.revealing.set(null);
+        this.refresh.next();
+      },
+      error: () => {
+        this.clueError.set('No s’ha pogut confirmar la publicació. Revisem l’estat; pots tornar-ho a provar sense duplicar la pista.');
+        this.revealing.set(null);
+        this.refresh.next();
+      }
+    });
+  }
 
   protected forceRound(id: string): void {
     const game = this.snapshot();
-    if (!game || game.state !== 'PLAYING' || this.advancing()) return;
+    if (!game || game.state !== 'PLAYING' || this.advancing() || this.revealing()) return;
     if (game.roundNumber >= game.game.maxRounds && !window.confirm('Vols finalitzar la partida?')) return;
     this.advancing.set(true);
     this.actionError.set('');

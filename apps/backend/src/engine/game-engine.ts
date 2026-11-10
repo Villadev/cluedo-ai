@@ -30,6 +30,10 @@ import { generateId, nowIso } from '../utils/id.js';
 import { HttpError } from '../utils/http-error.js';
 import { telemetryService } from "../services/telemetry.service.js";
 import { errorLogger } from '../utils/error-logger.js';
+import {
+  applyCluePublication, findClueMessage, getClueForManualReveal,
+  getCluesForAutomaticReveal, isCluePublished, type ClueRevealMethod
+} from '../game/clue-publication.js';
 import { WEAPONS, LOCATIONS } from '../config/game-options.js';
 
 const MAX_PLAYERS = 17;
@@ -289,7 +293,7 @@ export class GameEngine {
         type: p.type
       })),
       clues: game.clues
-        .filter(c => c.roundNumber <= game.roundNumber)
+        .filter(c => isCluePublished(game, c))
         .map(c => ({
           id: c.id,
           text: c.text,
@@ -481,19 +485,31 @@ export class GameEngine {
     this.store.save(game);
   }
 
-  private revealCluesForRound(game: Game, roundNumber: number): void {
-    for (const clue of game.clues.filter(entry => entry.roundNumber === roundNumber)) {
-      const text = clue.text || 'Pista no disponible temporalment';
-      const { seq, timestamp } = this.pushSystemMessage(game, text, 'clue', clue.id);
-      this.recordTimelineEvent(game, {
-        type: 'CLUE',
-        roundNumber,
-        text,
-        isTrue: clue.isTrue,
-        description: `Pista revelada: ${text}`
-      });
-      this.onSystemEvent?.(game.id, text, 'clue', roundNumber, seq, timestamp);
+  private publishClues(game: Game, clues: Clue[], method: ClueRevealMethod): void {
+    const messages: ChatMessage[] = [];
+    for (const clue of clues) {
+      const message = applyCluePublication(game, clue, method);
+      if (message) messages.push(message);
     }
+    if (!messages.length) return;
+
+    // Persist the entire batch before notifying clients, including the first round.
+    this.store.save(game);
+    for (const message of messages) {
+      this.onSystemEvent?.(game.id, message.message, message.type,
+        message.roundNumber, message.sequenceId, message.timestamp);
+    }
+  }
+
+  private revealCluesForRound(game: Game, roundNumber: number): void {
+    this.publishClues(game, getCluesForAutomaticReveal(game, roundNumber), 'automatic');
+  }
+
+  public revealClue(gameId: string, clueId: string): Clue {
+    const game = this.getGameOrThrow(gameId);
+    const clue = getClueForManualReveal(game, clueId);
+    this.publishClues(game, [clue], 'manual');
+    return clue;
   }
 
   public updateDifficulty(gameId: string, difficulty: Difficulty): Game {
@@ -584,7 +600,7 @@ export class GameEngine {
   private getGameOrThrow(gameId: string): Game {
     const game = this.store.getById(gameId);
     if (!game) {
-      throw new Error('Partida no trobada');
+      throw new HttpError(404, 'Partida no trobada');
     }
     if (game.maxRounds === undefined) {
       game.maxRounds = 5;
@@ -622,7 +638,11 @@ export class GameEngine {
       game,
       players: game.players,
       characters: game.characters,
-      clues: game.clues,
+      clues: game.clues.map(clue => {
+        const message = findClueMessage(game, clue);
+        return { ...clue, revealedAt: clue.revealedAt ?? message?.timestamp,
+          revealedRound: clue.revealedRound ?? message?.roundNumber };
+      }),
       roundNumber: game.roundNumber,
       nextSequenceId: game.nextSequenceId,
       state: game.state,

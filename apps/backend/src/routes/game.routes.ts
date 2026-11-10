@@ -179,6 +179,53 @@ gameRouter.get('/:id/intro', asyncHandler((req: Request, res: Response) => contr
 
 /**
  * @openapi
+ * /game/{id}/clues/{clueId}/reveal:
+ *   post:
+ *     summary: Ensenyar una pista ara
+ *     description: Publica la pista al xat de tots els participants durant la ronda actual, encara que estigui prevista per a una ronda futura. Desa el moment, la ronda i el mode de publicació. Repetir la petició no duplica la pista; la publicació automàtica posterior també l’omet.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: ID de la partida
+ *         schema: { type: string, format: uuid }
+ *       - in: path
+ *         name: clueId
+ *         required: true
+ *         description: ID de la pista de la partida
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Pista publicada o ja mostrada anteriorment.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean }
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id: { type: string, format: uuid }
+ *                     text: { type: string }
+ *                     type: { type: string, enum: [rumor, witness, contradiction, evidence] }
+ *                     isTrue: { type: boolean }
+ *                     roundNumber: { type: integer, description: Ronda programada }
+ *                     createdAt: { type: string, format: date-time }
+ *                     revealedAt: { type: number, description: Moment de publicació en mil·lisegons Unix; opcional en partides antigues }
+ *                     revealedRound: { type: integer, description: Ronda real de publicació }
+ *                     revealMethod: { type: string, enum: [automatic, manual] }
+ *       400:
+ *         description: Identificadors invàlids.
+ *       404:
+ *         description: Partida o pista inexistent.
+ *       409:
+ *         description: La partida no està en curs.
+ */
+gameRouter.post('/:id/clues/:clueId/reveal', asyncHandler((req: Request, res: Response) => controller.revealClue(req, res)));
+
+/**
+ * @openapi
  * /game/{id}/clues/round/{roundNumber}:
  *   get:
  *     summary: Obtenir pistes per ronda
@@ -261,7 +308,7 @@ gameRouter.post('/:id/timeline/log', asyncHandler((req: Request, res: Response) 
  * /game/{id}/debug:
  *   get:
  *     summary: Obtenir dades de depuració
- *     description: Retorna l'estat complet de la partida per a fins de depuració.
+ *     description: Retorna l’estat complet de la partida per a fins de depuració. Les pistes inclouen revealedAt (mil·lisegons Unix), revealedRound (ronda real) i revealMethod (automatic o manual) quan estan disponibles; en partides antigues, el moment i la ronda es recuperen de l’historial.
  *     parameters:
  *       - in: path
  *         name: id
@@ -421,7 +468,7 @@ gameRouter.get('/:id/state', asyncHandler((req: Request, res: Response) => contr
  * /game/{id}:
  *   get:
  *     summary: Obtenir estat de la partida
- *     description: Retorna l'estat públic actual d'una partida.
+ *     description: Retorna l’estat públic actual d’una partida. Només inclou pistes ja publicades al xat, també les de rondes futures que el màster hagi ensenyat anticipadament.
  *     parameters:
  *       - in: path
  *         name: id

@@ -36,6 +36,17 @@ export interface PublicClueView {
   createdAt: string;
 }
 
+export interface TrackedClue {
+  id: string;
+  text: string;
+  type: 'rumor' | 'witness' | 'contradiction' | 'evidence';
+  isTrue: boolean;
+  roundNumber: number;
+  revealedAt?: number;
+  revealedRound?: number;
+  revealMethod?: 'automatic' | 'manual';
+}
+
 export interface PublicPlayerView {
   id: string;
   code?: string;
@@ -317,6 +328,10 @@ export class GameApiService {
 
   forceNextRound(gameId: string): Observable<ApiResponse<any>> {
     return this.http.post<ApiResponse<any>>(`${this.baseUrl}/game/${gameId}/force-next-round`, {});
+  }
+
+  revealClue(gameId: string, clueId: string): Observable<ApiResponse<TrackedClue>> {
+    return this.http.post<ApiResponse<TrackedClue>>(`${this.baseUrl}/game/${gameId}/clues/${clueId}/reveal`, {});
   }
 
   getParticipants(gameId: string): Observable<ApiResponse<PublicPlayerView[]>> {
