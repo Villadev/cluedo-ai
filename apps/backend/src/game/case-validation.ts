@@ -1,4 +1,5 @@
 import type { AIServiceCharacter, FullCase, RelationshipMatrix } from '../types/game.types.js';
+import { describeAlibi } from './alibi-text.js';
 export const normalizeName = (name: string) => name.trim().toLocaleLowerCase('ca');
 export function exactNames(actual: string[], expected: string[]): boolean {
   const names = actual.map(normalizeName);
@@ -66,7 +67,7 @@ export function buildCanonicalTimeline(caseData: Pick<FullCase, 'assassin' | 'lo
       minutes(a.timeEnd) > minutes(caseData.crimeWindow.start);
     return {
       characterName: c.name,
-      text: `${c.name} declara que era a ${a.location} de ${a.timeStart} a ${a.timeEnd}; testimoni declarat: ${a.witness}.`,
+      text: describeAlibi(c),
       verified: false,
       conflictsWithTruth
     };
