@@ -1,4 +1,4 @@
-import { inject, Injectable, OnDestroy } from '@angular/core';
+import { inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { BehaviorSubject, Subject, Subscription } from 'rxjs';
 import { ChatMessage, ChatMessageType, SocketGameEvent } from '../models/chat.models';
 import { WebSocketService } from './websocket.service';
@@ -18,6 +18,16 @@ export class ChatService implements OnDestroy {
 
   private readonly errorSubject = new Subject<string>();
   readonly error$ = this.errorSubject.asObservable();
+
+  readonly waitingForNarrator = signal(false);
+  private pendingPlayerId: string | null = null;
+  private pendingResponseSequence: number | null = null;
+
+  cancelPendingQuestion(): void {
+    this.waitingForNarrator.set(false);
+    this.pendingPlayerId = null;
+    this.pendingResponseSequence = null;
+  }
 
   public currentGameId: string | null = null;
 
@@ -47,10 +57,13 @@ export class ChatService implements OnDestroy {
   }
 
   sendQuestion(gameId: string, playerId: string, message: string): void {
+    this.pendingPlayerId = playerId;
+    this.waitingForNarrator.set(true);
     this.websocketService.sendQuestion(gameId, playerId, message);
   }
 
   clear(): void {
+    this.cancelPendingQuestion();
     this.messagesSubject.next([]);
     this.canAskQuestionSubject.next(true);
     this.currentGameId = null;
@@ -58,6 +71,7 @@ export class ChatService implements OnDestroy {
 
   loadHistory(gameId: string): void {
     this.currentGameId = gameId;
+    this.messagesSubject.next(this.messagesSubject.value.map(message => ({ ...message, animate: false })));
     this.gameService.getChatHistory(gameId).subscribe({
       next: (response) => {
         if (response.success && response.data) {
@@ -95,6 +109,7 @@ export class ChatService implements OnDestroy {
   }
 
   private handleError(payload: any): void {
+    this.cancelPendingQuestion();
     let message = 'S’ha produït un error.';
     if (typeof payload === 'string') {
       message = payload;
@@ -113,9 +128,12 @@ export class ChatService implements OnDestroy {
   }
 
   private applyResyncedHistory(history: ChatHistoryMessage[]): void {
+    if (this.pendingResponseSequence !== null && history.some(message => message.sequenceId === this.pendingResponseSequence)) {
+      this.cancelPendingQuestion();
+    }
     const typeMap: Record<string, ChatMessageType> = {
       'player': 'question',
-      'narrator': 'response', 'response': 'response',
+      'narrator' : 'response', 'response': 'response',
       'system': 'system',
       'clue': 'clue'
     };
@@ -165,8 +183,16 @@ export class ChatService implements OnDestroy {
       round: data.roundNumber,
       sequenceId: data.sequenceId
     };
+    message.animate = true;
+    if (message.type === 'question' && data.playerId === this.pendingPlayerId) {
+      this.pendingResponseSequence = message.sequenceId !== undefined ? message.sequenceId + 1 : null;
+    }
+    if (message.type === 'response' && this.pendingResponseSequence !== null && message.sequenceId === this.pendingResponseSequence) {
+      this.cancelPendingQuestion();
+    }
     this.addMessage(message);
   }
 
 
 }
+

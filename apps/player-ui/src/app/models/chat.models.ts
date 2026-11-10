@@ -8,6 +8,7 @@ export interface ChatMessage {
   timestamp: Date;
   round?: number;
   sequenceId?: number;
+  animate?: boolean;
 }
 
 export type SocketGameEventName =
@@ -30,3 +31,4 @@ export interface SocketGameEvent<TPayload = any> {
   event: SocketGameEventName;
   payload: TPayload;
 }
+

@@ -6,7 +6,6 @@ import { Subscription, tap } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from "primeng/dialog";
 import { CardModule } from 'primeng/card';
-import { InputTextareaModule } from 'primeng/inputtextarea';
 import { ProgressSpinnerModule } from 'primeng/progressspinner';
 import { ChatService } from '../../services/chat.service';
 import { TtsService } from '../../services/tts.service';
@@ -21,14 +20,12 @@ import { SocketGameEvent } from '../../models/chat.models';
 
 @Component({
   selector: 'app-game-page',
-  standalone: true,
   imports: [
     ReactiveFormsModule,
     AsyncPipe,
     DatePipe,
     CardModule,
     GameStatusIndicatorComponent,
-    InputTextareaModule,
     ButtonModule,
     ProgressSpinnerModule,
     DialogModule
@@ -55,6 +52,11 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   protected readonly chatMessages$ = this.chatService.messages$.pipe(
     tap(() => this.scrollToBottomRequested = true)
   );
+  protected readonly waitingForNarrator = this.chatService.waitingForNarrator;
+  protected readonly sendingAnimation = signal(false);
+  protected readonly chatError = signal('');
+  private sendAnimationTimer?: ReturnType<typeof setTimeout>;
+  private isConnected = false;
   protected readonly connected$ = this.websocketService.connected$;
   protected readonly reconnecting$ = this.websocketService.reconnecting$;
   protected readonly canAskQuestion$ = this.chatService.canAskQuestion$;
@@ -136,9 +138,15 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
     );
 
     // Revertir askedThisRound si hi ha error al xat
+    this.subscriptions.add(this.connected$.subscribe(connected => {
+      this.isConnected = connected;
+      if (!connected) this.chatService.cancelPendingQuestion();
+    }));
     this.subscriptions.add(
-      this.chatService.error$.subscribe(() => {
+      this.chatService.error$.subscribe(message => {
+        this.chatError.set(message);
         this.askedThisRound.set(false);
+        this.chatService.cancelPendingQuestion();
       })
     );
   }
@@ -166,6 +174,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
       const oldState = this.gameState();
       const newState = payload.state as GameState;
       this.gameStateService.setState(newState);
+      if (newState !== 'PLAYING') this.chatService.cancelPendingQuestion();
 
       // Trigger modal ONLY on transition to FINISHED
       if (newState === "FINISHED" && oldState !== "FINISHED") {
@@ -180,6 +189,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
       // If round has advanced, reset the "askedThisRound" status locally
       if (payload.roundNumber > oldRound) {
         this.askedThisRound.set(false);
+        this.chatService.cancelPendingQuestion();
       }
     }
 
@@ -237,23 +247,35 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   ngOnDestroy(): void {
     document.removeEventListener("visibilitychange", this.handleVisibilityChange);
+    clearTimeout(this.sendAnimationTimer);
+    this.chatService.cancelPendingQuestion();
     this.subscriptions.unsubscribe();
     this.websocketService.disconnect();
     this.ttsService.stop();
     this.sttService.stop();
   }
 
+  protected onComposerKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && event.isComposing) event.preventDefault();
+  }
+
   protected onSendQuestion(): void {
-    if (this.questionForm.invalid || this.askedThisRound()) {
+    if (this.questionForm.invalid || this.askedThisRound() || this.waitingForNarrator() || !this.isConnected || this.gameState() !== 'PLAYING') {
       return;
     }
 
     const question = this.questionForm.controls.question.value.trim();
-    if (!question) {
+    if (question.length < 3) {
       return;
     }
 
+    this.sttService.stop();
+    this.chatError.set('');
+    this.sendingAnimation.set(true);
+    clearTimeout(this.sendAnimationTimer);
+    this.sendAnimationTimer = setTimeout(() => this.sendingAnimation.set(false), 650);
     this.chatService.sendQuestion(this.gameId, this.playerId, question);
+    this.scrollToBottomRequested = true;
     this.questionForm.reset();
     this.askedThisRound.set(true);
   }
@@ -273,7 +295,7 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
   protected toggleVoice(): void {
     if (this.sttService.isListening()) {
       this.sttService.stop();
-    } else {
+    } else if (!this.askedThisRound() && !this.waitingForNarrator() && this.isConnected && this.gameState() === 'PLAYING') {
       this.sttService.start();
     }
   }
@@ -288,3 +310,4 @@ export class GamePageComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 }
+

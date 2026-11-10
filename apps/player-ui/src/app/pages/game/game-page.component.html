@@ -29,8 +29,8 @@
         </div>
       </p-card>
     } @else {
-      <p-card>
-        <ng-template pTemplate="header">
+      <section class="investigation-chat" aria-label="Xat d’investigació">
+        <header class="chat-header">
           <div class="flex justify-content-between align-items-center p-3 border-bottom-1 border-gray-200">
             <div class="flex flex-column gap-1">
               <h2 class="text-xl font-bold m-0">Xat d'investigació</h2>
@@ -51,28 +51,38 @@
               }
             </div>
           </div>
-        </ng-template>
+        </header>
 
-        <div #chatList class="chat-list mb-3" tabindex="0" role="region" aria-label="Xat d’investigació">
+        <div #chatList class="chat-list" tabindex="0" role="region" aria-label="Xat d’investigació">
           @for (message of (chatMessages$ | async); track message.id) {
-            <article class="chat-message" [class]="'chat-' + message.type">
+            <article class="chat-message" [class]="'chat-' + message.type" [class.message-enter]="message.animate">
               @if (message.sender || message.type === 'clue' || message.type === 'response') {
                 <strong class="chat-sender block mb-1 text-primary">
                   {{ message.sender || (message.type === 'clue' || message.type === 'response' ? 'Narrador 🕵️' : 'Sistema ⚙️') }}:
                 </strong>
               }
 
+              @if (message.type === 'clue') {
+                <span class="clue-badge">NOVA PISTA</span>
+              }
               @if (ttsService.isTtsSupported && (message.type === 'clue' || message.type === 'response')) {
                 <button
                   type="button"
                   class="tts-button p-button-text p-button-rounded p-button-sm"
                   (click)="toggleSpeech(message.id, message.message)"
+                  [attr.aria-label]="ttsService.playingId() === message.id ? 'Aturar narrador' : 'Escoltar narrador'"
                   title="Escoltar narrador">
                   <i class="pi" [class.pi-volume-up]="ttsService.playingId() !== message.id" [class.pi-volume-down]="ttsService.playingId() === message.id"></i>
                 </button>
               }
 
-              <p class="m-0 white-space-pre-wrap">{{ message.message }}</p>
+              @if (message.type === 'response' || message.type === 'clue') {
+                @for (paragraph of message.message.split('\n'); track $index) {
+                  <p class="narrator-paragraph m-0 white-space-pre-wrap" [style.--reveal-delay]="($index < 3 ? $index * 0.2 : 0.4) + 's'">{{ paragraph }}</p>
+                }
+              } @else {
+                <p class="m-0 white-space-pre-wrap">{{ message.message }}</p>
+              }
               <div class="flex justify-content-end mt-1">
                 <small class="text-500">{{ message.timestamp | date: 'shortTime' }}</small>
               </div>
@@ -85,53 +95,51 @@
           }
         </div>
 
-        <form class="chat-input flex flex-column gap-2" [formGroup]="questionForm" (ngSubmit)="onSendQuestion()">
-          <textarea
-            pInputTextarea
-            formControlName="question"
-            aria-label="Pregunta d’investigació"
-            placeholder="Escriu la teva pregunta d'investigació..."
-            class="w-full"
-            [rows]="3"
-            [autoResize]="true"
-            [disabled]="askedThisRound()"></textarea>
-
-          <div class="flex flex-wrap justify-content-end align-items-center gap-2">
-            @if (askedThisRound()) {
-              <span class="text-orange-500 font-medium">
-                Ja has fet una pregunta en aquesta ronda.
-                Hauràs d'esperar la següent.
-              </span>
-            } @else if (sttService.isListening()) {
-              <span class="listening-indicator">
-                <span class="recording-dot"></span>
-                Escoltant...
-              </span>
-            }
+        <form class="chat-input" [formGroup]="questionForm" (ngSubmit)="onSendQuestion()">
+          <div class="input-shell">
+            <input type="text" formControlName="question" autocomplete="off" maxlength="1000"
+              aria-label="Pregunta d’investigació" placeholder="Escriu la teva pregunta d’investigació..."
+              [readOnly]="askedThisRound() || waitingForNarrator() || gameState() !== 'PLAYING'"
+              (keydown)="onComposerKeydown($event)" />
             @if (sttService.isSupported()) {
-              <div class="flex flex-column align-items-end">
-                <button
-                  pButton
-                  type="button"
-                  [icon]="sttService.isListening() ? 'pi pi-stop' : 'pi pi-play'"
-                  [class]="sttService.isListening() ? 'p-button-danger stt-pulse' : 'p-button-secondary'"
-                  (click)="toggleVoice()"
-                  [disabled]="askedThisRound()"
-                  [title]="sttService.isListening() ? 'Aturar veu' : 'Utilitzar veu'"></button>
+              <div class="mic-control">
+                <button type="button" class="composer-button mic-button"
+                  [class.stt-pulse]="sttService.isListening()"
+                  [attr.aria-pressed]="sttService.isListening()"
+                  [attr.aria-label]="sttService.isListening() ? 'Aturar micròfon' : 'Utilitzar micròfon'"
+                  [attr.aria-describedby]="sttService.errorMessage() ? 'mic-error' : null"
+                  [disabled]="askedThisRound() || waitingForNarrator() || !(connected$ | async) || gameState() !== 'PLAYING'"
+                  (click)="toggleVoice()">
+                  <i class="pi" [class.pi-microphone]="!sttService.isListening()" [class.pi-stop]="sttService.isListening()" aria-hidden="true"></i>
+                  @if (sttService.errorMessage()) { <span class="mic-error-dot" aria-hidden="true"></span> }
+                </button>
                 @if (sttService.errorMessage()) {
-                  <small class="text-red-500 mt-1">{{ sttService.errorMessage() }}</small>
+                  <span id="mic-error" class="mic-tooltip" role="status">{{ sttService.errorMessage() }}</span>
                 }
               </div>
             }
-            <button
-              pButton
-              type="submit"
-              icon="pi pi-send"
-              label="Enviar Pregunta"
-              [disabled]="askedThisRound() || questionForm.invalid || !(connected$ | async)"></button>
+            <button type="submit" class="composer-button send-button" aria-label="Enviar pregunta"
+              [disabled]="askedThisRound() || waitingForNarrator() || questionForm.invalid || questionForm.controls.question.value.trim().length < 3 || !(connected$ | async) || gameState() !== 'PLAYING'">
+              <i class="pi pi-send" [class.send-fly]="sendingAnimation()" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="composer-status" role="status" aria-live="polite">
+            @if (chatError()) { <span class="chat-error">{{ chatError() }}</span> }
+            @else if (waitingForNarrator()) {
+              <div class="detective-thinking">
+                <span class="search-icon" aria-hidden="true">🔍</span>
+                <div>El Narrador està analitzant la teva pregunta...
+                  <small><span class="thinking-dots" aria-hidden="true"><span></span><span></span><span></span></span> COMPROVANT ARXIU</small>
+                </div>
+              </div>
+            } @else if (askedThisRound()) {
+              <span>Ja has fet una pregunta en aquesta ronda. Espera la següent.</span>
+            } @else if (sttService.isListening()) {
+              <span class="listening-indicator"><span class="recording-dot" aria-hidden="true"></span>Escoltant...</span>
+            }
           </div>
         </form>
-      </p-card>
+      </section>
     }
   </div>
 
@@ -171,3 +179,4 @@
       (click)="navigateToSolution()"></button>
   </div>
 </p-dialog>
+
